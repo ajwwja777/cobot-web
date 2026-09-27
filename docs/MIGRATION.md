@@ -1,6 +1,8 @@
 # Cobot Web 迁移记录
 
-日期：2026-09-27。当前批次：**网页源码、开发环境和正式 8015 已迁入新目录；旧文件因仍有硬件／RLT 依赖保留。**
+日期：2026-09-27。当前结果：**网页代码、环境、正式 8015、runtime 与 uv 已在新项目；A6000／Cobot／笔记本 ops 目录已删除。旧 cobot-platform、模型与 RLT 仍有依赖，保留。**
+
+以下较早批次保留当时状态；最终路径、删除范围和验证结论见本页末尾“runtime 收尾与旧目录清理”。
 
 用户已明确停止当前任务并授权切换。核对部署、录制和原 RLT 状态后，正常停止残留的故障 Session／学习进程，再切换网页；没有重新启动机械臂、相机或发送运动指令。
 
@@ -10,15 +12,15 @@
 |---|---|
 | A6000 主代码和 Git | `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web` |
 | Cobot 运行副本 | `/home/agilex/jiaan/project/cobot-web` |
-| Cobot uv | `/home/agilex/jiaan/project/cobot-ops/tools/uv` |
-| 日志、PID、uv 缓存 | `/home/agilex/jiaan/project/cobot-ops/runtime/` |
-| 只读预览运行记录 | `/home/agilex/jiaan/project/cobot-ops/runtime/web-preview/` |
+| Cobot uv | `/home/agilex/jiaan/project/cobot-web/tools/uv` |
+| 日志、PID、uv 缓存 | `/home/agilex/jiaan/project/cobot-web/runtime/` |
+| 只读预览运行记录 | `/home/agilex/jiaan/project/cobot-web/runtime/web-preview/` |
 | 新数据根 | `/home/agilex/jiaan/data` |
 | 正式 8015 当前来源 | `/home/agilex/jiaan/project/cobot-web/app/backend` |
 
 仓库：https://github.com/ajwwja777/cobot-web，main。源码提交 `1cf4797f4942f2f27d3815943f7e23cab79452df`；启动依赖隔离修复 `117fe141aea17e9081a1db535e557a155fa136f3`。均已 push 并核验远端一致。
 
-A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进程。当前 Cobot `.release.json` 记录共享模型版本 `3b54cf7`，274 个运行文件 SHA-256 一致。开发测试、Git、模型、数据不随源码同步。文档后续提交可能领先运行副本，运行版本以 .release.json 为准。
+A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进程。共享模型批次 Cobot `.release.json` 记录版本 `3b54cf7`，274 个运行文件 SHA-256 一致。开发测试、Git、模型、数据不随源码同步。文档后续提交可能领先运行副本，运行版本以 .release.json 为准。
 
 ## 原件与成果保留
 
@@ -73,7 +75,7 @@ A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进�
 
 ## 切换与清理状态
 
-目前可清理旧项目的清单为空，旧代码、数据、模型和运行目录全部保留。新目录中仅移除了本批草稿复制产生的重复 `app/backend/pyproject.toml`，使用根目录的唯一依赖声明。
+首批源码迁移时可清理清单为空，原件当时全部保留；最终清理情况见本页末尾。新目录中仅移除了本批草稿复制产生的重复 `app/backend/pyproject.toml`，使用根目录的唯一依赖声明。
 
 ## 8015 切换验收与收尾接口修复
 
@@ -124,3 +126,65 @@ A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进�
 - 没有启动采集、加载模型、执行运动／归位／恢复或停止硬件；未做真实模型回合验收、浏览器目视验收。UI 做了 DOM／错误捕获／脱敏／不重试测试；现场只读与静态资源验证不等于实机操作成功。
 - A6000 证据：`outputs/verification/20260927-cli-recovery/`；Cobot 同项目同相对目录。同步逐文件校验另在 `outputs/deployments/`；运行输出不入 Git。
 - 后续：在所属项目补充现场问题与验收；活跃 runtime 的实体搬迁另选可验收范围，不因此再建立独立 ops 管理层。
+
+## 2026-09-27：runtime 收尾与旧目录清理（已验收）
+
+用户要求验证新框架独立运行后清理旧项目，包括 ops。本批独立性指网页／终端不再依赖 ops 目录；不表示硬件驱动、RLT 和全部模型资产已迁移。
+
+### 实际迁移与删除
+
+- 发现 cobot-web/runtime 原本是指向 cobot-ops/runtime 的软链接；本批移除该链接，将 runtime 和 tools 实体归入 cobot-web。停止写入者后迁移，2,819 个文件／链接条目在改路径前逐项比对一致；保留日志、PID、任务记录、模型／数据目录设置、恢复证据、缓存和 uv。
+- 32 个 uv 缓存绝对链接改成新位置的相对链接；home 历史任务的 log_path 改到迁移后的同一日志。历史启动命令、PID／启动时间与原始事故正文保持真实来源，不批量改写旧证据。
+- 8015、8018 在确认采集 idle、模型 offline、无操作和评测轮次后正常停止，再从新 runtime 启动；8015 PID 967289 → 982318，8018 PID 845046 → 982430。机械臂／相机／ROS 共 14 个进程 PID 与启动时间不变。未发送运动、归位或模型推理指令。
+- configs/local.json 与已提交的 configs/hosts/cobot.json 使用 /home/agilex/jiaan/project/cobot-web/runtime。数据路径和模型选择逐项比较保持一致；RLT storage 的实际选择以迁移前状态保留，没有强行改成新数据根。
+- 验收并复制异机备份后删除 /home/agilex/jiaan/project/cobot-ops（迁出内容后的 7 个残留文件）、/data/LFT-W02_data/jiaan/jiaan/projects/cobot-ops（103 个已归档文件）、D:\Code\jiaan_workspace\cobot-ops（只有 1 个入口文件）。未保留旧路径软链接。
+- 旧 ops Git 最终提交 b67e3e074135450c9f6441409fbec0ee38c9bfee 已 push、核验并保存完整 bundle；GitHub 历史仓库保留为退休指引，不作为开发或运行入口。guide 原 ops 摘要归并至 cobot-web，旧摘要目录删除。
+- 五个领域入口中残留的 ops 归属改为所属项目；网页的任务／PID／故障处理归 cobot-web，不另建维护项目。
+
+### 验证
+
+- 网页配置切换提交 b1190ddfc2ef609ceccbbc528db90e0e61fc64c2 已 push；285 个运行文件 SHA-256 同步核验。
+- 命令行与恢复相关测试 23 passed；本批未修改采集／推理／硬件业务实现，因此不重复扩大全量测试范围。此前完整验证为 Python 571 passed／15 skipped、前端 34 passed。
+- Cobot uv 0.11.2 离线 sync 检查 32 个包，pip check 全部兼容；.venv 无 ops 链接，缓存无悬空链接。
+- 正式网页 11 类只读状态、37 个引用资源、6 个模型目录可读取；6 组 CLI（启停状态、恢复状态、home 历史日志、模型列表、主／recorder API 索引）通过。普通模式访问 RLT Session 返回 409 rlt_mode_not_selected 属于模式边界，未为测试切换 Session。
+- 删除 ops 后再次读取 8015 identity 正常；无同用户活跃进程的 cwd、环境、命令或打开文件仍引用 ops。恢复证据内容核验一致。
+- 未加载大模型、未采集真实 Episode、未重启硬件进程；接口和环境验证不等于运动或成功率验收。
+
+### 备份与证据
+
+A6000 本项目相对路径：
+- outputs/verification/20260927-runtime-cleanup/：前后状态、2,819 条迁移清单、API／资源结果、23 项测试、现场删除回执与现场备份。
+- 现场备份 cobot-ops-site-backup.tar.gz：SHA-256 898861cd20f3aa4319ad27d8634d05cc0c9c3277fc7490d77f4b34c4f7caac70；101 个非缓存文件逐项核验，uv 可再生成缓存未重复打包，但实体迁移已校验。
+- outputs/migrations/20260927-ops-retirement/：A6000 原 checkout 完整备份、Git bundle、旧 outputs 原件、笔记本入口备份与删除清单。
+- 笔记本入口备份 SHA-256 048d297db3a5cc78aa347c833b1bef3b4dd7c4a643eec791b91e61e0f52b2b16。
+- 原硬盘事故证据现在位于 Cobot 本项目 runtime/recovery/20260927-getea-offline；A6000 原备份在上述 previous-outputs/migrations/20260927-recovery。现场 runtime/incidents 和 runtime/migrations 一起承接，历史路径正文不改写。
+
+### 尚不能删除的旧范围
+
+| 旧位置 | 仍需保留的原因／下一步 |
+|---|---|
+| /media/agilex/Getea1/jiaan/projects/cobot-platform | 当前 arms、camera、ROS 进程仍有代码／cwd／日志依赖；archive 约 22 GiB 有 dm0-5 与 Xiaomi DAgger 等历史资产，未做完整归属和迁移验收。下一批先由 cobot-control 验证节点从新路径启动，再核对归档资产。 |
+| /media/agilex/Getea1/jiaan/projects/rlt 与旧 data/rlt | 算法、Python 环境、权重、replay、原始 rollout 仍被 6 模型入口引用；下一批归 rl-platform，保留忠实复现配置并做加载对照。 |
+| /home/agilex/cobot_magic 的 Piper／camera／aloha／π0.5 相关目录 | 现场驱动、SDK 和 π0.5／DAgger 模型依赖，分别归 cobot-control／vla-platform 后续验收。不能整棵删除 task3/task5 或共用工作区。 |
+| A6000 旧 VLA／RL 项目 | 新框架其他领域多数仅完成入口初始化，历史训练与模型资产未整体迁移；不因网页可运行就删除算法仓库。 |
+
+终端进入 /home/agilex/jiaan/project/cobot-web；旧同名 ui_up.sh、ui_down.sh、ui_status.sh、arms_up.sh、cameras_up.sh、home.sh 仍由新项目 scripts 提供。推荐 scripts/console.py 统一状态、共享模型、采集和评测；recovery 子命令不依赖 8015。完整流程及限制见 COMMAND_LINE.md、WEB_RECOVERY.md。
+
+### 本批更新的 Markdown 位置（A6000）
+
+- /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/AGENTS.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/README.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/docs/COMMAND_LINE.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/docs/WEB_RECOVERY.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/docs/MIGRATION.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/cobot-control/README.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/cobot-dagger/README.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/vla-platform/docs/JIAAN.md
+- /data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/README.md
+- /data/LFT-W02_data/jiaan/jiaan/agent-guide/README.md
+- /data/LFT-W02_data/jiaan/jiaan/agent-guide/projects/README.md
+- /data/LFT-W02_data/jiaan/jiaan/agent-guide/projects/cobot-web/README.md
+- /data/LFT-W02_data/jiaan/jiaan/agent-guide/projects/cobot-control/README.md
+- /data/LFT-W02_data/jiaan/jiaan/agent-guide/projects/rl-platform/README.md
+
+旧 ops 的 README.md／AGENTS.md 在删除 checkout 前已提交退休指引到 b67e3e0；完整旧绝对路径和删除清单见本节上文与备份回执。原 guide 摘要 /data/LFT-W02_data/jiaan/jiaan/agent-guide/projects/cobot-ops/README.md 已删除并归并；笔记本 D:\Code\jiaan_workspace\cobot-ops\AGENTS.md 已备份后删除。

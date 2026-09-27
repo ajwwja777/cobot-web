@@ -12,6 +12,19 @@ python3 scripts/console.py --help
 
 工具只需系统 Python 3，不用激活网页虚拟环境。代码／Git／维护在 A6000：`/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web`；Cobot 是运行副本。当前 runtime 由 `configs/local.json` 指定，使用 `/home/agilex/jiaan/project/cobot-web/runtime`，由网页项目直接管理。
 
+## 与旧目录相比
+
+| 内容 | 现在 |
+|---|---|
+| 终端工作目录 | /home/agilex/jiaan/project/cobot-web |
+| 网页启停／状态 | ./scripts/ui_up.sh、./scripts/ui_down.sh、./scripts/ui_status.sh；脚本名称沿用 |
+| 统一操作 | python3 scripts/console.py；复用网页后端的状态机，不再手写大部分 curl 请求 |
+| 网页日志／PID／任务回执 | 本项目 runtime/，已是实体目录；旧 cobot-ops 已删除 |
+| Python 环境与 uv | 本项目 .venv/；tools/uv，依赖在 pyproject.toml 与 uv.lock |
+| 原始 RLT／模型位置 | 本批不变，仍按 configs/local.json 读取；不要把尚未迁移的路径手工改成目标目录 |
+
+ui_down／ui_up 只重启网页，不会自动清理机械臂、相机、模型或 ROS 子进程。前端异常但后端可用时可以用 console.py；8015 不可用时先用 recovery status／snapshot 排查。采集和共享模型 CLI 仍需后端正常，独立硬件脚本和 recovery 的适用范围见下文。
+
 ## 两层入口及可用范围
 
 | 情况 | 使用方式 |

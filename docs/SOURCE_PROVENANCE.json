@@ -22,5 +22,5 @@
     "HTTP /api/segmented-teach/* and /api/rlt-recorder/*",
     "HDF5 schema and historical identity values"
   ],
-  "legacy_cleanup": "Not performed; 8015 and active hardware/model processes still use legacy locations"
+  "legacy_cleanup": "2026-09-27: web source, environment and runtime independent of ops; local ops directories removed after verification. Legacy cobot-platform retained for active hardware and historical assets; RLT/models pending separate migration."
 }
