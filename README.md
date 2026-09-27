@@ -2,7 +2,16 @@
 
 Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状态、部署评测、相机与任务输出。
 
-**A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 正式 8015 已于 2026-09-27 切换到新目录，运行版本 `3b54cf7`；机械臂和相机原进程保持不变。网页接口验收不等于真机运动或模型成功率验收。
+**A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 正式 8015 已于 2026-09-27 切换到新目录，后端在 `3b54cf7` 切换后保持运行，后续同步版本见现场 `.release.json`；机械臂和相机原进程保持不变。网页接口验收不等于真机运动或模型成功率验收。
+
+## 终端使用与故障恢复
+
+- [完整命令行流程](docs/COMMAND_LINE.md)：从 CAN／ROS／相机启动，到普通／模型采集、共享模型、Session、评测、归位、输出与退出；包括底层脚本和完整 API/schema 入口。
+- [网页故障与终端恢复](docs/WEB_RECOVERY.md)：HTTP 失败、结果不确定、进程树、显存、UI 重启和磁盘故障。
+- Cobot 常用入口：`python3 scripts/console.py --help`。不依赖网页排障：`python3 scripts/console.py recovery status`。
+- 网页输出栏“诊断”展示错误请求和处理建议，并可手动检查实际设备／模型／录制／存储状态。
+
+2026-09-27 用户决定不再单独维护 cobot-ops 项目。网页使用、任务管理和恢复文档／工具归本项目；硬件和算法实现继续归对应领域。原 ops 仓库保留历史与兼容跳转。正在使用的 `cobot-ops/runtime` 和现场 uv 工具暂不移动，不需要另开一个 ops 对话或服务。
 
 ## 从哪里读
 
@@ -29,7 +38,7 @@ Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状�
 |---|---|
 | A6000 主工作区 | `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web` |
 | Cobot 运行副本 | `/home/agilex/jiaan/project/cobot-web` |
-| Cobot 日志／PID／任务状态 | `/home/agilex/jiaan/project/cobot-ops/runtime` |
+| Cobot 日志／PID／任务状态（过渡兼容） | `/home/agilex/jiaan/project/cobot-ops/runtime` |
 | 新的采集／评测数据根 | `/home/agilex/jiaan/data` |
 
 仓库：[ajwwja777/cobot-web](https://github.com/ajwwja777/cobot-web)，`main`。笔记本只保留对话入口。

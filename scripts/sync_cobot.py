@@ -21,9 +21,9 @@ def main():
     run(["git", "diff", "--quiet", "HEAD"], cwd=ROOT)
     revision = run(["git","rev-parse","HEAD"],cwd=ROOT,capture_output=True).stdout.strip()
     names = run(["git","ls-files","-z"],cwd=ROOT,capture_output=True).stdout.split("\0")
-    roots = {"app","scripts","robot","configs","integrations"}
+    roots = {"app","scripts","robot","configs","integrations","docs"}
     files = [name for name in names if name and
-        (Path(name).parts[0] in roots or name in ("README.md","pyproject.toml","uv.lock"))
+        (Path(name).parts[0] in roots or name in ("README.md","AGENTS.md","pyproject.toml","uv.lock"))
         and "tests" not in Path(name).parts and "global-preview" not in Path(name).parts]
     hashes = {name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in files}
     evidence=ROOT/"outputs/deployments";evidence.mkdir(parents=True,exist_ok=True)

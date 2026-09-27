@@ -1,0 +1,13 @@
+/* Recovery stays in the Output toolbar, with a compact scrollable dialog. */
+.recovery-open.has-errors { color: #e4ab70; border-color: #816244; }
+.recovery-dialog { width: min(820px, 92vw); max-height: 82vh; padding: 18px; background: var(--panel, #191919); color: var(--text, #ededed); border: 1px solid #444; border-radius: 12px; overflow: auto; }
+.recovery-dialog::backdrop { background: #0008; }
+.recovery-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recovery-dialog h3 { margin: 0; }
+.recovery-dialog header button { width: 32px; height: 32px; padding: 0; flex: 0 0 auto; }
+.recovery-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0; }
+.recovery-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #111; color: #ddd; padding: 10px; border-radius: 6px; font-size: 12px; }
+.recovery-error { border-top: 1px solid #444; padding-top: 14px; margin-top: 14px; }
+.recovery-error small { display: block; opacity: .7; margin: 5px 0; }
+.recovery-probe { padding: 8px 0; border-bottom: 1px solid #383838; }
+.recovery-dialog a { color: inherit; }

@@ -537,7 +537,7 @@ async function operateRlt(name,{forceHome=false}={}) {
     }
   } catch (error) {
     if(operationToken===rltOperationToken){
-      const text=(terminalAccepted?'本轮已结束；自动归位未完成：':name+' 未执行：')+error.message;
+      const text=(terminalAccepted?'本轮已结束；自动归位未完成：':name+' 结果待确认：')+error.message;
       rltMessage(text,true);window.CobotWorkspaceUI?.report(text,'error','归位');
     }
   } finally {
