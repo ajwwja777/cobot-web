@@ -1,8 +1,8 @@
 # Cobot Web 迁移记录
 
-日期：2026-09-27。当前批次：**网页源码、开发环境与独立只读预览已迁入新目录；正式 8015 未切换，旧文件未清理。**
+日期：2026-09-27。当前批次：**网页源码、开发环境和正式 8015 已迁入新目录；旧文件因仍有硬件／RLT 依赖保留。**
 
-用户正在进行 Reference 评测／准备在线 RL。保留正式服务、硬件、模型和学习进程；本批不启动训练、不加载模型、不发送运动指令。正式切换还需确认这些任务结束并完成下列验收，不能仅根据 capture 的 `active_mode=null` 判定可以停止网页。
+用户已明确停止当前任务并授权切换。核对部署、录制和原 RLT 状态后，正常停止残留的故障 Session／学习进程，再切换网页；没有重新启动机械臂、相机或发送运动指令。
 
 ## 位置与版本
 
@@ -14,11 +14,11 @@
 | 日志、PID、uv 缓存 | `/home/agilex/jiaan/project/cobot-ops/runtime/` |
 | 只读预览运行记录 | `/home/agilex/jiaan/project/cobot-ops/runtime/web-preview/` |
 | 新数据根 | `/home/agilex/jiaan/data` |
-| 正式 8015 当前来源 | `/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend` |
+| 正式 8015 当前来源 | `/home/agilex/jiaan/project/cobot-web/app/backend` |
 
 仓库：https://github.com/ajwwja777/cobot-web，main。源码提交 `1cf4797f4942f2f27d3815943f7e23cab79452df`；启动依赖隔离修复 `117fe141aea17e9081a1db535e557a155fa136f3`。均已 push 并核验远端一致。
 
-A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进程。当前 Cobot `.release.json` 记录上述后一个版本，273 个运行文件 SHA-256 一致。开发测试、Git、模型、数据不随源码同步。文档后续提交可能领先运行副本，运行版本以 .release.json 为准。
+A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进程。当前 Cobot `.release.json` 记录收尾接口修复版本 `14b4484`，273 个运行文件 SHA-256 一致。开发测试、Git、模型、数据不随源码同步。文档后续提交可能领先运行副本，运行版本以 .release.json 为准。
 
 ## 原件与成果保留
 
@@ -54,7 +54,7 @@ A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进�
 | Cobot 8018 预览 | 新入口约 0.8 秒就绪；29 个页面资源均 HTTP 200 |
 | API | identity、host、config、模型目录 HTTP 200；返回 port=8018；系统盘路径为 / |
 | 预览操作隔离 | POST 操作返回 403；不创建 ROS 录制订阅或运动发布者 |
-| 正式服务 | 核验 PID 628249 未改变，仍来自旧目录；没有切换 8015 |
+| 正式服务 | 初次预览期间保留旧 PID 628249；授权切换后由新目录 PID 893608 接管 8015 |
 
 机器可读摘要见 `docs/verification-20260927.json`，详细日志在证据目录。未连接可操作浏览器，因此没有完成实际浏览器画面／动画验收；DOM 和资源检查不等于目视验收。蓝色同步及故障矩阵通过模拟测试，但未为本批迁移人为进入示教、拔 CAN 或操作机械臂。
 
@@ -64,7 +64,7 @@ A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进�
 
 扩展执行历史 robot 测试时发现既有问题：A6000 没有现场 ROS 模块，部分测试收集失败；排除三组依赖测试后的历史组合运行记录为 269 passed、7 failed、9 errors。其中 9 个路径错误随后修正，独立 handover 9 项通过。其余包含 ROS stub／模块隔离问题，以及夹爪 `0x10/0x20` 提示位处理与旧断言不一致；当前 `robot/gripper_cycle.py` 与迁移前原件逐字节一致。没有为了让测试通过修改硬件容错或控制规则。该部分交 cobot-control 核对原设计，再补齐兼容与现场验收；**不宣称硬件套件全部通过**。
 
-模型权重、RLT 算法环境、已有评测数据仍在原位置，见 `configs/hosts/cobot.json`：
+模型权重、RLT 算法环境和 RLT 原始数据仍在原位置，见 `configs/hosts/cobot.json`：
 
 - RLT：`/media/agilex/Getea1/jiaan/projects/rlt`。
 - 旧数据：`/media/agilex/Getea1/jiaan/data`。
@@ -75,11 +75,20 @@ A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进�
 
 目前可清理旧项目的清单为空，旧代码、数据、模型和运行目录全部保留。新目录中仅移除了本批草稿复制产生的重复 `app/backend/pyproject.toml`，使用根目录的唯一依赖声明。
 
-下一可验收范围：
+## 8015 切换验收与收尾接口修复
 
-1. 等用户结束评测 Session 和在线学习，核对实际部署／RLT 状态及进程，避免把普通采集 idle 当作系统空闲。
-2. 比较迁移快照后旧目录的新改动，尤其位姿配置、模型选择与运行状态；只合并需要承接的设置，不复用旧 PID 文件。
-3. 解决上述控制兼容验收项，完成浏览器目视检查，再按授权窗口切换网页。先验证身份、资源、设备反馈、相机、历史读取和操作路径；不自动启动额外机器人动作。
-4. 记录切换版本与回退入口。新服务验收后才列出不再被引用的旧文件，逐项清理；RLT／ROS／权重仍有依赖时保留。
+2026-09-27，在用户明确授权的停止窗口内完成：
+
+- 旧 353 个源码文件与迁移快照再次逐项比较，无新增变化；位姿保持原值。旧网页正常停止，新网页 PID 893608 从新目录启动。
+- 机械臂 PID 724550、相机 PID 631028 保持不变。原 RLT PID 843135 处于终止失败后的故障状态，经正常 SIGINT 停止进程组，未自动重开模型或训练。
+- 承接 8 个任务状态及模型选择，保留实际命令／日志来源；旧 pose.json 本身含多余 JSON，原件归档到 cutover/invalid-legacy-pose.json，未把损坏文件当有效状态。
+- 部署评测的 672 个文件（11,849,135 字节）复制到 /home/agilex/jiaan/data/evaluations，逐文件 SHA-256 相同。旧数据原件保留，当前评测设置使用新根。
+- identity、设备、相机、主机、部署状态／记录、任务输出及 console 状态均返回 200；五臂状态 ready，三相机同步 ready。历史读取成功。
+- RL“失败”HTTP 503 的原因：原生客户端在保存 outcome 后提交 operator_nodes，但网页请求 schema 未接收此字段，导致 422 再被上层包装成 503。新增严格节点字段、operator_save 原因，以及已有 prepare／marker／save 路由白名单。失败的旧 episode 原件和已有 failure 标签保留。
+- 收尾与进程身份相关 82 项回归通过；提交 14b4484 已 push，同步 273 个运行文件核验一致。实际任务启动命令同时识别登记的新／旧根，不放宽为任意同名路径。
+
+证据：两台机器上述迁移证据目录中的 cutover/，包括 before.json、after.json、runtime-transfer.json 和 recording-contract-tests.log。未执行真实机械臂采集循环；不把接口回归称为现场成功率验收。
+
+当前继续完成两页共用模型加载、模型实际路径展示、独立选择数据目录。下一批迁移 RLT 与模型资产前，应先核对原路径依赖；尚不能删除仍被机械臂／相机进程引用的旧网页硬件代码。共享模型功能完成后更新本记录并同步运行版本。
 
 早期入口初始化提交：`7d81a477adb6e89625bb9454d6c3d465cc237966`；初始化记录提交：`d08e656a6e8f16b3bd4ab64269c270dd9e52a5b8`。本记录更新的是实际迁移进展，不撤销已保留的原成果。

@@ -2,7 +2,7 @@
 
 Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状态、部署评测、相机与任务输出。
 
-**A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 当前新目录已具备独立运行环境和只读预览，正式 8015 仍在旧目录，等待现场评测／在线更新结束后切换。不要把本次预览验收视为真机运动或模型成功率验收。
+**A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 正式 8015 已于 2026-09-27 切换到新目录，运行版本 `14b4484`；机械臂和相机原进程保持不变。网页接口验收不等于真机运动或模型成功率验收。
 
 ## 从哪里读
 
@@ -60,7 +60,7 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-ops/runtime/cache/uv /home/agilex/
 ./scripts/preview.sh
 ```
 
-只读预览默认在 **8018**：拒绝操作请求，不启动 ROS 录制订阅，不启动／停止模型或硬件节点。`./scripts/preview.sh ui-down` 只关闭该预览。正常网页入口是 `scripts/ui_up.sh`、`scripts/ui_down.sh`、`scripts/ui_status.sh`；当前不要使用新入口抢占正在评测的 8015。
+只读预览默认在 **8018**：拒绝操作请求，不启动 ROS 录制订阅，不启动／停止模型或硬件节点。`./scripts/preview.sh ui-down` 只关闭该预览。正常网页入口是 `scripts/ui_up.sh`、`scripts/ui_down.sh`、`scripts/ui_status.sh`；正式 8015 已使用新入口运行。
 
 `scripts/verify_device_health.py` 是只读诊断：在配置好的 ROS 环境中运行，短暂订阅关节／示教反馈并监听 CAN，不发布运动指令，不调用控制服务。
 
@@ -68,6 +68,6 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-ops/runtime/cache/uv /home/agilex/
 
 本次保留采集和硬件适配的唯一迁移副本，没有把同一状态机复制到六个项目。后续由 cobot-control 接管硬件、cobot-dagger 接管采集，web 保留 API 编排和展示；切分必须带接口与回归验证。
 
-模型权重、RLT 算法运行环境和已有评测数据尚未整体迁移。`configs/hosts/cobot.json` 明确登记其当前真实位置，仍可识别旧模型；不会伪造新路径为已部署。历史数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
+模型权重和 RLT 算法运行环境尚未整体迁移；已有部署评测数据已逐文件核验复制到新数据根。`configs/hosts/cobot.json` 明确登记其当前真实位置，仍可识别旧模型；不会伪造新路径为已部署。历史数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
 
 日期：2026-09-27。完整进度与未完成项见迁移记录。
