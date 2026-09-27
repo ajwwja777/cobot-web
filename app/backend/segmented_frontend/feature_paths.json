@@ -3,25 +3,25 @@
     [
       "归位 / 记录 / 删除位姿",
       "Home / capture / delete pose",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/home.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/home.sh",
       "Cobot"
     ],
     [
       "恢复控制",
       "Recover control",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/recover.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/recover.sh",
       "Cobot"
     ],
     [
       "位姿配置",
       "Pose configuration",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/configs/home_poses.yaml",
+      "/home/agilex/jiaan/project/cobot-control/configs/home_poses.yaml",
       "Cobot"
     ],
     [
       "机械臂启动配置",
       "Arm launch",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/robot/arms/arms.launch",
+      "/home/agilex/jiaan/project/cobot-control/robot/arms/arms.launch",
       "Cobot"
     ]
   ],
@@ -29,37 +29,37 @@
     [
       "配置 / 重置 CAN",
       "Configure / reset CAN",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/can_web.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/can_web.sh",
       "Cobot"
     ],
     [
       "CAN 配置入口",
       "CAN configuration entry",
-      "/home/agilex/cobot_magic/aloha-devel/Piper-AVP-Teleop/multi_arm_launch_tools/can_config_cobot.sh",
+      "/home/agilex/jiaan/project/cobot-control/integrations/legacy_control/multi_arm_launch_tools/can_config_cobot.sh",
       "Cobot"
     ],
     [
       "启动 ROS",
       "Start ROS",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/roscore_up.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/roscore_up.sh",
       "Cobot"
     ],
     [
       "启动机械臂",
       "Start arms",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/arms_up.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/arms_up.sh",
       "Cobot"
     ],
     [
       "启动相机",
       "Start cameras",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/cameras_up.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/cameras_up.sh",
       "Cobot"
     ],
     [
       "节点 / 任务管理",
       "Node / task management",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console/device_control.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console/device_control.py",
       "Cobot"
     ]
   ],
@@ -67,19 +67,19 @@
     [
       "启动相机",
       "Start cameras",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/cameras_up.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/cameras_up.sh",
       "Cobot"
     ],
     [
       "相机启动配置",
       "Camera launch",
-      "/home/agilex/cobot_magic/aloha-devel/Piper-AVP-Teleop/multi_arm_launch_tools/launch/multi_camera_shuai.launch",
+      "/home/agilex/jiaan/project/cobot-control/integrations/legacy_control/multi_arm_launch_tools/launch/multi_camera_shuai.launch",
       "Cobot"
     ],
     [
       "同步预览",
       "Synchronized preview",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console/camera_sync.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console/camera_sync.py",
       "Cobot"
     ]
   ],
@@ -87,31 +87,31 @@
     [
       "录制控制",
       "Capture controller",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/segmented_capture/capture_service.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/segmented_capture/capture_service.py",
       "Cobot"
     ],
     [
       "录制器",
       "Recorder",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/capture_core/recorder.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/capture_core/recorder.py",
       "Cobot"
     ],
     [
       "归位 / 记录 / 删除位姿",
       "Home / capture / delete pose",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/home.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/home.sh",
       "Cobot"
     ],
     [
       "恢复控制",
       "Recover control",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/recover.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/recover.sh",
       "Cobot"
     ],
     [
       "位姿配置",
       "Pose configuration",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/configs/home_poses.yaml",
+      "/home/agilex/jiaan/project/cobot-control/configs/home_poses.yaml",
       "Cobot"
     ]
   ],
@@ -119,13 +119,13 @@
     [
       "节点 / 审核记录",
       "Markers / review",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/segmented_capture/store.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/segmented_capture/store.py",
       "Cobot"
     ],
     [
       "视频生成",
       "Video generation",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/capture_core/episode_preview.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/capture_core/episode_preview.py",
       "Cobot"
     ]
   ],
@@ -133,13 +133,13 @@
     [
       "标签 / HIL 区间",
       "Labels / HIL intervals",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/capture_core/labels.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/capture_core/labels.py",
       "Cobot"
     ],
     [
       "视频生成",
       "Video generation",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/capture_core/episode_preview.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/capture_core/episode_preview.py",
       "Cobot"
     ]
   ],
@@ -147,37 +147,37 @@
     [
       "plug_v3 启动入口",
       "plug_v3 start entry",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/rlt_v3_up.sh",
+      "/home/agilex/jiaan/project/cobot-web/scripts/rlt_v3_up.sh",
       "Cobot"
     ],
     [
       "plug_v3 释放模型",
       "plug_v3 unload model",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/rlt_v3_down.sh",
+      "/home/agilex/jiaan/project/cobot-web/scripts/rlt_v3_down.sh",
       "Cobot"
     ],
     [
       "发布清单",
       "Release manifest",
-      "/media/agilex/Getea1/jiaan/projects/rlt/deployments/plug_v3_yyshadow/manifest.json",
+      "/home/agilex/jiaan/project/rl-platform/configs/rlt/plug_v3_yyshadow/manifest.json",
       "Cobot"
     ],
     [
       "在线配置",
       "Online configuration",
-      "/media/agilex/Getea1/jiaan/projects/rlt/methods/openpi_rlt/plug_v3_yyshadow/online_rl.yaml",
+      "/home/agilex/jiaan/project/rl-platform/configs/rlt/plug_v3_yyshadow/online_rl.yaml",
       "Cobot"
     ],
     [
       "固定模型配置",
       "Frozen configuration",
-      "/media/agilex/Getea1/jiaan/projects/rlt/methods/openpi_rlt/plug_v3_yyshadow/online_rl_frozen.yaml",
+      "/home/agilex/jiaan/project/rl-platform/configs/rlt/plug_v3_yyshadow/online_rl_frozen.yaml",
       "Cobot"
     ],
     [
       "录制 / 终局 / HIL",
       "Recording / outcome / HIL",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console/rlt_proxy.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console/rlt_proxy.py",
       "Cobot"
     ]
   ],
@@ -185,19 +185,19 @@
     [
       "诊断汇总",
       "Diagnostics",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console/diagnostics.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console/diagnostics.py",
       "Cobot"
     ],
     [
       "在线学习状态",
       "Online learner status",
-      "/media/agilex/Getea1/jiaan/projects/rlt/runs/plug_v3_yyshadow/online/metrics/learner_status.json",
+      "/home/agilex/jiaan/project/rl-platform/outputs/rlt/plug_v3_yyshadow/online/metrics/learner_status.json",
       "Cobot"
     ],
     [
       "在线指标目录",
       "Online metrics directory",
-      "/media/agilex/Getea1/jiaan/projects/rlt/runs/plug_v3_yyshadow/online/metrics",
+      "/home/agilex/jiaan/project/rl-platform/outputs/rlt/plug_v3_yyshadow/online/metrics",
       "Cobot"
     ]
   ],
@@ -205,13 +205,13 @@
     [
       "部署入口",
       "Deployment entry",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/deployment_run.sh",
+      "/home/agilex/jiaan/project/cobot-web/scripts/deployment_run.sh",
       "Cobot"
     ],
     [
       "评估控制 / 结果记录",
       "Evaluation / results",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console/deployment.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console/deployment.py",
       "Cobot"
     ]
   ],
@@ -219,19 +219,19 @@
     [
       "归位 / 记录 / 删除位姿",
       "Home / capture / delete pose",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/home.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/home.sh",
       "Cobot"
     ],
     [
       "恢复控制",
       "Recover control",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/recover.sh",
+      "/home/agilex/jiaan/project/cobot-control/scripts/recover.sh",
       "Cobot"
     ],
     [
       "位姿配置",
       "Pose configuration",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/configs/home_poses.yaml",
+      "/home/agilex/jiaan/project/cobot-control/configs/home_poses.yaml",
       "Cobot"
     ]
   ],
@@ -239,13 +239,13 @@
     [
       "输出汇总",
       "Output aggregation",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console/deployment.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console/deployment.py",
       "Cobot"
     ],
     [
       "任务生命周期",
       "Task lifecycle",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console/device_control.py",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console/device_control.py",
       "Cobot"
     ]
   ],
@@ -253,31 +253,31 @@
     [
       "平台配置",
       "Platform configuration",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/configs/paths.json",
+      "/home/agilex/jiaan/project/cobot-web/configs/paths.json",
       "Cobot"
     ],
     [
       "启动网页",
       "Start console",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/ui_up.sh",
+      "/home/agilex/jiaan/project/cobot-web/scripts/ui_up.sh",
       "Cobot"
     ],
     [
       "关闭网页",
       "Stop console",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/scripts/ui_down.sh",
+      "/home/agilex/jiaan/project/cobot-web/scripts/ui_down.sh",
       "Cobot"
     ],
     [
       "前端目录",
       "Frontend directory",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/segmented_frontend",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/segmented_frontend",
       "Cobot"
     ],
     [
       "后端目录",
       "Backend directory",
-      "/media/agilex/Getea1/jiaan/projects/cobot-platform/app/backend/cobot_console",
+      "/home/agilex/jiaan/project/cobot-web/app/backend/cobot_console",
       "Cobot"
     ]
   ],

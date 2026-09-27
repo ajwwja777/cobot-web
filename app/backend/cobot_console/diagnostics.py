@@ -13,7 +13,7 @@ import numpy as np
 
 DEFAULT_RUN_ROOT = Path(os.environ.get(
     "COBOT_RLT_RUN_ROOT",
-    "/media/agilex/Getea1/jiaan/projects/rlt/runs/plug_v2",
+    str(Path(__file__).resolve().parents[4] / "rl-platform/outputs/rlt/plug_v3_yyshadow"),
 ))
 _METRIC_FIELDS = (
     "global_step", "actor_version", "actor_loss", "critic_loss",

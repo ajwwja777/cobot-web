@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/environment.sh"
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-TASK_ARGS=("$@")
-set --
-set +u
-source "$TASK5_ROS_SETUP"
-set -u
-export PYTHONDONTWRITEBYTECODE=1
-exec /home/agilex/miniconda3/envs/aloha/bin/python "$ROOT/robot/front_reset.py" "${TASK_ARGS[@]}"
+exec "$COBOT_CONTROL_PROJECT_ROOT/scripts/front_reset.sh" "$@"

@@ -108,7 +108,7 @@ def common_commands():
         ('诊断','预览模型中断范围（不执行）', cli+'recovery interrupt model'),
         ('诊断','命令行完整手册', 'less '+shlex.quote(str(PLATFORM/'docs/COMMAND_LINE.md'))),
         ('诊断','查看 GPU', 'nvidia-smi'),
-        ('诊断','磁盘与内存', 'df -h / /media/agilex/Getea1\nfree -h'),
+        ('诊断','磁盘与内存', 'df -h / /home/agilex/jiaan\nfree -h'),
         ('诊断','查看端口占用', 'ss -ltnp'),
     ]]
 

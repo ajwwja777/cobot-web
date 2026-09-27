@@ -23,7 +23,7 @@ from .rlt_proxy import RltBackendClient, RltBackendError
 from .shared_model_env import BETWEEN_EPISODES
 
 from .paths import PROJECT as PLATFORM, RLT, DATA, PI05 as LEGACY, PI05_DAGGER as DAGGER, RUNTIME_ROOT
-RUN = RLT / "runs/plug_v3_yyshadow"
+RUN = RLT / "outputs/rlt/plug_v3_yyshadow"
 RUNTIME = RUNTIME_ROOT / "deployment"
 
 
@@ -47,9 +47,9 @@ def atomic_json(path, payload):
 
 
 def catalog():
-    manifest = read_json(RLT / "deployments/plug_v3_yyshadow/manifest.json")
+    manifest = read_json(RLT / "configs/rlt/plug_v3_yyshadow/manifest.json")
     base = str(manifest.get("checkpoint") or "")
-    actor = RUN / "candidates/experts120_5k_20260925/actor_snapshot/actor_snapshot.pkl"
+    actor = RLT / "models/rlt/plug_v3_yyshadow/warmup-5000/actor_snapshot/actor_snapshot.pkl"
     definitions = [
         dict(id="plug-v3-warmup-5k", label="插孔 · Warmup 5,000 步", kind="rlt", mode="frozen",
              checkpoint=str(actor), base_checkpoint=base, step=5000, actor_version=2500,

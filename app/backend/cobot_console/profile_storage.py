@@ -6,7 +6,7 @@ from pathlib import Path
 from .paths import DATA as ALLOWED, LEGACY_DATA, RLT, RUNTIME_ROOT
 BASE = ALLOWED / "rlt/plug_v3_yyshadow"
 LEGACY_BASE = LEGACY_DATA / "rlt/plug_v3_yyshadow"
-RUN = RLT / "runs/plug_v3_yyshadow"
+RUN = RLT / "outputs/rlt/plug_v3_yyshadow"
 LEGACY_SETTINGS = RUN / "online/storage.json"
 SETTINGS = RUNTIME_ROOT / "data-console/rlt-storage.json"
 

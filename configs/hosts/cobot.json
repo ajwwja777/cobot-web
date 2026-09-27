@@ -1,12 +1,13 @@
 {
   "runtime_root": "/home/agilex/jiaan/project/cobot-web/runtime",
   "data_root": "/home/agilex/jiaan/data",
-  "legacy_data_root": "/media/agilex/Getea1/jiaan/data",
-  "rlt_project_root": "/media/agilex/Getea1/jiaan/projects/rlt",
+  "legacy_data_root": "/home/agilex/jiaan/data",
+  "rlt_project_root": "/home/agilex/jiaan/project/rl-platform",
   "pi05_root": "/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/pi05",
   "pi05_dagger_root": "/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/deployments/in_the_pot/pi05_dagger_round001",
   "ros_setup": "/home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash",
   "host_disk_path": "/",
   "backend_url": "http://127.0.0.1:8026",
-  "legacy_platform_root": "/media/agilex/Getea1/jiaan/projects/cobot-platform"
+  "legacy_platform_root": "/media/agilex/Getea1/jiaan/projects/cobot-platform",
+  "control_project_root": "/home/agilex/jiaan/project/cobot-control"
 }

@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional
 import yaml
 
 from .paths import RLT as PROJECT, PROJECT as PLATFORM, RUNTIME_ROOT
-V3_RUN = PROJECT / "runs/plug_v3_yyshadow"
-V3_MANIFEST = PROJECT / "deployments/plug_v3_yyshadow/manifest.json"
-V3_CONFIG = PROJECT / "methods/openpi_rlt/plug_v3_yyshadow/online_rl.yaml"
+V3_RUN = PROJECT / "outputs/rlt/plug_v3_yyshadow"
+V3_MANIFEST = PROJECT / "configs/rlt/plug_v3_yyshadow/manifest.json"
+V3_CONFIG = PROJECT / "configs/rlt/plug_v3_yyshadow/online_rl.yaml"
 DEFAULT_STATE = RUNTIME_ROOT / "data-console/model-selection.json"
 
 class ModelSelectionError(ValueError):
@@ -84,7 +84,7 @@ class ModelCatalog:
         checkpoint = Path(str(manifest.get("checkpoint","")))
         valid = manifest.get("cohort") == self.profile and manifest.get("status") == "offline_validated" and (checkpoint/"params").is_dir()
         learner = _json(V3_RUN/"online/metrics/learner_status.json") or {}
-        snapshot = V3_RUN/"online/actor_snapshot/actor_snapshot.pkl"
+        snapshot = PROJECT/"models/rlt/plug_v3_yyshadow/online/actor_snapshot/actor_snapshot.pkl"
         version = learner.get("actor_version", learner.get("published_actor_version"))
         params = self._parameters(manifest)
         return [

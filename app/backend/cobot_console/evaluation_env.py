@@ -78,11 +78,11 @@ def prepare_config(mode, snapshot, target):
     import yaml
     from .paths import RLT
     root = RLT
-    run = root / "runs/plug_v3_yyshadow"
-    config = yaml.safe_load((root / "methods/openpi_rlt/plug_v3_yyshadow/online_rl_frozen.yaml").read_text())
+    run = root / "outputs/rlt/plug_v3_yyshadow"
+    config = yaml.safe_load((root / "configs/rlt/plug_v3_yyshadow/online_rl_frozen.yaml").read_text())
     runtime = config["runtime"]
     if mode == "reference":
-        snapshot = run / "candidates/experts120_5k_20260925/actor_snapshot/actor_snapshot.pkl"
+        snapshot = root / "models/rlt/plug_v3_yyshadow/warmup-5000/actor_snapshot/actor_snapshot.pkl"
     snapshot = Path(snapshot).resolve()
     if not snapshot.is_file():
         raise ValueError("Evaluation actor snapshot is missing: " + str(snapshot))

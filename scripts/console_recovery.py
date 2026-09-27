@@ -90,10 +90,10 @@ def registration(role):
         return read_json(RUNTIME / "deployment/process.json")
     if role == "stage1":
         rlt = config.get("rlt_project_root")
-        return read_json(Path(rlt) / "runs/plug_v3_yyshadow/model-server/process.json") if rlt else {}
+        return read_json(Path(rlt) / "outputs/rlt/plug_v3_yyshadow/model-server/process.json") if rlt else {}
     if role == "roscore":
         # roscore_up.sh is a short launcher; its job receipt PID is not roscore.
-        candidates = [RUNTIME / "roscore/pid"]
+        candidates = [Path(config.get("control_project_root", str(ROOT.parent / "cobot-control"))) / "runtime/roscore/pid", RUNTIME / "roscore/pid"]
         if config.get("legacy_platform_root"):
             candidates.append(Path(config["legacy_platform_root"]) / "runtime/roscore/pid")
         for path in candidates:

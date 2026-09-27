@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict
 import yaml
 
-from .paths import PROJECT as PLATFORM, RUNTIME_ROOT, SETTINGS
+from .paths import PROJECT as PLATFORM, RUNTIME_ROOT, SETTINGS, CONTROL
 SCRIPTS = PLATFORM / 'scripts'
 _TARGETS = {
     'home': {'front','rear','all','mid','gripper','selection'},
@@ -26,7 +26,7 @@ _TARGETS = {
     'rlt': {'online','frozen','reference','warmup'},
     'rlt_model': {'plug_v3-stage1-reference','plug_v3-frozen-latest','plug_v3-online-latest'},
 }
-POSE_CONFIG = PLATFORM / 'configs' / 'home_poses.yaml'
+POSE_CONFIG = CONTROL / 'configs' / 'home_poses.yaml'
 POSE_NAME_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$')
 SELECTABLE_ARMS = ('front-left','front-right','mid','rear-left','rear-right')
 
@@ -72,10 +72,10 @@ def _home_poses():
     return result
 _STOP_MARKERS = {
     'roscore': '/opt/ros/noetic/bin/roscore',
-    'arms': str(PLATFORM / 'robot/arms/arms.launch'),
+    'arms': str(CONTROL / 'robot/arms/arms.launch'),
     'cameras': 'multi_camera_shuai.launch',
-    'home': str(PLATFORM / 'robot/home.py'),
-    'recover': str(PLATFORM / 'robot/recover.py'),
+    'home': str(CONTROL / 'robot/home.py'),
+    'recover': str(CONTROL / 'robot/recover.py'),
     'rlt': 'methods.openpi_rlt.scripts.online_role',
 }
 
@@ -130,16 +130,21 @@ def _process_command(pid: int) -> str:
 def _matches_process_marker(command: str, marker: str) -> bool:
     """Match complete argv tokens; accept only the registered old project root."""
     candidates = {marker}
-    current = str(PLATFORM) + "/"
+    roots = {str(PLATFORM), str(CONTROL)}
     legacy = str(SETTINGS.get("legacy_platform_root", "")).rstrip("/")
-    if legacy and marker.startswith(current):
-        candidates.add(legacy + "/" + marker[len(current):])
-    # Job receipts copied from the previous runtime retain their original marker.
-    if legacy and marker.startswith("cobot-platform/"):
+    if legacy:
+        roots.add(legacy)
+    relative = None
+    for root in roots:
+        if marker.startswith(root + "/"):
+            relative = marker[len(root) + 1:]
+            break
+    if marker.startswith("cobot-platform/"):
         relative = marker[len("cobot-platform/"):]
         if relative in {"robot/arms/home.py", "robot/arms/recover.py"}:
             relative = relative.replace("robot/arms/", "robot/")
-        candidates = {legacy + "/" + relative, str(PLATFORM / relative)}
+    if relative:
+        candidates.update(root + "/" + relative for root in roots)
     tokens = command.split()
     if marker == "multi_camera_shuai.launch":
         return any(Path(token).name == marker for token in tokens)

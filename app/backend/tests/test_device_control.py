@@ -156,7 +156,7 @@ def test_managed_long_running_job_can_receive_ctrl_c_and_reports_stopped(tmp_pat
     stop={'component':'arms','action':'stop'}
     result=control.start(stop,control.confirm(stop)['confirmation_token'])
     assert result['phase']=='stopping'
-    assert stopped==[(123,str(device_control.PLATFORM/'robot/arms/arms.launch'))]
+    assert stopped==[(123,str(device_control.CONTROL/'robot/arms/arms.launch'))]
     process.code=-2
     assert control.status()['jobs']['arms']['phase']=='stopped'
 
@@ -265,7 +265,7 @@ def test_duplicate_healthy_start_is_adopted_but_incomplete_launch_is_rejected(tm
 def test_roscore_stop_refuses_while_dependent_launches_exist(tmp_path):
     markers={
         '/opt/ros/noetic/bin/roscore':[10],
-        str(device_control.PLATFORM/'robot/arms/arms.launch'):[20],
+        str(device_control.CONTROL/'robot/arms/arms.launch'):[20],
         'multi_camera_shuai.launch':[],
     }
     control=DeviceController(

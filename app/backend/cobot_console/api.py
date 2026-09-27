@@ -52,7 +52,7 @@ DEFAULT_RLT_DATA_ROOT = Path(
 DEFAULT_LIFECYCLE_STATE = Path(
     os.environ.get(
         "COBOT_RLT_LIFECYCLE_STATE",
-        str(RLT / "runs/plug_v3_yyshadow/backend/state.json"),
+        str(RLT / "outputs/rlt/plug_v3_yyshadow/backend/state.json"),
     )
 )
 

@@ -146,7 +146,7 @@ def prepare_config(mode, snapshot, target):
     import yaml
     from .evaluation_env import prepare_config as prepare_evaluation_config
     from .paths import RLT
-    source = RLT / "methods/openpi_rlt/plug_v3_yyshadow/online_rl_frozen.yaml"
+    source = RLT / "configs/rlt/plug_v3_yyshadow/online_rl_frozen.yaml"
     original = yaml.safe_load(source.read_text())
     prepare_evaluation_config(mode, snapshot, target)
     config = yaml.safe_load(target.read_text())

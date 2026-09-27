@@ -188,3 +188,13 @@ A6000 本项目相对路径：
 - /data/LFT-W02_data/jiaan/jiaan/agent-guide/projects/rl-platform/README.md
 
 旧 ops 的 README.md／AGENTS.md 在删除 checkout 前已提交退休指引到 b67e3e0；完整旧绝对路径和删除清单见本节上文与备份回执。原 guide 摘要 /data/LFT-W02_data/jiaan/jiaan/agent-guide/projects/cobot-ops/README.md 已删除并归并；笔记本 D:\Code\jiaan_workspace\cobot-ops\AGENTS.md 已备份后删除。
+
+## 2026-09-27 23:55：RLT／硬件归属切换代码（待现场部署）
+
+本轮 A6000 代码把硬件入口转发给同级 cobot-control，把 RLT v3 入口转发给同级 rl-platform；模型路径分为 models/rlt/plug_v3_yyshadow/{stage1,warmup-5000,online}，Replay/日志归 outputs/rlt/plug_v3_yyshadow，数据统一 /home/agilex/jiaan/data。共享模型、HIL、收尾及评测隔离语义不变。
+
+configs/hosts/cobot.json 是新切换配置；现场 configs/local.json 尚未切换。保留 legacy_platform_root 仅供识别、停止旧进程；当前旧硬件进程仍需核验退出。robot / integrations/legacy_control / 旧位姿副本待 cobot-control 现场验收后再移除；不是最终重复维护结构。
+
+完整后端测试 576 passed / 11 skipped，路径与输出后续回归 63 passed / 1 skipped；已有原生 RLT 成功／失败／未标注／评测隔离合同均通过。用户已确认断电、允许重启节点，但现场 SSH 随后超时，尚未进行本次网页同步或服务重启。最后可读的正式版本仍为 d5fe477，不能把本次新路径记为已上线。
+
+当前继续点：先恢复 Cobot 连接、核查数据校验和 Stage 1 --validate-only 结果，再做节点与网页切换、API／模型路径／数据历史验收及旧目录清理。Guide Git 由另一 agent 管理。本轮未删除旧 RLT、cobot-platform 或旧数据。

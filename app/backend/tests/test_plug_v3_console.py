@@ -79,7 +79,7 @@ def test_v3_device_commands_are_fixed_allowlist(tmp_path):
 
 def test_reference_mode_bypasses_the_warmup_to_online_gate():
     script = (
-        Path(__file__).resolve().parents[3] / "scripts" / "rlt_v3_up.sh"
+        Path(__file__).resolve().parents[4] / "rl-platform" / "scripts" / "rlt_up.sh"
     ).read_text()
     reference = script.split('if [[ "$MODE" == reference ]]', 1)[1].split(
         "else", 1

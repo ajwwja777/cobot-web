@@ -232,12 +232,12 @@ def test_status_is_nonblocking_and_performs_no_filesystem_checks(manager, monkey
 
 def mock_assets(monkeypatch, tmp_path):
     from cobot_console import deployment, paths
-    root=tmp_path/"rlt";run=root/"runs/plug_v3_yyshadow"
-    actor=run/"candidates/experts120_5k_20260925/actor_snapshot/actor_snapshot.pkl"
+    root=tmp_path/"rlt";run=root/"outputs/rlt/plug_v3_yyshadow"
+    actor=root/"models/rlt/plug_v3_yyshadow/warmup-5000/actor_snapshot/actor_snapshot.pkl"
     actor.parent.mkdir(parents=True);actor.write_bytes(b"test existence only")
     (actor.parent.parent/"action_norm_stats.json").write_text("{}")
     base=root/"base";(base/"params").mkdir(parents=True)
-    manifest=root/"deployments/plug_v3_yyshadow/manifest.json";manifest.parent.mkdir(parents=True)
+    manifest=root/"configs/rlt/plug_v3_yyshadow/manifest.json";manifest.parent.mkdir(parents=True)
     manifest.write_text(json.dumps({"checkpoint":str(base)}))
     monkeypatch.setattr(deployment,"RLT",root);monkeypatch.setattr(deployment,"RUN",run)
     monkeypatch.setattr(paths,"RLT",root)
@@ -245,7 +245,7 @@ def mock_assets(monkeypatch, tmp_path):
         entry=tmp_path/name;(entry/("checkpoints/step_"+str(step))).mkdir(parents=True)
         (entry/"run_checkpoint_rtc_task2.sh").write_text("# fixture only")
         monkeypatch.setattr(deployment,attr,entry)
-    config=root/"methods/openpi_rlt/plug_v3_yyshadow/online_rl_frozen.yaml";config.parent.mkdir(parents=True)
+    config=root/"configs/rlt/plug_v3_yyshadow/online_rl_frozen.yaml";config.parent.mkdir(parents=True,exist_ok=True)
     import yaml
     config.write_text(yaml.safe_dump({"experiment":{"rl":{"warmup_q_weight":.1,"warmup_bc_weight":10}},
         "runtime":{key:{} for key in ["actor_service","learner_service","replay","env_driver","monitoring"]}}))
@@ -257,7 +257,7 @@ def test_fixed_catalog_dagger_lineage(monkeypatch, tmp_path):
     assert dagger["checkpoint"].endswith("checkpoints/step_3000")
     assert dagger["base_checkpoint"].endswith("pi05/checkpoints/step_2000")
     assert all(m["available"] for m in models.values() if not m["id"].startswith("plug_v3-"))
-    assert "candidates/experts120_5k_20260925/" in models["plug-v3-warmup-5k"]["checkpoint"]
+    assert "models/rlt/plug_v3_yyshadow/warmup-5000/" in models["plug-v3-warmup-5k"]["checkpoint"]
 
 def test_config_pins_snapshot_and_isolates_replay(tmp_path, monkeypatch):
     mock_assets(monkeypatch, tmp_path)
@@ -269,7 +269,7 @@ def test_config_pins_snapshot_and_isolates_replay(tmp_path, monkeypatch):
         cfg=yaml.safe_load(target.read_text())
         assert Path(cfg["runtime"]["actor_service"]["snapshot_path"]).is_file()
         assert cfg["runtime"]["env_driver"]["actor_deterministic"] is True
-        assert "candidates/experts120_5k_20260925/action_norm_stats.json" in cfg["experiment"]["rl"]["action_norm_stats_path"]
+        assert "models/rlt/plug_v3_yyshadow/warmup-5000/action_norm_stats.json" in cfg["experiment"]["rl"]["action_norm_stats_path"]
         assert Path(cfg["runtime"]["replay"]["journal_path"]).parent==tmp_path
         assert cfg["experiment"]["rl"]["warmup_q_weight"]==.1
         assert cfg["experiment"]["rl"]["warmup_bc_weight"]==10
