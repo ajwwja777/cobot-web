@@ -1,0 +1,16 @@
+# Jiaan: machine-local assets and runtime (never commit)
+/.venv/
+/envs/
+/models/
+/data/
+/outputs/
+/runtime/
+/cache/
+/logs/
+/.env
+/.env.*
+__pycache__/
+*.pyc
+
+# Publish this project entry even if an upstream rule ignores agent files.
+!/AGENTS.md
