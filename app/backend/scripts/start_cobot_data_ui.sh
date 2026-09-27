@@ -6,7 +6,6 @@ CODE_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 RUNTIME_DIR="${COBOT_DATA_UI_RUNTIME_DIR:-/home/agilex/cobot_magic/task3/jiaan/runtime/cobot-data-console-v1}"
 PYTHON="${TASK5_PYTHON:-/home/agilex/miniconda3/envs/cobot-station/bin/python}"
 ROS_SETUP="${TASK5_ROS_SETUP:-/home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash}"
-RLT_SCRIPTS="${COBOT_RLT_SCRIPTS_DIR:-/media/agilex/Getea1/jiaan/projects/cobot-realworld-vla/deployments/openpi-rlt/plug-insertion-stage1-v2/runtime-overlay/methods/openpi_rlt/scripts}"
 HOST="${COBOT_DATA_UI_HOST:-0.0.0.0}"
 PORT="${COBOT_DATA_UI_PORT:-8015}"
 PUBLIC_HOST="${TASK5_PUBLIC_HOST:-10.7.165.64}"
@@ -64,7 +63,7 @@ log_file="$LOG_DIR/service-$stamp.log"
 cd -- "$CODE_DIR"
 # Camera/status polling must not synchronously append every GET to the external
 # disk while model weights are being restored. Application/errors stay logged.
-nohup env   PYTHONPATH="$CODE_DIR:$RLT_SCRIPTS${PYTHONPATH:+:$PYTHONPATH}"   COBOT_RLT_LIFECYCLE_STATE="${COBOT_RLT_LIFECYCLE_STATE:-/home/agilex/cobot_magic/task3/jiaan/runtime/cobot-rlt-backend-v1/state.json}"   ROS_HOME="$RUNTIME_DIR/ros"   ROS_LOG_DIR="$RUNTIME_DIR/ros"   "$PYTHON" -m uvicorn "$APP" --host "$HOST" --port "$PORT" --timeout-graceful-shutdown 3 --no-access-log   >>"$log_file" 2>&1 &
+nohup env   PYTHONPATH="$CODE_DIR${PYTHONPATH:+:$PYTHONPATH}"   COBOT_RLT_LIFECYCLE_STATE="${COBOT_RLT_LIFECYCLE_STATE:-/home/agilex/cobot_magic/task3/jiaan/runtime/cobot-rlt-backend-v1/state.json}"   ROS_HOME="$RUNTIME_DIR/ros"   ROS_LOG_DIR="$RUNTIME_DIR/ros"   "$PYTHON" -m uvicorn "$APP" --host "$HOST" --port "$PORT" --timeout-graceful-shutdown 3 --no-access-log   >>"$log_file" 2>&1 &
 pid=$!
 printf '%s\n' "$pid" > "$PID_FILE.pending"
 mv -- "$PID_FILE.pending" "$PID_FILE"

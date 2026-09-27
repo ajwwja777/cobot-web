@@ -14,7 +14,6 @@ def main():
     os.environ.setdefault("COBOT_DATA_PROFILE", args.profile)
     os.environ.setdefault("TASK5_PYTHON", str(PROJECT / ".venv/bin/python"))
     os.environ.setdefault("TASK5_ROS_SETUP", SETTINGS.get("ros_setup", ""))
-    os.environ.setdefault("COBOT_RLT_SCRIPTS_DIR", str(RLT / "deployments/openpi-rlt/plug-insertion-stage1-v2/runtime-overlay/methods/openpi_rlt/scripts"))
     if args.action == "status":
         print(json.dumps({"project":str(PROJECT),"runtime":str(RUNTIME_ROOT),"data":str(DATA),
                           "rlt":str(RLT),"rlt_available":RLT.is_dir()}, indent=2))
