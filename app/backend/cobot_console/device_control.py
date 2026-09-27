@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict
 import yaml
 
-from .paths import PROJECT as PLATFORM, RUNTIME_ROOT
+from .paths import PROJECT as PLATFORM, RUNTIME_ROOT, SETTINGS
 SCRIPTS = PLATFORM / 'scripts'
 _TARGETS = {
     'home': {'front','rear','all','mid','gripper','selection'},
@@ -72,10 +72,10 @@ def _home_poses():
     return result
 _STOP_MARKERS = {
     'roscore': '/opt/ros/noetic/bin/roscore',
-    'arms': 'cobot-platform/robot/arms/arms.launch',
+    'arms': str(PLATFORM / 'robot/arms/arms.launch'),
     'cameras': 'multi_camera_shuai.launch',
-    'home': 'cobot-platform/robot/arms/home.py',
-    'recover': 'cobot-platform/robot/arms/recover.py',
+    'home': str(PLATFORM / 'robot/home.py'),
+    'recover': str(PLATFORM / 'robot/recover.py'),
     'rlt': 'methods.openpi_rlt.scripts.online_role',
 }
 
@@ -127,8 +127,27 @@ def _process_command(pid: int) -> str:
         return ''
 
 
+def _matches_process_marker(command: str, marker: str) -> bool:
+    """Match complete argv tokens; accept only the registered old project root."""
+    candidates = {marker}
+    current = str(PLATFORM) + "/"
+    legacy = str(SETTINGS.get("legacy_platform_root", "")).rstrip("/")
+    if legacy and marker.startswith(current):
+        candidates.add(legacy + "/" + marker[len(current):])
+    # Job receipts copied from the previous runtime retain their original marker.
+    if legacy and marker.startswith("cobot-platform/"):
+        relative = marker[len("cobot-platform/"):]
+        if relative in {"robot/arms/home.py", "robot/arms/recover.py"}:
+            relative = relative.replace("robot/arms/", "robot/")
+        candidates = {legacy + "/" + relative, str(PLATFORM / relative)}
+    tokens = command.split()
+    if marker == "multi_camera_shuai.launch":
+        return any(Path(token).name == marker for token in tokens)
+    return any(candidate in tokens for candidate in candidates)
+
+
 def _default_pid_probe(pid: int, marker: str) -> bool:
-    return marker in _process_command(pid)
+    return _matches_process_marker(_process_command(pid), marker)
 
 
 def _default_process_finder(marker: str):
@@ -138,7 +157,7 @@ def _default_process_finder(marker: str):
         try:
             pid = int(path.parent.name)
             raw = path.read_bytes().replace(b'\0', b' ').decode(errors='replace')
-            if marker not in raw:
+            if not _matches_process_marker(raw, marker):
                 continue
             pgid = os.getpgid(pid)
             if pgid == pid:

@@ -156,7 +156,7 @@ def test_managed_long_running_job_can_receive_ctrl_c_and_reports_stopped(tmp_pat
     stop={'component':'arms','action':'stop'}
     result=control.start(stop,control.confirm(stop)['confirmation_token'])
     assert result['phase']=='stopping'
-    assert stopped==[(123,'cobot-platform/robot/arms/arms.launch')]
+    assert stopped==[(123,str(device_control.PLATFORM/'robot/arms/arms.launch'))]
     process.code=-2
     assert control.status()['jobs']['arms']['phase']=='stopped'
 
@@ -265,7 +265,7 @@ def test_duplicate_healthy_start_is_adopted_but_incomplete_launch_is_rejected(tm
 def test_roscore_stop_refuses_while_dependent_launches_exist(tmp_path):
     markers={
         '/opt/ros/noetic/bin/roscore':[10],
-        'cobot-platform/robot/arms/arms.launch':[20],
+        str(device_control.PLATFORM/'robot/arms/arms.launch'):[20],
         'multi_camera_shuai.launch':[],
     }
     control=DeviceController(
@@ -305,3 +305,13 @@ def test_passive_arm_feedback_distinguishes_joint_and_gripper_faults(monkeypatch
     gripper_fault = report(gripper_status=0x70)
     assert gripper_fault['phase'] == 'ready'
     assert gripper_fault['gripper']['phase'] == 'error'
+
+
+def test_process_markers_accept_registered_migration_paths_only(monkeypatch):
+    monkeypatch.setitem(device_control.SETTINGS, "legacy_platform_root", "/registered/cobot-platform")
+    marker = str(device_control.PLATFORM / "robot/arms/arms.launch")
+    assert device_control._matches_process_marker("roslaunch " + marker, marker)
+    assert device_control._matches_process_marker("roslaunch /registered/cobot-platform/robot/arms/arms.launch", marker)
+    assert not device_control._matches_process_marker("roslaunch /someone-else/robot/arms/arms.launch", marker)
+    assert not device_control._matches_process_marker("roslaunch " + marker + ".bak", marker)
+    assert device_control._matches_process_marker("python /registered/cobot-platform/robot/home.py", "cobot-platform/robot/arms/home.py")

@@ -110,3 +110,11 @@ def test_terminal_proxy_has_time_for_data_finalization():
     client = RltBackendClient(opener=opener, timeout_seconds=2)
     client.request("POST", "/api/episode/success", {"episode_id": 1, "generation": 3})
     assert opener.requests[0][1] == 60.0
+
+
+@pytest.mark.parametrize("path", ["/api/session/prepare", "/api/episode/marker", "/api/episode/save"])
+def test_collection_actions_reach_the_registered_session_backend(path):
+    opener = FakeOpener(FakeResponse({"phase": "ready"}))
+    response = RltBackendClient(opener=opener).request("POST", path, {"episode_id": 1, "generation": 2})
+    assert response.status == 200
+    assert opener.requests[0][0].full_url.endswith(path)

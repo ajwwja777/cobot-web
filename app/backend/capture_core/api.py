@@ -103,6 +103,12 @@ class InterventionUpdate(BaseModel):
     note: Optional[str] = None
 
 
+class OperatorNodeUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    frame_index: StrictInt
+    node_kind: Literal["pause", "resume", "marker"]
+
+
 class LabelUpdateRequest(BaseModel):
     """Partial label update; UUID is mandatory to prevent cross-episode writes."""
 
@@ -118,11 +124,12 @@ class LabelUpdateRequest(BaseModel):
     failure_stage: Optional[str] = None
     failure_type: Optional[str] = None
     termination_reason: Optional[
-        Literal["success", "failure", "timeout", "safety_stop", "operator_abort"]
+        Literal["success", "failure", "timeout", "safety_stop", "operator_abort", "operator_save"]
     ] = None
     keep_for_training: Optional[Literal["true", "false", "undecided"]] = None
     operator_note: Optional[str] = None
     interventions: Optional[List[InterventionUpdate]] = None
+    operator_nodes: Optional[List[OperatorNodeUpdate]] = None
 
     @model_validator(mode="after")
     def validate_schema_version(self) -> LabelUpdateRequest:

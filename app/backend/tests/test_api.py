@@ -932,3 +932,32 @@ def test_start_value_error_reports_safe_error_type_without_path(tmp_path: Path) 
     assert response.status_code == 422
     assert response.json() == {"detail": "invalid_start_request: ValueError"}
     assert str(tmp_path) not in response.text
+
+
+@pytest.mark.parametrize("outcome", ["success", "failure"])
+def test_terminal_outcome_then_operator_nodes_matches_rlt_finalization(tmp_path, outcome):
+    episode_uuid = uuid4()
+    _write_episode(tmp_path, episode_uuid)
+    client = TestClient(create_app(recorder=FakeRecorder(), label_store=LabelStore(tmp_path)))
+    base = "/api/episodes/" + str(episode_uuid)
+    assert client.post(base + "/outcome", json={"episode_uuid": str(episode_uuid), "outcome": outcome}).status_code == 200
+    nodes = [{"frame_index": 0, "node_kind": "pause"}]
+    reply = client.put(base + "/labels", json={"episode_uuid": str(episode_uuid), "operator_nodes": nodes})
+    assert reply.status_code == 200, reply.text
+    saved = client.get(base + "/labels").json()
+    assert saved["episode_outcome"] == outcome
+    assert saved["operator_nodes"] == nodes
+
+
+def test_save_without_result_accepts_operator_save_and_rejects_malformed_nodes(tmp_path):
+    episode_uuid = uuid4()
+    _write_episode(tmp_path, episode_uuid)
+    client = TestClient(create_app(recorder=FakeRecorder(), label_store=LabelStore(tmp_path)))
+    url = "/api/episodes/" + str(episode_uuid) + "/labels"
+    body = {"episode_uuid": str(episode_uuid), "episode_outcome": "unknown",
+            "episode_quality": "uncertain", "termination_reason": "operator_save", "keep_for_training": "false"}
+    reply = client.put(url, json=body)
+    assert reply.status_code == 200, reply.text
+    for node in [{"frame_index": True, "node_kind": "pause"}, {"frame_index": 99, "node_kind": "pause"},
+                 {"frame_index": 0, "node_kind": "unsafe"}]:
+        assert client.put(url, json={"episode_uuid": str(episode_uuid), "operator_nodes": [node]}).status_code == 422
