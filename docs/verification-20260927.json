@@ -1,0 +1,30 @@
+{
+  "date": "2026-09-27",
+  "runtime_revision": "117fe141aea17e9081a1db535e557a155fa136f3",
+  "runtime_files": 273,
+  "backend": {
+    "passed": 529,
+    "skipped": 11
+  },
+  "frontend": {
+    "passed": 28
+  },
+  "launcher_regressions": {
+    "passed": 14
+  },
+  "handover_offline": {
+    "passed": 9
+  },
+  "http_assets": {
+    "count": 29,
+    "all_200": true
+  },
+  "preview_port": 8018,
+  "preview_mutations": 403,
+  "live_pid_unchanged": 628249,
+  "visual_browser_review": "not performed; no connected browser",
+  "physical_motion_acceptance": "not performed; user evaluation active",
+  "legacy_robot_suite": "not passed; details in MIGRATION.md",
+  "cutover": false,
+  "legacy_cleanup": false
+}
