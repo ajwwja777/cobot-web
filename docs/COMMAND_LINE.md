@@ -10,7 +10,7 @@ cd /home/agilex/jiaan/project/cobot-web
 python3 scripts/console.py --help
 ```
 
-工具只需系统 Python 3，不用激活网页虚拟环境。代码／Git／维护在 A6000：`/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web`；Cobot 是运行副本。当前 runtime 由 `configs/local.json` 指定，仍兼容 `/home/agilex/jiaan/project/cobot-ops/runtime`，不是一个需要独立启动的 ops 服务。
+工具只需系统 Python 3，不用激活网页虚拟环境。代码／Git／维护在 A6000：`/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web`；Cobot 是运行副本。当前 runtime 由 `configs/local.json` 指定，使用 `/home/agilex/jiaan/project/cobot-web/runtime`，由网页项目直接管理。
 
 ## 两层入口及可用范围
 

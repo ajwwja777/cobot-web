@@ -4,7 +4,7 @@
 
 主文档和 Git 在 A6000：`/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web`。现场副本在 Cobot：`/home/agilex/jiaan/project/cobot-web`。现场查看：`less /home/agilex/jiaan/project/cobot-web/docs/WEB_RECOVERY.md`。
 
-完整开机、采集、模型与评测流程见 [命令行操作手册](COMMAND_LINE.md)。命令按配置读取 runtime；当前仍为 `/home/agilex/jiaan/project/cobot-ops/runtime`，不需要进入旧项目操作。
+完整开机、采集、模型与评测流程见 [命令行操作手册](COMMAND_LINE.md)。命令按配置读取 runtime；当前为 `/home/agilex/jiaan/project/cobot-web/runtime`；恢复工具与证据随网页项目保存。
 
 ## 先记住这四点
 

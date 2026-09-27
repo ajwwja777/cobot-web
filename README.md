@@ -11,7 +11,7 @@ Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状�
 - Cobot 常用入口：`python3 scripts/console.py --help`。不依赖网页排障：`python3 scripts/console.py recovery status`。
 - 网页输出栏“诊断”展示错误请求和处理建议，并可手动检查实际设备／模型／录制／存储状态。
 
-2026-09-27 用户决定不再单独维护 cobot-ops 项目。网页使用、任务管理和恢复文档／工具归本项目；硬件和算法实现继续归对应领域。原 ops 仓库保留历史与兼容跳转。正在使用的 `cobot-ops/runtime` 和现场 uv 工具暂不移动，不需要另开一个 ops 对话或服务。
+2026-09-27 用户决定不再单独维护 cobot-ops 项目。网页使用、任务管理和恢复文档／工具归本项目；硬件和算法实现继续归对应领域。ops 的 runtime、uv 与恢复证据归本项目；旧目录按迁移记录验收后删除，Git 历史留档。不需要独立 ops 对话或服务。
 
 ## 从哪里读
 
@@ -38,7 +38,7 @@ Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状�
 |---|---|
 | A6000 主工作区 | `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web` |
 | Cobot 运行副本 | `/home/agilex/jiaan/project/cobot-web` |
-| Cobot 日志／PID／任务状态（过渡兼容） | `/home/agilex/jiaan/project/cobot-ops/runtime` |
+| Cobot 日志／PID／任务状态 | `/home/agilex/jiaan/project/cobot-web/runtime` |
 | 新的采集／评测数据根 | `/home/agilex/jiaan/data` |
 
 仓库：[ajwwja777/cobot-web](https://github.com/ajwwja777/cobot-web)，`main`。笔记本只保留对话入口。
@@ -61,11 +61,11 @@ Node 仅用于前端开发测试，Cobot 不需要安装 npm 或开发依赖。�
 
 `python3 scripts/sync_cobot.py` 从 A6000 同步已提交的运行文件，核对逐文件 SHA-256，并写 `.release.json`。它不复制 Git、模型、数据、开发依赖、测试缓存，也不重启任何服务。
 
-Cobot 使用 `configs/hosts/cobot.json` 作为 `configs/local.json`。现场 uv 位于 `/home/agilex/jiaan/project/cobot-ops/tools/uv`：
+Cobot 使用 `configs/hosts/cobot.json` 作为 `configs/local.json`。现场 uv 位于 `/home/agilex/jiaan/project/cobot-web/tools/uv`：
 
 ```bash
 cd /home/agilex/jiaan/project/cobot-web
-UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-ops/runtime/cache/uv /home/agilex/jiaan/project/cobot-ops/tools/uv sync --frozen --no-dev --python /usr/bin/python3
+UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-web/runtime/cache/uv /home/agilex/jiaan/project/cobot-web/tools/uv sync --frozen --no-dev --python /usr/bin/python3
 ./scripts/preview.sh
 ```
 
