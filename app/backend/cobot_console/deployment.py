@@ -20,6 +20,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
 from .rlt_proxy import RltBackendClient, RltBackendError
+from .shared_model_env import BETWEEN_EPISODES
 
 from .paths import PROJECT as PLATFORM, RLT, DATA, PI05 as LEGACY, PI05_DAGGER as DAGGER, RUNTIME_ROOT
 RUN = RLT / "runs/plug_v3_yyshadow"
@@ -79,6 +80,20 @@ def catalog():
         item.update(available=bool(available), unavailable_reason="" if available else "权重或运行入口缺失",
                     entry=str(PLATFORM / "scripts/deployment_run.sh"), training_enabled=False,
                     recording="结果与三相机首尾帧")
+    # Same catalog and process owner in both pages. Online training remains an
+    # explicit choice; evaluation uses the frozen sibling of that checkpoint.
+    from .model_catalog import ModelCatalog
+    for item in ModelCatalog("plug_v3_yyshadow").listing()["models"]:
+        if item["kind"] not in {"online", "frozen"}:
+            continue
+        online = item["kind"] == "online"
+        definitions.append({
+            **item, "kind": "rlt", "mode": item["start_target"],
+            "base_checkpoint": base, "control_hz": 20, "home_pose": "plug2",
+            "training_enabled": online, "evaluation_allowed": not online,
+            "deterministic": not online,
+            "entry": str(PLATFORM / "scripts/deployment_run.sh"),
+        })
     return definitions
 
 
@@ -145,9 +160,12 @@ class ManagedRuntime:
         command = [str(PLATFORM / "scripts/deployment_run.sh"), model["id"]]
         if model["kind"] == "rlt":
             command.extend([model["checkpoint"], str(self.directory / "evaluation.yaml")])
+        atomic_json(self.directory / "session-use.json", {
+            "use": "collection" if model.get("training_enabled") else "evaluation"})
+        environment = {**os.environ, "COBOT_MODEL_SESSION_USE": str(self.directory / "session-use.json")}
         with log.open("ab") as stream:
             self.process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stream,
-                                            stderr=subprocess.STDOUT, start_new_session=True)
+                                            stderr=subprocess.STDOUT, start_new_session=True, env=environment)
         state = {"model": model, "pid": self.process.pid, "start_ticks": process_identity(self.process.pid),
                  "log_path": str(log), "phase": "loading", "started_at": time.time()}
         atomic_json(self.registry, state)
@@ -170,12 +188,12 @@ class ManagedRuntime:
         if model["kind"] == "rlt":
             try:
                 response = self.backend.request("GET", "/api/session")
-                if response.status == 200 and response.payload.get("evaluation_only") and response.payload.get("deployment_model_id") == model["id"]:
+                if response.status == 200 and (response.payload.get("shared_model") or response.payload.get("evaluation_only")) and response.payload.get("deployment_model_id") == model["id"]:
                     session = response.payload
             except RltBackendError:
                 pass
             phase = session.get("phase") if session else "loading"
-            mapped = "ready" if phase in ("disarmed", "armed", "ready", "waiting_scene") else "running" if phase == "rollout" else "paused" if phase in ("paused", "hil", "terminal_pending") else "error" if phase in ("fault", "stopped") else "loading"
+            mapped = "ready" if phase in ("disarmed", "armed", "ready", "waiting_scene", "stopped") else "running" if phase == "rollout" else "paused" if phase in ("paused", "hil", "terminal_pending") else "finalizing" if phase in ("recording_starting", "finalizing", "replay_committing") else "error" if phase == "fault" else "loading"
             if session and not saved.get("ready_confirmed"):
                 saved["ready_confirmed"] = True
                 atomic_json(self.registry, saved)
@@ -199,6 +217,30 @@ class ManagedRuntime:
             raise DeploymentError(str(response.payload.get("error") or response.payload.get("detail") or response.payload))
         return response.payload
 
+    def select_use(self, use):
+        state = self.status()
+        if state.get("model", {}).get("kind") != "rlt":
+            return
+        session = state.get("session") or {}
+        if not session.get("shared_model"):
+            raise DeploymentError("请释放旧进程后重新加载模型，以启用共享 Session")
+        if session.get("phase") not in BETWEEN_EPISODES:
+            raise DeploymentError("请先结束当前 Episode，再切换采集或评测")
+        if use == "evaluation" and state["model"].get("training_enabled"):
+            raise DeploymentError("在线更新已启用；评测请选择同路径的冻结模型")
+        atomic_json(self.directory / "session-use.json", {"use": use})
+
+    def collection_action(self, path, body=None):
+        state = self.status()
+        session = state.get("session") or {}
+        if state.get("model", {}).get("kind") != "rlt" or not session.get("shared_model"):
+            raise DeploymentError("请先加载采集模型")
+        if path in {"/api/session/arm", "/api/session/prepare", "/api/session/start", "/api/episode/next"}:
+            self.select_use("collection")
+        elif session.get("session_use") != "collection":
+            raise DeploymentError("当前为评测轮次，请使用部署控制")
+        return self.backend.request("POST", path, body)
+
     def action(self, operation):
         state = self.status()
         if state["phase"] in ("offline", "loading", "error"):
@@ -206,8 +248,8 @@ class ManagedRuntime:
         if state["model"]["kind"] == "rlt":
             phase = state["session"]["phase"]
             if operation == "start":
-                if phase == "disarmed":
-                    self._session_action("/api/session/arm")
+                if phase in ("disarmed", "stopped"):
+                    self._session_action("/api/session/prepare")
                 return self._session_action("/api/episode/next" if phase == "waiting_scene" else "/api/session/start")
             if operation in ("success", "failure", "abort"):
                 return self._session_action("/api/episode/" + operation, {"home_after_terminal": False})
@@ -274,6 +316,7 @@ class DeploymentManager:
         self.observed_at = None
         self.catalog_observed_at = 0.0
         self.last_status = {}
+        self.collection_session = False
 
     def root(self, path=None):
         path = Path(path or self.settings.get("data_root") or self.allowed_root / "evaluations").expanduser()
@@ -324,7 +367,9 @@ class DeploymentManager:
                 return {**self.last_status, "phase": self.last_status.get("phase", "checking"), "status_stale": True}
             state = dict(self.cached)
             age = time.time() - self.observed_at if self.observed_at else None
-            self.last_status = {**state, "operation": self.operation, "error": self.error,
+            session = state.get("session") or {}
+            collection_session = (session.get("session_use") == "collection" and session.get("phase") not in ("disarmed", "stopped")) if session else self.collection_session
+            self.last_status = {**state, "session_active": collection_session, "operation": self.operation, "error": self.error,
                     "data_root": self.settings.get("data_root") or str(self.allowed_root / "evaluations"),
                     "active": dict(self.active) if self.active else None,
                     "selected_model": self.settings.get("model_id"), "models": self.models,
@@ -398,9 +443,15 @@ class DeploymentManager:
             if self.busy() or self.active:
                 raise DeploymentError("请先结束当前 Episode")
             state = self.runtime.status()
-            if state.get("model", {}).get("kind") != "pi05" or state.get("phase") not in {"ready", "paused", "running"}:
-                raise DeploymentError("请先加载采集模型")
-            self.runtime.action("pause")
+            if state.get("phase") not in {"ready", "paused"}:
+                raise DeploymentError("请先加载采集模型并结束当前 Episode")
+            if state.get("model", {}).get("kind") == "rlt":
+                starting = operation == "collection_session_start"
+                if starting:
+                    self.runtime.select_use("collection")
+                self.runtime._session_action("/api/session/prepare" if starting else "/api/session/stop")
+            else:
+                self.runtime.action("pause")
             self.collection_session = operation == "collection_session_start"
             return
         if operation == "load":
@@ -409,6 +460,10 @@ class DeploymentManager:
             model = next((m for m in self.model_provider() if m["id"] == model_id), None)
             if not model or not model["available"]:
                 raise DeploymentError("所选模型不可用")
+            current = self.runtime.status()
+            if (current.get("model", {}).get("id") == model_id
+                    and current.get("phase") in {"loading", "ready", "paused"}):
+                return  # Reuse the shared process; never reload the same weights.
             self.runtime.load(model)
             self.collection_session = False
             self.settings["model_id"] = model_id
@@ -434,6 +489,12 @@ class DeploymentManager:
             state = self.runtime.status()
             if state["phase"] not in ("ready", "paused"):
                 raise DeploymentError("请先等待模型加载成功")
+            if state.get("model", {}).get("training_enabled"):
+                raise DeploymentError("在线更新已启用；评测请选择同路径的冻结模型")
+            select_use = getattr(self.runtime, "select_use", None)
+            if select_use:
+                select_use("evaluation")
+            self.collection_session = False
             folder = self.root() / ("eval-" + time.strftime("%Y%m%dT%H%M%S") + "-" + uuid4().hex[:8])
             record = {"id": folder.name, "data_root": str(self.root()), "model": state["model"],
                       "started_at": time.time(), "outcome": None, "intervened": False, "intervention_baseline": state.get("intervention_count", 0),
@@ -485,6 +546,25 @@ class DeploymentManager:
                 atomic_json(self.directory / "active.json", {})
             return
         raise DeploymentError("未知部署操作")
+
+    def collection_action(self, path, body=None):
+        with self.lock:
+            if self.operation or self.active:
+                raise DeploymentError("请先结束当前部署操作或评测轮次")
+            self.operation = "collection"
+            self.error = None
+        try:
+            response = self.runtime.collection_action(path, body)
+            if response.status < 400:
+                if path in {"/api/session/prepare", "/api/session/start", "/api/episode/next"}:
+                    self.collection_session = True
+                elif path == "/api/session/stop":
+                    self.collection_session = False
+            return response
+        finally:
+            self.refresh()
+            with self.lock:
+                self.operation = None
 
     def records(self, model_id=None):
         rows = []

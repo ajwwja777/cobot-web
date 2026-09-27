@@ -1,7 +1,7 @@
 "use strict";
 (function(root){
   const $=s=>document.querySelector(s);
-  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null;
+  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,lastLoadedKey='';
   const english=()=>root.CobotPreferences?.language==='en';
   const text=(zh,en)=>english()?en:zh;
   const useModel=()=>Boolean($('#capture-use-model')?.checked);
@@ -13,9 +13,8 @@
   function modelLoaded(){
     const model=selectedModel();
     if(!useModel()||!model)return false;
-    if(model.runtime==='normal')return root.CobotCollectionModel?.loaded();
-    const mode=context.console?.rlt_lifecycle?.mode;
-    return context.console?.rlt_model?.id===model.id&&(!mode||mode===model.start_target)&&Boolean(context.session)&&['ready_disarmed','ready_armed','armed','running','ready'].includes(context.console?.rlt_backend_phase);
+    const state=modelState();
+    return !state.status_stale&&state.model?.id===model.id&&['ready','paused','running'].includes(state.phase);
   }
   function label(node,zh,en){
     if(!node)return;
@@ -35,28 +34,31 @@
   function updateCatalog(list){
     if(list)rltCatalog=list.models||[];
     if(!mounted)return;
-    const normal=(modelState().models||[]).filter(m=>m.kind==='pi05').map(m=>({...m,runtime:'normal'}));
-    catalog=[...normal,...rltCatalog.map(m=>({...m,runtime:'rlt'}))];
+    catalog=(modelState().models||[]).map(m=>({...m,runtime:m.kind==='pi05'?'normal':'rlt'}));
     const select=$('#collection-model-select');
     if(!initialized&&catalog.length&&context.console){
       const saved=localStorage.getItem('cobot-collection-model-id');
       const fallback=isRlt()?context.console.rlt_model?.id:localStorage.getItem('cobot-capture-model');
-      const candidate=saved||fallback;
-      if(catalog.some(m=>m.id===candidate)||(rltCatalog.length&&modelState().models)){
+      const candidate=({ 'plug_v3-stage1-reference':'plug-v3-reference' })[saved||fallback]||saved||fallback||modelState().model?.id||modelState().selected_model;
+      if(catalog.length){
         selected=catalog.find(m=>m.id===candidate)?.id||catalog.find(m=>m.runtime===(isRlt()?'rlt':'normal'))?.id||catalog[0].id;
         if(localStorage.getItem('cobot-capture-use-model')===null&&isRlt())$('#capture-use-model').checked=true;
         initialized=true;
       }
     }
-    const signature=JSON.stringify(catalog.map(m=>[m.id,m.label,m.available]));
+    const signature=JSON.stringify(catalog.map(m=>[m.id,root.CobotModelChoiceLabel(m),m.available]));
     if(select.dataset.signature!==signature){
-      select.replaceChildren(...catalog.map(m=>{const option=document.createElement('option');option.value=m.id;option.textContent=m.label;option.disabled=!m.available;return option;}));
+      select.replaceChildren(...catalog.map(m=>{const option=document.createElement('option');option.value=m.id;option.textContent=root.CobotModelChoiceLabel(m);option.disabled=!m.available;return option;}));
       if(!catalog.length){const option=document.createElement('option');option.value='';label(option,'正在读取模型…','Reading models…');select.append(option);}
       select.dataset.signature=signature;
     }
     select.value=selected;
+    const state=modelState(),loadedKey=state.model?.id+':'+state.started_at;
+    if(state.model&&state.phase!=='offline'&&catalog.some(m=>m.id===state.model.id)&&loadedKey!==lastLoadedKey){
+      lastLoadedKey=loadedKey;selected=state.model.id;select.value=selected;
+    }
     const chosen=selectedModel();
-    if(chosen?.runtime==='normal'&&$('#capture-model-select').value!==chosen.id)$('#capture-model-select').value=chosen.id;
+    if(chosen&&$('#capture-model-select').value!==chosen.id)$('#capture-model-select').value=chosen.id;
   }
   function source(action){
     const rlt={start:'rlt-start',pause:'rlt-pause',resume:'rlt-resume',marker:'rlt-marker',save:'rlt-save',discard:'rlt-abort',success:'rlt-success',failure:'rlt-failure'};
@@ -68,22 +70,23 @@
     updateCatalog();
     const rlt=isRlt(),use=useModel(),chosen=selectedModel(),state=modelState();
     const processing=modelBusy||root.CobotCollectionModel?.busy;
-    const loading=chosen?.runtime==='rlt'?(modelActionName==='load'||String(context.console?.rlt_backend_phase||'').startsWith('loading')):(root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading');
+    const loading=root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading';
     const locked=active()||changing||context.busy||processing||loading;
     const routeReady=!changing&&(use?chosen?.runtime===(rlt?'rlt':'normal'):!rlt);
     $('#capture-use-model').disabled=Boolean(locked);
     $('#collection-model-select').disabled=Boolean(!use||locked);
     $('#collection-label-results').disabled=Boolean(context.busy||changing);
-    const backendOnline=!['offline',''].includes(context.console?.rlt_backend_phase||'');
+    const backendOnline=state.model&&!['offline'].includes(state.phase);
     $('#collection-load').disabled=!use||!chosen?.available||locked||modelLoaded()||!routeReady;
-    $('#collection-unload').disabled=!use||locked||!chosen||(chosen.runtime==='rlt'?!backendOnline:$('#capture-model-unload').disabled);
+    $('#collection-unload').disabled=!use||active()||changing||processing||!backendOnline;
     const ready=modelLoaded();
     const estimate=root.CobotModelLoading(chosen);
     label($('#collection-model-state'),!use?'纯示教':loading?estimate.zh:processing?'正在处理…':ready?'模型加载成功':'等待加载模型',!use?'Manual capture':loading?estimate.en:processing?'Working…':ready?'Model loaded successfully':'Load model to start');
-    const failure=use&&(chosen?.runtime==='normal'?state.error||(state.phase==='error'?'模型加载失败':null):context.session?.fault_reason||context.console?.rlt_lifecycle?.error_code||(context.console?.rlt_backend_phase==='fault'?'模型加载失败':null));
+    const failure=use&&(state.error||(state.phase==='error'?(state.detail||'模型加载失败'):null));
     if(failure)label($('#collection-model-state'),String(failure),root.CobotPreferences?.text(String(failure))||String(failure));
     $('#collection-model-state').dataset.tone=failure?'error':ready?'ready':'idle';
-    for(const [action,id] of [['session-start',rlt?'rlt-prepare':'capture-session-start'],['session-stop',rlt?'rlt-stop':'capture-session-stop']])$('#collection-'+action).disabled=!use||!routeReady||changing||modelBusy||Boolean($('#'+id)?.disabled);
+    $('#collection-session-start').disabled=!use||!routeReady||changing||processing||!ready||active()||Boolean(state.session_active);
+    $('#collection-session-stop').disabled=!use||!routeReady||changing||processing||active()||!state.session_active;
     const normalTerminal=Boolean(context.capture?.buttons?.stop)&&!context.busy;
     for(const key of ['success','failure'])$('#capture-'+key).disabled=!normalTerminal||!labelResults();
     for(const key of ['start','pause','resume','marker','save','discard','success','failure']){
@@ -106,9 +109,9 @@
     value($('#collection-generation'),rlt?context.session?.generation??0:context.capture?.generation??0);
     const src=rlt?$('#rlt-data-root'):$('#capture-form input[name=data_root]'),input=$('#collection-data-root');
     if(document.activeElement!==input&&!input.dataset.dirty&&input.value!==src.value)input.value=src.value;
-    input.disabled=Boolean(locked||src.disabled);directoryPicker?.setDisabled(input.disabled);
+    input.disabled=false;directoryPicker?.setDisabled(false);
     $('#collection-storage-browse').disabled=input.disabled;
-    $('#collection-storage-use').disabled=Boolean(locked||$(rlt?'#rlt-save-storage':'#prepare-storage').disabled);
+    $('#collection-storage-use').disabled=Boolean(changing||(!rlt&&active()));
     value($('#collection-recording-directory'),$(rlt?'#rlt-recording-directory':'#episode-directory').textContent);
     const msg=$(rlt?'#rlt-message':'#message');value($('#collection-message'),msg.textContent);$('#collection-message').classList.toggle('error',msg.classList.contains('error'));
     label($('#episode-browser-title'),'数据','Data');
@@ -136,18 +139,11 @@
   async function modelAction(name){
     const button=$('#collection-'+name);if(button.disabled)return;
     const model=selectedModel();
-    if(model.runtime==='normal'){
-      $('#capture-model-select').value=model.id;$('#capture-'+({load:'model-load',unload:'model-unload','session-start':'session-start','session-stop':'session-stop'}[name])).click();return;
-    }
-    if(name==='session-start'||name==='session-stop'){$(name==='session-start'?'#rlt-prepare':'#rlt-stop').click();return;}
     modelBusy=true;modelActionName=name;render();
     try{
-      if(name==='load'){
-        const listing=await root.request('/api/rlt/model',{method:'POST',body:JSON.stringify({model_id:model.id})});updateCatalog(listing);await root.refreshModels();
-        await root.runDeviceOperation({component:'rlt',action:'start',target:model.start_target,model:model.id},text('加载模型','Load model'),button);
-      }else await root.runDeviceOperation({component:'rlt',action:'down',model:context.console?.rlt_model?.id||model.id},text('释放模型','Release model'),button);
-    }catch(error){root.CobotWorkspaceUI?.report(error.message,'error',text('模型','Model'));}
-    finally{modelBusy=false;modelActionName="";await root.refreshConsole();render();}
+      await root.CobotCollectionModel.action(name.replace('-','_'),model.id);
+      await root.refreshConsole();
+    }finally{modelBusy=false;modelActionName="";render();}
   }
   function hideContents(panel){const holder=document.createElement('div');holder.className='collection-legacy';holder.append(...panel.childNodes);panel.append(holder);return holder;}
   function mount(){
@@ -178,13 +174,13 @@
     panel.append(legend);const message=document.createElement('p');message.id='collection-message';message.className='inline-status';message.setAttribute('role','status');panel.append(message);
     $('#collection-label-results').checked=localStorage.getItem('cobot-collection-label-results')==='true';$('#collection-label-results').addEventListener('change',()=>{localStorage.setItem('cobot-collection-label-results',labelResults());render();});
     use.addEventListener('change',changeRuntime);
-    select.addEventListener('change',()=>{selected=select.value;const model=selectedModel();if(model?.runtime==='normal'){$('#capture-model-select').value=model.id;$('#capture-model-select').dispatchEvent(new Event('change'));}changeRuntime();});
+    select.addEventListener('change',()=>{selected=select.value;const model=selectedModel();if(model){$('#capture-model-select').value=model.id;$('#capture-model-select').dispatchEvent(new Event('change'));}changeRuntime();});
     storage.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="录制目录" data-en="Recording directory">录制目录</h3></div><label><span data-zh="目录" data-en="Directory">目录</span><input id="collection-data-root" autocomplete="off" aria-controls="collection-directory-options" role="combobox"/></label><div class="directory-browser" hidden id="collection-directory-browser"><p class="muted" id="collection-directory-hint"></p><div class="path-options" id="collection-directory-options" role="listbox"></div></div><div class="button-row"><button id="collection-storage-browse" type="button" data-zh="浏览" data-en="Browse">浏览</button><button id="collection-storage-use" type="button" data-zh="检查并使用" data-en="Check and use">检查并使用</button></div><p class="path-caption"><span data-zh="当前：" data-en="Current: ">当前：</span><code data-localize id="collection-recording-directory">—</code></p>');
     const input=$('#collection-data-root');
     directoryPicker=root.CobotPathPicker.create({input,panel:$('#collection-directory-browser'),list:$('#collection-directory-options'),hint:$('#collection-directory-hint'),fetchDirectories:path=>root.request('/api/segmented-teach/storage/directories?path='+encodeURIComponent(path)),storage:localStorage,storageKey:'cobot-unified-collection-paths',onChange:()=>{input.dataset.dirty='true';const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;target.dispatchEvent(new Event('input'));}});
     $('#collection-storage-browse').addEventListener('click',()=>directoryPicker.refresh());
     $('#collection-storage-use').addEventListener('click',()=>{const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;if(isRlt())target.dispatchEvent(new Event('input'));$(isRlt()?'#rlt-save-storage':'#prepare-storage').click();delete input.dataset.dirty;});
-    $('#capture-home-enabled').addEventListener('change',()=>render());document.addEventListener('cobot:language',()=>render());render();
+    document.querySelector('[data-view="operation"]')?.addEventListener('click',()=>{if(useModel()&&!active())changeRuntime();});$('#capture-home-enabled').addEventListener('change',()=>render());document.addEventListener('cobot:language',()=>render());render();
   }
   root.CobotUnifiedCollection={mount,render,labelResults,active,changeRuntime,shortcutAction,updateCatalog,get mounted(){return mounted;},get changing(){return changing||modelBusy;},updateRecorder:state=>{context.recorder=state;render();}};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.CobotUnifiedCollection;

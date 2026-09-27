@@ -30,6 +30,9 @@ class EvaluationEpisodeLifecycle:
         self.active = self.enabled = False
         return reference
 
+    def record_marker(self, kind):
+        pass  # Evaluation does not record operator nodes.
+
     def set_capture_enabled(self, enabled):
         self.enabled = bool(enabled)
         return self.status()

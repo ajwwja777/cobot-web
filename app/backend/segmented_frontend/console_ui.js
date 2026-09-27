@@ -20,8 +20,8 @@
       }
     }
     if (!response.ok) {
-      const detail = body && (body.detail || body.error_code || body.message);
-      throw new Error(detail ? String(detail) : "HTTP " + response.status);
+      const detail = body && (body.detail || body.error || body.error_code || body.message);
+      throw new Error(detail ? (typeof detail === "string" ? detail : JSON.stringify(detail)) : "HTTP " + response.status);
     }
     return body;
   }

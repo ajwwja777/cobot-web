@@ -9,12 +9,15 @@ set +u
 source "$TASK5_ROS_SETUP"
 set -u
 case "${1:-}" in
-  plug-v3-reference|plug-v3-warmup-5k)
-    export COBOT_RLT_EVALUATION=1
+  plug-v3-reference|plug-v3-warmup-5k|plug_v3-frozen-latest|plug_v3-online-latest)
+    unset COBOT_RLT_EVALUATION
+    export COBOT_RLT_SHARED_MODEL=1
     export COBOT_DEPLOYMENT_MODEL_ID="$1"
     export COBOT_EVAL_SNAPSHOT="${2:?snapshot required}"
     export COBOT_EVAL_CONFIG="${3:?configuration required}"
-    if [[ "$1" == plug-v3-reference ]]; then mode=reference; else mode=frozen; fi
+    if [[ "$1" == plug-v3-reference ]]; then mode=reference
+    elif [[ "$1" == plug_v3-online-latest ]]; then mode=online
+    else mode=frozen; fi
     exec "$PLATFORM/scripts/rlt_v3_up.sh" "$mode"
     ;;
   pi05-in-the-pot|pi05-in-the-pot-dagger)

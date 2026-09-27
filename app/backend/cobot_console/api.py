@@ -182,6 +182,10 @@ def create_app(
         device_controller = DeviceController(Path(os.environ.get('COBOT_CONSOLE_JOB_RUNTIME',str(RUNTIME_ROOT / 'console-jobs'))))
 
     def model_release() -> Dict[str, object]:
+        manager = getattr(application.state, "deployment_manager", None)
+        loaded = manager.status() if manager else {}
+        if loaded.get("phase") != "offline" and loaded.get("model", {}).get("kind") == "rlt":
+            return {**loaded["model"], "validated": bool(loaded["model"].get("available"))}
         selected = models.current()
         if selected is not None:
             return {**selected, "validated": bool(selected.get("available"))}
@@ -319,20 +323,18 @@ def create_app(
         if selected_profile not in ("plug_v2", "plug_v3_yyshadow"):
             raise HTTPException(status_code=409, detail="storage_selection_requires_rlt_profile")
         storage = storage_contract()
+        # Selecting a destination does not need a loaded or healthy Session.
+        # A shared model latches this preference when the next episode starts.
+        status = {"phase": "offline"}
         try:
             response = backend.request("GET", "/api/session")
-            if response.status != 200:
-                raise HTTPException(status_code=503, detail="rlt_session_state_unavailable")
-            status = response.payload
+            if response.status == 200:
+                status = response.payload
         except RltBackendError:
-            try:
-                life = asdict(registry.read())
-            except (RltBackendError, OSError, ValueError, TypeError):
-                life = {"phase": "offline", "children": {}}
-            if life.get("children", {}).get("session") or life.get("phase") not in ("offline", "ready_disarmed"):
-                raise HTTPException(status_code=503, detail="rlt_session_state_unavailable")
-            status = {"phase": "disarmed", "data_phase": "warmup"}
-        phase = status.get("data_phase", "warmup")
+            pass
+        current = model_release()
+        mode = current.get("mode") or current.get("start_target")
+        phase = status.get("data_phase") or ("warmup" if mode == "reference" else "online")
         return storage, phase, status
 
     @application.get("/api/rlt/recorder-diagnostics")
@@ -364,21 +366,25 @@ def create_app(
     def get_rlt_storage():
         storage, phase, status = rlt_storage_state()
         return {"data_root": str(storage.selected_root(phase)), "data_phase": phase,
-                "editable": status["phase"] in ("disarmed", "ready", "armed", "waiting_scene", "stopped"),
+                "editable": True, "applies_to": "next_episode",
+                "recording_data_root": status.get("recording_data_root"),
                 "data_root_choices": list(dict.fromkeys([str(storage.ALLOWED / "test")] +
                     [str(p) for kind in ("warmup", "online") for p in storage.roots_for_phase(kind)]))}
 
     @application.post("/api/rlt/storage")
     def set_rlt_storage(request: RltStorageRequest):
         storage = storage_contract()
-        folder = storage.RUN / "learning"
+        folder = RUNTIME_ROOT / "data-console" if selected_profile == "plug_v3_yyshadow" else storage.RUN / "learning"
         folder.mkdir(parents=True, exist_ok=True)
-        with (folder / "operation.lock").open("a") as lock:
+        with (folder / ("storage.lock" if selected_profile == "plug_v3_yyshadow" else "operation.lock")).open("a") as lock:
             try: fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
                 raise HTTPException(status_code=409, detail="learning_or_start_in_progress")
             storage, phase, status = rlt_storage_state()
-            if status["phase"] not in ("disarmed", "ready", "armed", "waiting_scene", "stopped"):
+            # Legacy workers latch their directory at startup; only shared
+            # workers support staging a directory during an active episode.
+            if (status["phase"] not in ("offline", "disarmed", "ready", "armed", "waiting_scene", "stopped", "fault")
+                    and not status.get("shared_model")):
                 raise HTTPException(status_code=409, detail="先结束本轮再修改RLT录制目录")
             try:
                 root = storage.validate_root(request.data_root)
@@ -386,6 +392,7 @@ def create_app(
             except (ValueError, OSError) as error:
                 raise HTTPException(status_code=422, detail=str(error)) from error
             data = storage.settings()
+            data["selected"] = str(root)
             data.setdefault("current", {})[phase] = str(root)
             previous = data.setdefault("history", {}).setdefault(phase, [])
             if str(root) not in previous: previous.append(str(root))
@@ -653,15 +660,22 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(error)) from error
 
     def proxy(method: str, path: str, body: Optional[Dict[str, object]] = None):
-        deployment = application.state.deployment_manager.status()
-        if method == "POST" and path != "/api/session/pause" and (deployment["phase"] != "offline" or deployment.get("operation")):
-            raise HTTPException(status_code=409, detail="当前为纯部署模型，请使用部署页控制")
+        manager = application.state.deployment_manager
+        deployment = manager.status()
+        managed = deployment["phase"] != "offline" or deployment.get("operation")
         if modes.snapshot().selected_mode != "rlt":
             raise HTTPException(status_code=409, detail="rlt_mode_not_selected")
         if method == "POST" and path in {"/api/session/arm", "/api/session/prepare", "/api/session/start", "/api/session/resume", "/api/episode/next"} and not rlt_available():
             raise HTTPException(status_code=409, detail="plug_v2_model_not_validated")
         try:
-            response = backend.request(method, path, body)
+            if method == "POST" and managed:
+                from .deployment import DeploymentError
+                try:
+                    response = manager.collection_action(path, body)
+                except DeploymentError as error:
+                    raise HTTPException(status_code=409, detail=str(error)) from error
+            else:
+                response = backend.request(method, path, body)
         except RltBackendError as error:
             raise HTTPException(status_code=503, detail=str(error)) from error
         return JSONResponse(status_code=response.status, content=response.payload)

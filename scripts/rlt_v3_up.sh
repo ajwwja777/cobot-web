@@ -166,6 +166,20 @@ if [[ "${COBOT_RLT_EVALUATION:-0}" == 1 ]]; then
   ENV_FACTORY=cobot_console.evaluation_env:create_evaluation_env
 fi
 
+# The web owns a single loaded model. Session preparation chooses collection
+# or evaluation; the environment latches that choice before each episode.
+if [[ "${COBOT_RLT_SHARED_MODEL:-0}" == 1 ]]; then
+  export PYTHONPATH="$COBOT_PLATFORM_ROOT/app/backend:$PYTHONPATH"
+  if [[ "$MODE" != online ]]; then
+    "$ONLINE_PY" -m cobot_console.shared_model_env "$MODE" "$COBOT_EVAL_SNAPSHOT" "$COBOT_EVAL_CONFIG"
+    RLT_CONFIG="$COBOT_EVAL_CONFIG"
+    export RLT_DISABLE_LEARNER=1 COBOT_RLT_DISABLE_PHASE_CONTROLLER=1
+  fi
+  export COBOT_RLT_HOME_AFTER_TERMINAL=0
+  export COBOT_RLT_TRACE_DIR="$COBOT_RUNTIME_ROOT/deployment/collection-traces/$MODE"
+  ENV_FACTORY=cobot_console.shared_model_env:create_shared_env
+fi
+
 echo "RLT $MODE 已启动；操作页沿用 http://127.0.0.1:8015/。Ctrl-C 停止本次 Session，Stage-1 模型保留。"
 # Upstream resolves artifact paths relative to the process working directory,
 # not relative to the YAML file.  Keep it anchored beside the config so every

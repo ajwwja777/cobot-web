@@ -5,7 +5,7 @@
   const phaseName = {checking:"核对中",offline:"未加载",loading:"加载中",ready:"加载成功",paused:"已暂停",running:"部署中",error:"异常"};
   const operationName={load:"加载模型",unload:"释放模型",start:"开始部署",pause:"暂停",resume:"继续",success:"记录成功",failure:"记录失败",abort:"放弃本轮"};
   const outcomes={success:"成功",failure:"失败",abort:"放弃",start_failed:"启动失败"};
-  let state=null, localBusy=false, selectedModel="", modelSignature="", selectedRecord="", records=[], recordKey="", lastNotice="", lastLoaded="", activeBefore=null;
+  let state=null, localBusy=false, selectedModel="", modelSignature="", selectedRecord="", records=[], recordKey="", lastNotice="", lastLoaded="", activeBefore=null,loadedSelectionKey="";
   let homePoses={}, outputsBusy=false, statusBusy=false, recordRequest=0;
   let connectionError="",transportMessage=false;
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -22,18 +22,18 @@
   function renderControls(){if(!state)return;const uncertain=Boolean(connectionError||state.status_stale),busy=localBusy||Boolean(state.operation),loaded=["ready","paused","running"].includes(state.phase),active=Boolean(state.active),same=state.model?.id===selectedModel;
     $("deploy-load").disabled=busy||uncertain||state.phase!=="offline"||!model()?.available;
     $("deploy-unload").disabled=busy||state.phase==="offline";
-    $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running";
+    $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running"||model()?.evaluation_allowed===false;
     $("deploy-pause").disabled=busy||!active||state.phase!=="running";
     $("deploy-resume").disabled=busy||uncertain||!active||state.phase!=="paused";
     for(const name of ["success","failure"]){$("deploy-"+name).disabled=busy||uncertain||!active||!loaded;}
     $("deploy-abort").disabled=busy||!active;
-    $("deployment-storage-apply").disabled=busy||active;
-    $("deployment-storage").disabled=busy||active;
+    $("deployment-storage-apply").disabled=active;
+    $("deployment-storage").disabled=false;
     $("deploy-home").disabled=busy||uncertain||!$("deploy-home-pose").value;
     $("deployment-model").disabled=busy||active;
     $("deployment-gate").textContent=uncertain?"状态待确认":phaseName[state.phase]||state.phase;
     $("deployment-gate").dataset.tone=uncertain?"amber":state.phase==="error"?"red":loaded?"green":state.phase==="loading"?"amber":"gray";
-    $("deployment-trial-state").textContent=uncertain?"重新连接中":active?(state.active.intervened?"人工介入 · ":"")+(phaseName[state.phase]||state.phase):loaded?"待开始":"等待加载";
+    $("deployment-trial-state").textContent=uncertain?"重新连接中":active?(state.active.intervened?"人工介入 · ":"")+(phaseName[state.phase]||state.phase):loaded?(model()?.evaluation_allowed===false?"在线更新模型 · 请在采集页开始 Session":"待开始"):"等待加载";
     const detail=state.error||state.detail;
     const loading=state.phase==="loading"||state.operation==="load";
     const text=uncertain?(connectionError||"状态更新延迟，正在核对模型状态"):state.error||(loading?window.CobotModelLoading(state.model||model()).zh:loaded?"模型加载成功："+(state.model?.label||""):detail||(state.phase==="offline"?"未加载":state.phase==="error"?"模型运行异常，请查看输出":"正在核对模型状态"));
@@ -41,8 +41,12 @@
     $("deployment-load-state").classList.toggle("error",!uncertain&&(state.phase==="error"||Boolean(state.error)));
     $("deploy-load").classList.remove("is-loading");
   }
-  function renderStatus(next){const loadingChanged=!next.status_stale&&next.phase==="loading"&&(state?.phase!=="loading"||state?.model?.id!==next.model?.id||state?.started_at!==next.started_at);connectionError="";state=next;if(loadingChanged)notify(window.CobotModelLoading(next.model||model()).zh,false,"running");if(transportMessage&&!next.status_stale){notify(next.operation?operationName[next.operation]+"中":"连接已恢复");}const signature=JSON.stringify(next.models);if(Array.isArray(next.models)&&signature!==modelSignature){modelSignature=signature;const current=selectedModel||next.selected_model||next.models[0]?.id;$("deployment-model").replaceChildren(...next.models.map(m=>{const o=el("option",m.label+(m.available?"":" · 不可用"));o.value=m.id;return o;}));selectedModel=next.models.some(m=>m.id===current)?current:next.models[0]?.id;$("deployment-model").value=selectedModel;describeModel();}
-    if(document.activeElement!==$("deployment-storage"))$("deployment-storage").value=next.data_root;
+  function renderStatus(next){const loadingChanged=!next.status_stale&&next.phase==="loading"&&(state?.phase!=="loading"||state?.model?.id!==next.model?.id||state?.started_at!==next.started_at);connectionError="";state=next;if(loadingChanged)notify(window.CobotModelLoading(next.model||model()).zh,false,"running");if(transportMessage&&!next.status_stale){notify(next.operation?operationName[next.operation]+"中":"连接已恢复");}const signature=JSON.stringify(next.models);if(Array.isArray(next.models)&&signature!==modelSignature){modelSignature=signature;const current=next.model?.id||selectedModel||next.selected_model||next.models[0]?.id;$("deployment-model").replaceChildren(...next.models.map(m=>{const o=el("option",window.CobotModelChoiceLabel(m)+(m.available?"":" · 不可用"));o.value=m.id;return o;}));selectedModel=next.models.some(m=>m.id===current)?current:next.models[0]?.id;$("deployment-model").value=selectedModel;describeModel();}
+    const loadedKey=next.model?.id+":"+next.started_at;
+    if(next.model&&next.phase!=="offline"&&loadedKey!==loadedSelectionKey){
+      loadedSelectionKey=loadedKey;selectedModel=next.model.id;$("deployment-model").value=selectedModel;describeModel();
+    }
+    if(document.activeElement!==$("deployment-storage")&&!$("deployment-storage").dataset.dirty)$("deployment-storage").value=next.data_root;
     if(!next.status_stale&&["ready","paused","running"].includes(next.phase)&&next.model){const key=next.model.id+":"+next.started_at;if(lastLoaded!==key){lastLoaded=key;notify("模型加载成功："+next.model.label);}}
     if(next.error&&next.error!==lastNotice){lastNotice=next.error;notify(next.error,true);}if(!next.error)lastNotice="";
     if(next.active?.id&&next.active.id!==activeBefore)selectedRecord=next.active.id;
@@ -74,7 +78,8 @@
   $("deployment-model").addEventListener("change",()=>{selectedModel=$("deployment-model").value;selectedRecord="";describeModel();refreshRecords();});
   for(const action of ["load","unload","start","pause","resume"])$("deploy-"+action).addEventListener("click",()=>act(action));
   for(const action of ["success","failure","abort"])$("deploy-"+action).addEventListener("click",()=>terminal(action));
-  $("deployment-storage-apply").addEventListener("click",async()=>{try{const result=await request("/api/deployment/storage",{data_root:$("deployment-storage").value.trim()});state.data_root=result.data_root;selectedRecord="";await refreshRecords();notify("保存位置已更新");}catch(error){notify(error.message,true);}});
+  $("deployment-storage-apply").addEventListener("click",async()=>{try{const result=await request("/api/deployment/storage",{data_root:$("deployment-storage").value.trim()});state.data_root=result.data_root;delete $("deployment-storage").dataset.dirty;selectedRecord="";await refreshRecords();notify("保存位置已更新");}catch(error){notify(error.message,true);}});
+  $("deployment-storage").addEventListener("input",()=>{$("deployment-storage").dataset.dirty="true";});
   $("deployment-records").addEventListener("change",()=>{selectedRecord=$("deployment-records").value;renderFrames();});
   $("deploy-home-target").addEventListener("change",()=>{renderHomePoses();renderControls();});$("deploy-home").addEventListener("click",()=>home());
   for(const id of ["outputs-filter","outputs-history"])$(id).addEventListener("change",refreshOutputs);$("outputs-refresh").addEventListener("click",refreshOutputs);

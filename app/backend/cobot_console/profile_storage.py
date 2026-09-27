@@ -3,14 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .paths import LEGACY_DATA as ALLOWED, RLT
+from .paths import DATA as ALLOWED, LEGACY_DATA, RLT, RUNTIME_ROOT
 BASE = ALLOWED / "rlt/plug_v3_yyshadow"
+LEGACY_BASE = LEGACY_DATA / "rlt/plug_v3_yyshadow"
 RUN = RLT / "runs/plug_v3_yyshadow"
-SETTINGS = RUN / "online/storage.json"
+LEGACY_SETTINGS = RUN / "online/storage.json"
+SETTINGS = RUNTIME_ROOT / "data-console/rlt-storage.json"
 
 def settings():
     try:
-        value=json.loads(SETTINGS.read_text())
+        source = SETTINGS if SETTINGS.exists() else LEGACY_SETTINGS
+        value=json.loads(source.read_text())
         return value if isinstance(value,dict) else {}
     except (OSError,ValueError):
         return {}
@@ -22,14 +25,14 @@ def validate_root(value):
     path=Path(value).expanduser()
     if not path.is_absolute(): raise ValueError("RLT data root must be absolute")
     resolved=path.resolve(strict=False)
-    allowed=BASE.resolve(strict=False)
-    try: resolved.relative_to(allowed)
-    except ValueError as error: raise ValueError("RLT data root must stay inside "+str(allowed)) from error
+    allowed_roots = (ALLOWED.resolve(strict=False), LEGACY_BASE.resolve(strict=False))
+    if not any(resolved == allowed or allowed in resolved.parents for allowed in allowed_roots):
+        raise ValueError("RLT data root must stay inside " + str(ALLOWED))
     if path.exists() and path.is_symlink(): raise ValueError("RLT data root cannot be a symlink")
     return resolved
 
 def selected_root(phase):
-    value=(settings().get("current") or {}).get(phase)
+    value=settings().get("selected") or (settings().get("current") or {}).get(phase)
     return validate_root(value) if value else default_root(phase)
 
 def roots_for_phase(phase):

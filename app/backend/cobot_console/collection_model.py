@@ -65,17 +65,13 @@ def install_routes(app, manager):
 
     @app.get("/api/collection/model")
     def status():
-        return {**manager.status(), "session_active": manager.collection_session}
+        return manager.status()
 
     @app.post("/api/collection/model")
     def action(request: CollectionModelAction):
         try:
             if request.action not in {"load", "unload", "session_start", "session_stop"}:
                 raise HTTPException(422, "unknown_collection_action")
-            if request.action == "load":
-                model = next((m for m in manager.models if m["id"] == request.model_id), {})
-                if model.get("kind") != "pi05":
-                    raise DeploymentError("普通采集请选择 π0.5 / DAgger 模型")
             name = {"session_start": "collection_session_start", "session_stop": "collection_session_stop"}.get(request.action, request.action)
             return manager.submit(name, request.model_id or None)
         except DeploymentError as error:

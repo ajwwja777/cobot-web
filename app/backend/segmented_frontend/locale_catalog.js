@@ -1,6 +1,13 @@
 "use strict";
 (function(root){
   const entries={
+    "在线更新模型 · 请在采集页开始 Session":"Online model · start a session in Collection",
+    "在线更新已启用；评测请选择同路径的冻结模型":"Online updates are enabled; choose the frozen model at the same path for evaluation",
+    "请先结束当前 Episode，再切换采集或评测":"Finish the current episode before switching between collection and evaluation",
+    "请释放旧进程后重新加载模型，以启用共享 Session":"Release and reload the old process to enable the shared session",
+    "请先加载采集模型并结束当前 Episode":"Load the collection model and finish the current episode",
+    "当前为评测轮次，请使用部署控制":"An evaluation trial is active; use the deployment controls",
+
     "原始日志":"Raw log",
     "相机":"Cameras","三相机":"Cameras","重连":"Reconnect","收起":"Collapse",
     "主控已连接":"Master connected","未通过":"Failed gate","训练与留出集 Q 排序":"Training / held-out Q ranking",
