@@ -274,7 +274,7 @@ python3 scripts/console.py model list
 python3 scripts/console.py api GET /api/rlt/releases
 ```
 
-需要现有 RLT 在线更新时，在确认数据／已有轮次和配置后，加载 listing 中登记的 `plug_v3-online-latest`，准备 Session 并按第 3 节采集；它保留原 online.yaml／learner 入口。冻结评测选 `plug_v3-frozen-latest` 或具体 warmup 候选。这是模式选择，不是重新运行离线 warmup。
+需要现有 RLT 在线更新时，在确认数据／已有轮次和配置后，加载 listing 中登记的 `plug_v3-online-latest`，准备 Session 并按第 3 节采集；它保留原 online_rl.yaml／learner 入口。冻结评测选 `plug_v3-frozen-latest` 或具体 warmup 候选。这是模式选择，不是重新运行离线 warmup。
 
 底层链路：`deployment_run.sh → rlt_v3_up.sh → methods.openpi_rlt.scripts.online_role`，用当前登记配置启动；Stage 1 单独运行。π0.5 链路是 `deployment_run.sh → deployment_pi05.sh`。以 `state outputs` 中实际命令／cwd／配置路径为准。
 
