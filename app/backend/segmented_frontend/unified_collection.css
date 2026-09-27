@@ -1,0 +1,26 @@
+/* One stable collection workspace, independent of the selected runtime. */
+.collection-legacy,.fixed-collection .collection-switch,.fixed-collection .collection-kind{display:none!important}
+.fixed-collection .collection-configuration{padding:16px;margin:0 0 16px}
+.collection-model-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:16px}
+.collection-model-row>label,.collection-result-toggle{display:flex;align-items:center;gap:8px;margin:0;white-space:nowrap}
+.collection-model-row input[type=checkbox],.collection-result-toggle input[type=checkbox]{width:16px;height:16px;min-width:16px;min-height:16px;margin:0}
+.fixed-collection .collection-model-actions{grid-template-columns:repeat(4,minmax(0,1fr));margin:12px 0 0}
+#collection-model-state{min-height:18px;margin:10px 0 0;font-size:12px}
+#collection-model-state[data-tone=idle]{color:var(--muted)}#collection-model-state[data-tone=error]{color:var(--danger,#f27786)}
+[data-page=operation] .fixed-collection-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:16px}
+[data-page=operation] .fixed-collection-grid>#collection-storage{grid-column:1/-1;grid-row:1;height:auto;margin:0}
+[data-page=operation] .fixed-collection-grid>#episode-browser-operation{grid-column:1;grid-row:2;margin:0;min-width:0}
+[data-page=operation] .fixed-collection-grid>#collection-controls{grid-column:2;grid-row:2;margin:0;min-width:0;height:100%}
+#collection-controls .mini-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+#collection-controls .button-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#collection-controls .collection-episode-actions button,#collection-controls .collection-result-actions button{position:relative;min-height:56px;padding:10px 12px 20px;transition:background-color .16s,color .16s,opacity .16s}
+#collection-controls button[data-shortcut]::after{content:attr(data-shortcut);position:absolute;right:9px;bottom:5px;font-size:10px;font-weight:400;line-height:1;opacity:.64;pointer-events:none;white-space:nowrap}
+.collection-results{margin-top:12px}.collection-result-toggle{font-size:12px;margin:0 0 8px}
+#collection-controls .post-save-home{margin-top:12px}
+#collection-controls #stop-home,#collection-controls .shortcut-line[hidden]{display:none!important}
+#collection-shortcuts{display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px 14px;margin:14px 0 0;min-height:48px;font-size:11px;line-height:1.5}
+#collection-shortcuts>span{display:inline-flex;align-items:center;gap:5px}#collection-shortcuts>[hidden]{display:none!important}
+#collection-shortcuts kbd{font-size:10px;min-width:20px;text-align:center}#collection-message{min-height:20px;margin:8px 0 0;font-size:12px;overflow-wrap:anywhere}
+#collection-storage .path-caption{overflow-wrap:anywhere}
+@media(max-width:980px){[data-page=operation] .fixed-collection-grid{grid-template-columns:minmax(0,1fr)}[data-page=operation] .fixed-collection-grid>#episode-browser-operation{grid-column:1;grid-row:2}[data-page=operation] .fixed-collection-grid>#collection-controls{grid-column:1;grid-row:3}}
+@media(max-width:600px){.fixed-collection .collection-model-actions{grid-template-columns:repeat(2,minmax(0,1fr))}.collection-model-row{gap:8px}.collection-model-row>label{font-size:12px}#collection-controls button[data-shortcut]::after{font-size:9px}}

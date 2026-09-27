@@ -1,0 +1,49 @@
+{
+  "holdout_auc": {
+    "smoke": {
+      "early": 0.8484848484848485,
+      "middle": 0.2222222222222222,
+      "late": 0.5353535353535354,
+      "terminal": 0.7474747474747475
+    },
+    "4500": {
+      "early": 0.42424242424242425,
+      "middle": 0.43434343434343436,
+      "late": 0.5252525252525253,
+      "terminal": 0.898989898989899
+    },
+    "final": {
+      "early": 0.36363636363636365,
+      "middle": 0.25252525252525254,
+      "late": 0.23232323232323232,
+      "terminal": 0.7777777777777778
+    }
+  },
+  "train_probe_final_auc": {
+    "early": 0.7166666666666667,
+    "middle": 0.6,
+    "late": 0.36666666666666664,
+    "terminal": 1.0
+  },
+  "heldout_hil_action": {
+    "note": "First six joint coordinates only (rad); gripper excluded from joint MAE.",
+    "smoke": {
+      "n_human_steps": 501,
+      "actor_human_joint_mae_rad": 0.010072443634271622,
+      "reference_human_joint_mae_rad": 0.0019810639787465334,
+      "actor_human_gripper_mae_native": 0.0018275748006999493,
+      "reference_human_gripper_mae_native": 0.00022726763563696295,
+      "mean_cosine": 0.09784907747611955,
+      "global_cosine": 0.18552707135677338
+    },
+    "final": {
+      "n_human_steps": 501,
+      "actor_human_joint_mae_rad": 0.0020047405268996954,
+      "reference_human_joint_mae_rad": 0.0019810639787465334,
+      "actor_human_gripper_mae_native": 0.00024213994038291276,
+      "reference_human_gripper_mae_native": 0.00022726763563696295,
+      "mean_cosine": 0.35924832674640195,
+      "global_cosine": 0.3651183843612671
+    }
+  }
+}

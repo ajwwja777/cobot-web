@@ -1,0 +1,16 @@
+const assert=require('node:assert/strict');
+const {shortcutAction:key}=require('../segmented_frontend/unified_collection.js');
+const running={start:false,pause:true,resume:false,paused:false,save:true,discard:true,results:false,success:true,failure:true};
+const paused={...running,pause:false,resume:true,paused:true};
+assert.equal(key('ArrowRight',{start:true}),'start');
+assert.equal(key('ArrowRight',running),null);
+assert.equal(key('ArrowRight',paused),'save');
+assert.equal(key(' ',running),'pause');
+assert.equal(key(' ',paused),'resume');
+assert.equal(key('ArrowLeft',running),'discard');
+assert.equal(key('ArrowUp',paused),null);
+assert.equal(key('ArrowDown',paused),null);
+assert.equal(key('ArrowUp',{...paused,results:true}),'success');
+assert.equal(key('ArrowDown',{...paused,results:true}),'failure');
+assert.equal(key('ArrowLeft',{...paused,discard:false}),null);
+console.log('11 shortcut cases passed');

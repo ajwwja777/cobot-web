@@ -1,0 +1,72 @@
+/* Shared Tabler dashboard surface. All API and control logic remains in the existing scripts. */
+:root[data-theme="light"]{--bg:#f4f7fa;--surface:#fff;--surface-2:#f8fbfb;--line:#dfe6ec;--line-strong:#cbd8df;--text:#192a3b;--muted:#6c7c8c;--accent:#147d78;--accent-hover:#106a66;--shadow:0 5px 24px #25435c0b}
+.app-shell{grid-template-columns:232px minmax(0,1fr)}
+.sidebar{background:#0e2030;padding:25px 16px 18px;box-shadow:4px 0 22px #16273712}
+.brand{padding:0 8px 0;color:#fff;gap:12px;font-size:14px;letter-spacing:.01em}
+.brand-mark{width:37px;height:37px;background:#2aa391;border-radius:11px;box-shadow:0 8px 24px #178c8580;font-size:21px}
+.primary-nav{margin-top:35px;gap:5px}
+.nav-item,.settings-button{min-height:42px;border-radius:10px;color:#b6c9d1;padding:0 14px;gap:13px}
+.nav-item:hover,.settings-button:hover{background:#1a3544;color:#fff}
+.nav-item.active,.camera-nav.active{background:#1f4c55;color:#fff}
+.nav-item.active::before{display:none}
+.nav-item .nav-icon{width:18px;text-align:center;color:#7fa8b1;font-size:19px}
+.nav-item.active .nav-icon{color:#55d3bb}
+.sidebar-bottom{border-top:1px solid #2a4250;padding:16px 7px 0}
+.settings-button{color:#c5d7dc}
+.workspace{min-width:0;background:var(--bg)}
+main{width:min(1840px,calc(100% - 58px));padding:28px 0 96px}
+.page.active{animation:none}
+.panel,.device-card,.spatial-card,.spatial-detail,.camera-dock,.log-dock{border:1px solid var(--line);border-radius:13px;background:var(--surface);box-shadow:var(--shadow)}
+.panel,.device-card{padding:18px 19px}
+.panel-head,.device-card .card-head{min-height:55px;align-items:center;border-bottom:1px solid color-mix(in srgb,var(--line) 65%,transparent);margin:-18px -19px 18px;padding:11px 19px}
+.panel-head h3,.card-head h3,.workbench-grid .panel>h3{font-size:15px;font-weight:750;letter-spacing:-.02em}
+.workbench-grid .panel>h3:first-child{min-height:50px;display:flex;align-items:center;border-bottom:1px solid var(--line);margin:-18px -19px 16px;padding:10px 19px}
+.panel:hover,.device-card:hover{border-color:var(--line-strong)}
+.mini-stats>span,.model-facts>div,.workbench-facts>div,.device-status-grid>span{border-radius:9px}
+.camera-dock{margin-bottom:18px;overflow:hidden}
+.camera-dock-bar{height:45px;background:var(--surface);border-bottom:1px solid var(--line);padding:5px 16px}
+.camera-dock .camera-panel{height:calc(100% - 45px)}
+.camera-dock .camera-grid{gap:12px}
+.camera-dock .camera-grid figure{border:1px solid var(--line);border-radius:9px}
+.camera-dock .camera-grid img{background:#0c1721}
+.capture-layout,.rl-layout,.workbench-grid,.chart-grid,.training-figures,.device-dashboard{gap:16px}
+.spatial-layout{grid-template-columns:minmax(0,1.7fr) minmax(320px,.82fr);gap:16px;margin-bottom:16px}
+.spatial-head{min-height:64px;padding:12px 19px}
+.spatial-head h3{font-size:15px;letter-spacing:-.02em}
+.spatial-groups button{font-size:11px;padding:7px 10px;border-radius:8px}
+.spatial-floor{height:415px;min-height:0;padding:12px;background:radial-gradient(circle at 50% 28%,#203f4b 0,#112636 58%,#0d1e2c 100%);overflow:hidden}
+.spatial-scene{display:block;width:100%;height:100%;max-height:100%}
+.spatial-scene .table-outline{stroke:#3f7180;stroke-width:2}
+.spatial-scene .table-grid{fill:none;stroke:#4e7180;stroke-width:1;opacity:.18;stroke-dasharray:6 9}
+.spatial-scene .work-object{fill:#246a71;stroke:#49b9a7;stroke-width:2}
+.spatial-scene .work-object-line{fill:none;stroke:#b9efe1;stroke-width:2}
+.spatial-scene .spatial-connection{fill:none;stroke:#5d8c96;stroke-width:2;stroke-dasharray:7 10;opacity:.5}
+.spatial-scene .spatial-connection[data-state=ready]{stroke:#57d9ad;opacity:.7}
+.spatial-scene .spatial-connection[data-state=error]{stroke:#e78187;opacity:.7}
+.spatial-scene .spatial-node{display:inline;cursor:pointer;outline:none;border:0;background:none;padding:0;color:inherit}
+.spatial-scene .spatial-node:hover,.spatial-scene .spatial-node.is-focused{filter:url(#scene-glow)}
+.spatial-scene .spatial-node:focus-visible{filter:url(#scene-glow)}
+.spatial-scene .arm-link{fill:none;stroke:#8bbbc3;stroke-width:13;stroke-linecap:round;stroke-linejoin:round}
+.spatial-scene .arm-base{fill:#246377;stroke:#8ecbd0;stroke-width:3}
+.spatial-scene .arm-joint{fill:#80aeb9;stroke:#b9d9d9;stroke-width:2}
+.spatial-scene .arm-tip{fill:#45838b;stroke:#a8d9d8;stroke-width:2}
+.spatial-scene .arm-label,.spatial-scene .computer-label{fill:#e8f7f5;font-size:15px;font-weight:700;paint-order:stroke;stroke:#102330;stroke-width:3px}
+.spatial-scene .spatial-node.is-selected .arm-base,.spatial-scene .spatial-node.is-focused .arm-base,.spatial-scene .spatial-node.is-focused .computer-box{stroke:#79e6c9;stroke-width:4}
+.spatial-scene .spatial-node[data-state=error] .arm-base{fill:#614650;stroke:#d98189}
+.spatial-scene .spatial-node[data-state=stale] .arm-base{fill:#665741;stroke:#d6ad66}
+.spatial-scene .camera-box{fill:#234f65;stroke:#8bc5c8;stroke-width:2}
+.spatial-scene .camera-lens{fill:#c5eee2;stroke:#398d88;stroke-width:2}
+.spatial-scene .gripper-halo{fill:#1d5763;stroke:#75bcb6;stroke-width:2}
+.spatial-scene .gripper-fingers{fill:none;stroke:#c4eee4;stroke-width:3;stroke-linecap:round}
+.spatial-scene .computer-box{fill:#285b68;stroke:#8cc4c5;stroke-width:2}
+.spatial-scene .computer-screen{fill:#a5d9d6;stroke:#e0f5ee;stroke-width:1}
+.spatial-scene .spatial-light{fill:#a7bfc3;stroke:none;box-shadow:none}
+.spatial-scene .spatial-node[data-state=ready] .spatial-light{fill:#60dbaa}
+.spatial-scene .spatial-node[data-state=error] .spatial-light{fill:#f17c88}
+.spatial-scene .spatial-node[data-state=stale] .spatial-light,.spatial-scene .spatial-node[data-state=disabled] .spatial-light{fill:#edbf6d}
+.spatial-detail{padding:19px}
+.spatial-detail-head{min-height:55px}
+.status-rail{left:248px}
+@media(max-width:1250px){.spatial-layout{grid-template-columns:1fr}.spatial-floor{height:390px}.spatial-detail{min-height:220px}}
+@media(max-width:980px){.app-shell{grid-template-columns:72px minmax(0,1fr)}.sidebar{padding:19px 8px}.brand{justify-content:center;padding:0;font-size:0}.brand-mark{font-size:21px}.nav-item{justify-content:center;padding:0}.nav-item span:last-child{display:none}.nav-item .nav-icon{font-size:20px}.settings-button{justify-content:center;padding:0}.settings-button span:last-child{display:none}.status-rail{left:86px}}
+@media(max-width:760px){.app-shell{display:block}.sidebar{position:relative;height:auto;padding:9px 13px}.brand{justify-content:flex-start;font-size:13px}.primary-nav{margin-top:9px;display:flex;overflow-x:auto}.nav-item{min-width:65px;flex:1;padding:7px 4px}.nav-item span:last-child{display:inline}.nav-item .nav-icon{font-size:14px}.settings-button span:last-child{display:inline}main{width:calc(100% - 26px);padding:18px 0 80px}.panel,.device-card{padding:15px}.panel-head,.device-card .card-head{margin:-15px -15px 15px;padding:9px 15px}.workbench-grid .panel>h3:first-child{margin:-15px -15px 15px;padding:9px 15px}.spatial-floor{height:260px;padding:5px}.spatial-scene .arm-label,.spatial-scene .computer-label{font-size:27px}.spatial-head{display:block;min-height:auto}.spatial-groups{margin-top:8px}.status-rail{left:13px}.camera-dock-bar{height:64px}.camera-dock .camera-panel{height:calc(100% - 64px)}}

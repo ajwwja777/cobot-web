@@ -1,0 +1,26 @@
+{
+  "date": "2026-09-27",
+  "source_host": "Cobot",
+  "source": "/media/agilex/Getea1/jiaan/projects/cobot-platform",
+  "backend_git_head": "2a3ea22d0f284e8161533136088c467b6b4bb048",
+  "includes_uncommitted_work": true,
+  "backup": "/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/migrations/20260927-web",
+  "archive_sha256": "6d0b7fa630e8ccc14884b4df1eed8c865a46b1603b49af00ad5e96eaab716819",
+  "additional_sources": [
+    "app/shared",
+    "/home/agilex/cobot_magic/aloha-devel/Piper-AVP-Teleop/multi_arm_launch_tools",
+    "/media/agilex/Getea1/jiaan/projects/rlt/deployments/openpi-rlt/plug-insertion-stage1-v2/runtime-overlay/methods/openpi_rlt/scripts/rlt_cached_writer.py",
+    "/media/agilex/Getea1/jiaan/projects/rlt/methods/openpi_rlt/plug_v2/storage.py"
+  ],
+  "package_names": {
+    "task5_console": "cobot_console",
+    "task5_hil": "capture_core",
+    "task5_segmented_teach": "segmented_capture"
+  },
+  "preserved_contracts": [
+    "ROS /task2/* topics and node names",
+    "HTTP /api/segmented-teach/* and /api/rlt-recorder/*",
+    "HDF5 schema and historical identity values"
+  ],
+  "legacy_cleanup": "Not performed; 8015 and active hardware/model processes still use legacy locations"
+}

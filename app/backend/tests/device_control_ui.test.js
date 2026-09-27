@@ -1,0 +1,23 @@
+"use strict";
+const assert=require('assert').strict;
+const {tone,label,posesFor,setHomePoses}=require('../segmented_frontend/device_control_ui.js');
+assert.equal(tone({phase:'running'}),'amber');
+assert.equal(tone({phase:'completed',exit_code:0}),'green');
+assert.equal(tone({phase:'failed',exit_code:1}),'red');
+assert.equal(tone(null),'gray');
+assert.equal(label('cameras',{phase:'failed',exit_code:1}),'Cameras · failed (1)');
+console.log('PASS infrastructure status tones and labels');
+
+assert.equal(tone({phase:'ready'}),'green');
+assert.equal(tone({phase:'offline'}),'gray');
+assert.equal(tone({phase:'error'}),'red');
+assert.equal(/5\/5 up/.test(label('can',{phase:'ready',detail:'5/5 up'})),true);
+assert.deepEqual(posesFor('mid'),['camera','origin','shuai','camara']);
+assert.deepEqual(posesFor('gripper'),['reinit']);
+assert.equal(posesFor('front').includes('camera'),false);
+assert.equal(tone({phase:'stopping'}),'amber');
+assert.equal(tone({phase:'stopped'}),'gray');
+setHomePoses({front:['new_pose'],rear:['new_pose'],all:['new_pose'],mid:['camera_v2'],gripper:['reinit']});
+assert.deepEqual(posesFor('front'),['new_pose']);
+assert.deepEqual(posesFor('mid'),['camera_v2']);
+console.log('PASS dynamic pose inventory updates without reload');

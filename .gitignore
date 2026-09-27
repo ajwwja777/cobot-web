@@ -14,3 +14,13 @@ __pycache__/
 
 # Publish this project entry even if an upstream rule ignores agent files.
 !/AGENTS.md
+
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+/configs/local.json
+/node_modules/
+
+/app/backend/scratch/
+/app/backend/segmented_frontend/global-preview/
+/.release.json

@@ -1,0 +1,175 @@
+<!doctype html>
+<html data-theme="light" lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light dark" name="color-scheme"/>
+<title>Cobot Magic</title>
+<link href="/dashboard-preview/vendor/tabler.min.css" rel="stylesheet"/>
+<link href="/styles.css?v=20260925-workspace-v5" rel="stylesheet"/>
+<link href="/dashboard_theme.css?v=20260925-global-v2" rel="stylesheet"/>
+<link href="/ui-next/dashboard_unify.css?v=20260925-unify-v1" rel="stylesheet"/>
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<a aria-label="Cobot Magic" class="brand" href="/"><span class="brand-mark">C</span><strong>Cobot Magic</strong></a>
+<nav class="primary-nav" data-en-aria="Primary navigation" data-zh-aria="主导航">
+<button class="nav-item active" data-view="system" type="button"><span class="nav-icon">⌘</span><span data-en="Console" data-zh="操作台">操作台</span></button>
+<button class="nav-item" data-view="operation" type="button"><span class="nav-icon">●</span><span data-en="Data collection" data-zh="数据采集">数据采集</span></button>
+<button class="nav-item hidden" data-view="learning" type="button"><span class="nav-icon">↗</span><span data-en="Real-world RL" data-zh="真机 RL">真机 RL</span></button>
+<button class="nav-item" data-view="training" type="button"><span class="nav-icon">◇</span><span data-en="Training" data-zh="训练">训练</span></button>
+<button class="nav-item" data-view="deployment" type="button"><span class="nav-icon">▷</span><span data-en="Deployment" data-zh="部署">部署</span></button>
+<button class="nav-item" data-view="host" type="button"><span class="nav-icon">▤</span><span data-en="Host" data-zh="本机参数">本机参数</span></button>
+</nav>
+<div class="sidebar-bottom">
+<div class="connection-status"><span class="live-dot" id="diag-connection-dot"></span><div><strong id="diag-connection">连接中</strong><small id="diag-last-updated">—</small></div></div>
+<button aria-expanded="false" class="settings-button" id="settings-open" type="button"><span>⚙</span><span data-en="Settings" data-zh="设置">设置</span></button>
+</div>
+</aside>
+<div class="workspace">
+<header class="topbar">
+<h1 data-en="Cobot workspace" data-zh="Cobot 实验台">Cobot 实验台</h1>
+<div class="top-status">
+<span><small data-en="Mode" data-zh="模式">模式</small><strong id="top-mode">—</strong></span>
+<span><small data-en="Session" data-zh="会话">会话</small><strong id="top-session">—</strong></span>
+<span class="wide-status"><small data-en="Data directory" data-zh="数据目录">数据目录</small><strong id="top-data-root">—</strong></span>
+</div>
+</header>
+<main>
+<section class="page" data-page="operation">
+<div class="page-heading"><div><h2 data-en="Data collection" data-zh="数据采集">数据采集</h2><div class="collection-switch"><button class="collection-choice selected" data-collection="normal" type="button">普通采集</button><button class="collection-choice" data-collection="rlt" type="button">真机 RL</button></div></div><p class="count-pill" id="recording-counts">已录制：—</p></div>
+<article class="panel camera-panel">
+<div class="panel-head"><h3 data-en="Three cameras" data-zh="三相机">三相机</h3><span class="live-label" data-camera-sync-status="" data-status="unavailable">正在连接</span></div>
+<div class="camera-grid">
+<figure><img alt="顶部相机" data-camera="camera_high"/><figcaption><span data-en="Top" data-zh="顶部">顶部</span><em data-camera-health="camera_high">—</em></figcaption></figure>
+<figure><img alt="左腕相机" data-camera="camera_left"/><figcaption><span data-en="Left wrist" data-zh="左腕">左腕</span><em data-camera-health="camera_left">—</em></figcaption></figure>
+<figure><img alt="右腕相机" data-camera="camera_right"/><figcaption><span data-en="Right wrist" data-zh="右腕">右腕</span><em data-camera-health="camera_right">—</em></figcaption></figure>
+</div>
+</article>
+<div class="capture-layout">
+<article class="panel normal-only">
+<div class="panel-head"><h3 data-en="Recording directory" data-zh="录制目录">录制目录</h3><strong id="next-episode">—</strong></div>
+<form id="capture-form"><label><span data-en="Directory" data-zh="目录">目录</span><input aria-controls="directory-options" autocomplete="off" name="data_root" required="" role="combobox" value="/media/agilex/Getea1/jiaan/data/test"/></label><datalist id="recording-directories"></datalist></form>
+<div class="directory-browser" hidden="" id="directory-browser"><p class="muted" id="directory-hint" role="status"></p><div class="path-options" id="directory-options" role="listbox"></div></div>
+<div class="button-row"><button class="secondary" data-en="Browse" data-zh="浏览" id="browse-directories" type="button">浏览</button><button data-en="Check / Create" data-zh="检查 / 新建" id="prepare-storage" type="button">检查 / 新建</button></div>
+<p class="path-caption"><span data-en="Current: " data-zh="当前：">当前：</span><code id="episode-directory">尚未检查</code></p>
+</article>
+<article class="panel normal-only action-panel">
+<div class="panel-head"><h3 data-en="Episode controls" data-zh="Episode 控制">Episode 控制</h3><strong class="state-badge" id="capture-state">idle</strong></div>
+<div class="mini-stats"><span><small data-en="Frames" data-zh="帧数">帧数</small><strong id="frame-count">0</strong></span><span><small data-en="Markers" data-zh="节点">节点</small><strong id="node-count">0</strong></span><span><small data-en="Version" data-zh="版本">版本</small><strong id="generation">0</strong></span></div>
+<div class="button-grid">
+<button data-en="Start episode" data-zh="开始 Episode" disabled="" id="start" type="button">开始 Episode</button><button class="secondary" data-en="Pause + marker" data-zh="暂停并打节点" disabled="" id="pause" type="button">暂停并打节点</button>
+<button class="secondary" data-en="Resume + marker" data-zh="继续并打节点" disabled="" id="resume" type="button">继续并打节点</button><button class="secondary" data-en="Add marker" data-zh="只打节点" disabled="" id="marker" type="button">只打节点</button>
+<button data-en="Finish and save" data-zh="结束并保存" disabled="" id="stop" type="button">结束并保存</button><button class="danger" data-en="Discard and home" data-zh="结束放弃并复位" disabled="" id="discard" type="button">结束放弃并复位</button>
+</div>
+<div class="post-save-home">
+<label class="capture-home-toggle"><input checked="" id="capture-home-enabled" type="checkbox"/><span data-en="Home after save" data-zh="保存后自动复位">保存后自动复位</span></label>
+<div class="post-save-home-selectors">
+<label><span data-en="Target" data-zh="复位范围">复位范围</span><select id="capture-home-target"><option value="all">all</option><option value="front">front</option><option value="rear">rear</option><option value="mid">mid</option><option value="gripper">gripper</option></select></label>
+<label><span data-en="Target pose" data-zh="目标位姿">目标位姿</span><select aria-label="保存后的复位位姿" id="capture-home-pose"></select></label>
+</div>
+<button data-en="Save and home" data-zh="结束保存并复位" disabled="" id="stop-home" type="button">结束保存并复位</button>
+<p class="shortcut-line"><kbd>→</kbd><span data-en="Start / Save" data-zh="开始 / 保存">开始 / 保存</span><kbd>←</kbd><span data-en="Discard / Home" data-zh="放弃并复位">放弃并复位</span></p>
+</div><p class="inline-status" id="message" role="status"></p>
+</article>
+</div>
+<div class="episode-browser-mount" id="episode-browser-operation"><article class="panel history-panel" id="episode-browser-panel">
+<div class="panel-head"><div><h3 id="episode-browser-title" data-en="Collection history" data-zh="采集历史">采集历史</h3><p class="muted episode-browser-subtitle" id="episode-browser-subtitle">普通采集 Episode</p></div><span class="history-load-state" id="history-load-state">等待选择目录</span></div>
+<div class="episode-live-strip hidden" id="episode-live-strip"><span class="live-dot" id="episode-live-dot"></span><strong id="episode-live-badge">录制器空闲</strong><span id="episode-live-frames">0 帧</span><span id="episode-live-control">自主</span></div>
+<div class="toolbar">
+<select data-en-aria="Episode history" data-zh-aria="历史 Episode" id="episode-history"></select><button class="secondary" data-en="Refresh" data-zh="刷新" id="refresh-history" type="button">刷新</button><button class="secondary" data-en="View markers" data-zh="查看节点" id="load-history" type="button">查看节点</button><button class="secondary" data-en="Replay video" data-zh="视频回放" id="load-replay" type="button">视频回放</button><button class="secondary" data-en="Back to live" data-zh="返回当前" id="show-live" type="button">返回当前</button><button class="danger" data-en="Delete" data-zh="删除" id="delete-history" type="button">删除</button>
+</div>
+<div class="replay-panel hidden" id="replay-panel"><p class="inline-status" id="replay-status" role="status"></p><video controls="" id="episode-video" playsinline="" preload="auto"></video><div class="replay-timeline"><div class="replay-track"><div class="replay-markers" id="replay-markers"></div><input id="replay-slider" max="0" min="0" step="0.01" type="range" value="0"/></div><output id="replay-time">0:00.0 / 0:00.0</output></div><div class="episode-inspection hidden" id="episode-inspection"><figure><figcaption data-en="Three-camera start / middle / end" data-zh="三相机首帧 / 中间帧 / 末帧">三相机首帧 / 中间帧 / 末帧</figcaption><img alt="Episode contact sheet" id="episode-contact-sheet"/></figure><figure><figcaption data-en="Robot state / qpos" data-zh="Robot state / qpos">Robot state / qpos</figcaption><img alt="Episode qpos plot" id="episode-qpos"/></figure></div></div>
+<div class="review-grid"><ol class="node-list" id="timeline"></ol><div><div class="node-preview hidden" id="node-preview"><div class="panel-head"><h3 id="node-title"></h3></div><div class="camera-grid"><figure><img alt="节点顶部画面" id="node-high"/><figcaption data-en="Top" data-zh="顶部">顶部</figcaption></figure><figure><img alt="节点左腕画面" id="node-left"/><figcaption data-en="Left wrist" data-zh="左腕">左腕</figcaption></figure><figure><img alt="节点右腕画面" id="node-right"/><figcaption data-en="Right wrist" data-zh="右腕">右腕</figcaption></figure></div></div><div class="review-panel hidden" id="review-panel"><h3 data-en="Training intervals" data-zh="训练区间">训练区间</h3><div id="review-intervals"></div><label><span data-en="Review note" data-zh="审核备注">审核备注</span><input id="review-note" maxlength="500"/></label><div class="button-row"><button data-en="Save selection" data-zh="保存选择" id="save-review" type="button">保存选择</button><span class="muted" id="review-revision"></span></div></div></div></div>
+</article></div>
+<button class="mode-entry hidden" data-en="Switch to data collection" data-zh="切换到普通采集" id="mode-normal" type="button">切换到普通采集</button>
+</section>
+<section class="page active" data-page="system">
+<div class="page-heading"><h2 data-en="Console" data-zh="操作台">操作台</h2></div>
+<article class="panel camera-panel">
+<div class="panel-head"><h3 data-en="Three cameras" data-zh="三相机">三相机</h3><span class="live-label" data-camera-sync-status="" data-status="unavailable">正在连接</span></div>
+<div class="camera-grid"><figure><img alt="顶部相机" data-camera="camera_high"/><figcaption><span data-en="Top" data-zh="顶部">顶部</span><em data-camera-health="camera_high">—</em></figcaption></figure><figure><img alt="左腕相机" data-camera="camera_left"/><figcaption><span data-en="Left wrist" data-zh="左腕">左腕</span><em data-camera-health="camera_left">—</em></figcaption></figure><figure><img alt="右腕相机" data-camera="camera_right"/><figcaption><span data-en="Right wrist" data-zh="右腕">右腕</span><em data-camera-health="camera_right">—</em></figcaption></figure></div>
+</article>
+<article class="panel infrastructure-panel">
+<div class="panel-head"><h3 data-en="Device control" data-zh="设备控制">设备控制</h3><p class="inline-status" id="device-message"></p></div>
+<div class="device-status-grid"><span data-tone="gray" id="dev-can">CAN · 未核验</span><span data-tone="gray" id="dev-arms">机械臂节点 · 未核验</span><span data-tone="gray" id="dev-cameras">三相机节点 · 未核验</span><span data-tone="gray" id="dev-front-left">左前臂 · 未核验</span><span data-tone="gray" id="dev-front-right">右前臂 · 未核验</span><span data-tone="gray" id="dev-mid">中臂 · 未核验</span><span data-tone="gray" id="dev-rear-left">左后臂 · 未核验</span><span data-tone="gray" id="dev-rear-right">右后臂 · 未核验</span><span data-tone="gray" id="dev-gripper-left">左夹爪 · 未核验</span><span data-tone="gray" id="dev-gripper-right">右夹爪 · 未核验</span></div><p class="device-event" id="device-health-event" role="status">等待设备状态</p>
+<div class="device-actions">
+<div><h4 data-en="Start" data-zh="启动">启动</h4><button class="secondary" data-en="Configure CAN" data-zh="配置 CAN" id="device-can" type="button">配置 CAN</button><button class="secondary" data-en="Start arms" data-zh="启动机械臂" id="device-arms" type="button">启动机械臂</button><button class="secondary" data-en="Start cameras" data-zh="启动三相机" id="device-cameras" type="button">启动三相机</button></div>
+<div><h4 data-en="Home / pose" data-zh="归位与位姿">归位与位姿</h4><select id="device-home-target"><option>front</option><option>rear</option><option>all</option><option>mid</option><option>gripper</option></select><select id="device-home-pose"><option>plug</option><option>origin</option><option>high</option><option>camera</option><option>collect_start</option><option>reinit</option></select><button data-en="Run home" data-zh="确认归位" id="device-home" type="button">确认归位</button><input data-en-placeholder="Pose name" data-zh-placeholder="位姿名称" id="device-pose-name" maxlength="64"/><button class="secondary" data-en="Capture pose" data-zh="记录位姿" id="device-pose-capture" type="button">记录位姿</button><button class="danger" data-en="Delete pose" data-zh="删除位姿" id="device-pose-delete" type="button">删除位姿</button></div>
+<div><h4 data-en="Recover" data-zh="恢复">恢复</h4><select id="device-recover-target"><option>front-left</option><option>front-right</option><option>gripper-left</option><option>gripper-right</option><option>rear-left</option><option>rear-right</option><option>mid</option><option>sync</option></select><button class="secondary" data-en="Recover" data-zh="执行恢复" id="device-recover" type="button">执行恢复</button></div>
+</div><details class="job-log" id="device-log-details"><summary data-en="Process log" data-zh="进程日志" id="device-log-summary">进程日志</summary><pre id="device-log">暂无控制台 job 日志。</pre></details>
+</article>
+</section>
+<section class="page" data-page="learning">
+<div class="page-heading"><div><h2 data-en="Data collection" data-zh="数据采集">数据采集</h2><div class="collection-switch"><button class="collection-choice" data-collection="normal" type="button">普通采集</button><button class="collection-choice selected" data-collection="rlt" type="button">真机 RL</button></div></div><strong class="count-pill" id="diag-release-name">release —</strong></div>
+<article class="panel camera-panel rl-camera-panel">
+<div class="panel-head"><h3 data-en="Three cameras" data-zh="三相机">三相机</h3><span class="live-label" data-camera-sync-status="" data-status="unavailable">正在连接</span></div>
+<div class="camera-grid"><figure><img alt="顶部相机" data-camera="camera_high"/><figcaption><span data-en="Top" data-zh="顶部">顶部</span><em data-camera-health="camera_high">—</em></figcaption></figure><figure><img alt="左腕相机" data-camera="camera_left"/><figcaption><span data-en="Left wrist" data-zh="左腕">左腕</span><em data-camera-health="camera_left">—</em></figcaption></figure><figure><img alt="右腕相机" data-camera="camera_right"/><figcaption><span data-en="Right wrist" data-zh="右腕">右腕</span><em data-camera-health="camera_right">—</em></figcaption></figure></div>
+</article>
+<article class="panel rl-process-panel">
+<div class="panel-head"><h3 data-en="RLT processes" data-zh="RLT 进程">RLT 进程</h3><span data-tone="gray" id="dev-rlt">RLT · idle</span></div>
+<div class="rl-process-actions"><button class="secondary" id="device-rlt-reference" type="button">Reference</button><button class="secondary" id="device-rlt-warmup" type="button">Warmup</button><button class="secondary" id="device-rlt-frozen" type="button">Frozen</button><button id="device-rlt-online" type="button">Online</button><button class="secondary" data-en="Stop session" data-zh="停止 Session" id="device-rlt-stop" type="button">停止 Session</button><button class="danger" data-en="Unload model" data-zh="释放模型" id="device-rlt-down" type="button">释放模型</button></div>
+</article>
+<article class="panel model-compare-panel">
+<div class="panel-head"><div><h3 data-en="Model and parameters" data-zh="模型与参数">模型与参数</h3>
+<p class="muted" data-en="Selection applies to the next launch; an active Session is never hot-swapped." data-zh="切换在下一次启动生效；运行中的 Session 不热切参数。">切换在下一次启动生效；运行中的 Session 不热切参数。</p></div>
+<strong class="state-badge" id="rlt-model-status">—</strong></div>
+<div class="model-picker"><label><span data-en="Deployment model" data-zh="部署模型">部署模型</span><select id="rlt-model-select"></select></label>
+<button class="secondary" data-en="Use on next launch" data-zh="用于下次启动" disabled="" id="rlt-model-switch" type="button">用于下次启动</button></div>
+<p class="muted" id="rlt-model-note">正在读取模型目录…</p>
+<details class="parameter-details" open=""><summary data-en="Core parameters" data-zh="核心参数">核心参数</summary><div class="parameter-groups" id="rlt-core-parameters"></div></details>
+</article><div class="rl-layout">
+<article class="panel rl-mode-card hidden"><div class="panel-head"><h3 data-en="RLT mode" data-zh="RLT 模式">RLT 模式</h3><p class="inline-status" id="console-message">正在连接…</p></div><button data-en="Enter RLT mode" data-zh="进入 RLT 模式" id="mode-rlt" type="button">进入 RLT 模式</button></article>
+<article class="panel rlt-only hidden action-panel" id="rlt-panel">
+<div class="panel-head"><h3 data-en="Rollout controls" data-zh="Rollout 控制">Rollout 控制</h3><strong class="state-badge" id="rlt-session-phase">—</strong></div>
+<div class="mini-stats four"><span><small>Actor</small><strong id="rlt-actor-version">—</strong></span><span><small>Episode</small><strong id="rlt-episode-id">—</strong></span><span><small>Policy</small><strong id="rlt-policy-state">paused</strong></span><span><small>Saved</small><strong id="rlt-saved-count">0</strong></span></div>
+<div class="release-picker" id="legacy-release-picker"><label>Actor release<select id="rlt-release-select"></select></label><button class="secondary" data-en="Switch" data-zh="切换" disabled="" id="rlt-release-switch" type="button">切换</button></div><p class="muted" id="rlt-release-note"></p><p class="guidance" id="rlt-guidance">RLT 后端未启动。</p>
+<div class="button-grid"><button data-en="Onsite arm" data-zh="现场 Arm" disabled="" id="rlt-arm" type="button">现场 Arm</button><button data-en="Start session" data-zh="开始 Session" disabled="" id="rlt-start" type="button">开始 Session</button><button class="secondary" data-en="Pause" data-zh="暂停" disabled="" id="rlt-pause" type="button">暂停</button><button class="secondary" data-en="Resume" data-zh="继续" disabled="" id="rlt-resume" type="button">继续</button><button data-en="Success" data-zh="成功" disabled="" id="rlt-success" type="button">成功</button><button class="danger" data-en="Failure" data-zh="失败" disabled="" id="rlt-failure" type="button">失败</button><button class="secondary" data-en="Abort episode" data-zh="结束并放弃" disabled="" id="rlt-abort" type="button">结束并放弃</button><button data-en="Scene reset" data-zh="场景已复位" disabled="" id="rlt-next" type="button">场景已复位</button><button class="secondary span-two" data-en="End session" data-zh="结束 Session" disabled="" id="rlt-stop" type="button">结束 Session</button></div><label class="rlt-home-toggle"><input checked="" id="rlt-home-after-terminal" type="checkbox"/><span data-en="Home after success / failure / abort" data-zh="成功 / 失败 / 放弃后自动归位">成功 / 失败 / 放弃后自动归位</span></label><p class="shortcut-line"><kbd>→</kbd><span data-en="Start / Pause / Resume / Next" data-zh="开始 / 暂停 / 继续 / 下一轮">开始 / 暂停 / 继续 / 下一轮</span><kbd>↑</kbd><span data-en="Success" data-zh="成功">成功</span><kbd>↓</kbd><span data-en="Failure" data-zh="失败">失败</span><kbd>←</kbd><span data-en="Abort" data-zh="放弃">放弃</span></p><p class="inline-status" id="rlt-message" role="status"></p>
+</article>
+<article class="panel rlt-only hidden"><div class="panel-head"><h3 data-en="Rollout storage" data-zh="Rollout 保存位置">Rollout 保存位置</h3></div><label><span data-en="Directory" data-zh="目录">目录</span><input aria-controls="rlt-directory-options" autocomplete="off" id="rlt-data-root" role="combobox"/></label><div class="directory-browser" hidden="" id="rlt-directory-browser"><p class="muted" id="rlt-directory-hint"></p><div class="path-options" id="rlt-directory-options" role="listbox"></div></div><button data-en="Check and use" data-zh="检查目录并使用" id="rlt-save-storage" type="button">检查目录并使用</button><p class="path-caption"><span data-en="Current: " data-zh="当前：">当前：</span><code id="rlt-recording-directory">—</code></p></article>
+</div>
+<div class="learning-grid rlt-only hidden"><article class="panel update-card" data-tone="muted" id="diag-update-card"><div class="panel-head"><h3 id="diag-update-title">等待学习账本</h3><strong id="diag-last-result">—</strong></div><p class="muted" id="diag-update-detail">正在读取…</p><div class="progress-track"><i id="diag-update-progress"></i></div><div class="mini-stats"><span><small data-en="Pending" data-zh="待更新">待更新</small><strong id="diag-pending">—</strong></span><span><small data-en="Quarantined" data-zh="隔离">隔离</small><strong id="diag-quarantined">—</strong></span><span><small>Actor</small><strong id="diag-actor">—</strong></span></div></article><article class="panel"><h3 data-en="Update decision" data-zh="更新判定">更新判定</h3><ul class="evidence-list" id="diag-update-reasons"><li data-en="Waiting for candidate evidence" data-zh="等待候选证据">等待候选证据</li></ul></article></div>
+<div class="chart-grid rlt-only hidden">
+<article class="panel chart-card"><div class="panel-head"><h3 data-en="Critic loss" data-zh="价值网络损失">价值网络损失</h3><div class="legend"><i class="cyan"></i>Critic</div></div><svg id="chart-loss" viewBox="0 0 300 120"></svg><p class="chart-caption" id="diag-actor-note"></p></article>
+<article class="panel chart-card"><div class="panel-head"><h3 data-en="Q / target Q" data-zh="Q / 目标 Q">Q / 目标 Q</h3><div class="legend"><i class="cyan"></i>Q1 <i class="violet"></i>Q2 <i class="amber"></i>Target <i class="green"></i>Q(actor)</div></div><svg id="chart-q" viewBox="0 0 300 120"></svg></article>
+<article class="panel chart-card"><div class="panel-head"><h3 data-en="Actor objective" data-zh="策略优化目标">策略优化目标</h3><div class="legend"><i class="coral"></i>Actor <i class="cyan"></i>BC <i class="violet"></i>Q <i class="amber"></i>Delta</div></div><svg id="chart-actor-objective" viewBox="0 0 300 120"></svg></article>
+<article class="panel chart-card"><div class="panel-head"><h3 data-en="Q over episode progress" data-zh="Q 随 Episode 位置">Q 随 Episode 位置</h3><div class="legend" id="legend-episode-q"></div></div><svg id="chart-episode-q" viewBox="0 0 300 120"></svg><p class="chart-caption" id="diag-q-separation"></p></article>
+<article class="panel chart-card"><div class="panel-head"><h3 data-en="Decision chunk Q" data-zh="动作片段 Q">动作片段 Q</h3><div class="legend" id="legend-decision-q"></div></div><svg id="chart-decision-q" viewBox="0 0 300 120"></svg><p class="chart-caption" id="diag-decision-q-note"></p></article>
+<article class="panel chart-card"><div class="panel-head"><h3 data-en="Actor correction" data-zh="Actor 修改量">Actor 修改量</h3></div><svg id="chart-actor-delta" viewBox="0 0 300 120"></svg><p class="chart-caption" id="diag-actor-delta-note"></p></article>
+<article class="panel"><h3 data-en="Latest batch composition" data-zh="最近 Batch 构成">最近 Batch 构成</h3><div class="metric-bars" id="diag-mix"></div><p class="chart-caption" id="diag-mix-note"></p></article>
+
+</div>
+<div class="episode-browser-mount rlt-only hidden" id="episode-browser-learning"></div>
+</section>
+<section class="page" data-page="training">
+<div class="page-heading"><div><h2>训练</h2><p class="muted">模型、数据、参数与离线验收放在同一处。</p></div><span class="state-badge" id="training-gate">读取中</span></div>
+<div class="workbench-grid"><article class="panel"><div class="panel-head"><h3>训练记录</h3></div><label>方法<select id="training-family"><option value="rlt">RLT</option><option value="dagger">DAgger</option></select></label><label>运行<select id="training-run"><option value="plug_v3_warmup_20k">plug_v3 · warmup 20k</option><option value="plug_v3_stage1">plug_v3 · Stage 1 reference</option></select></label><dl class="workbench-facts" id="training-facts"></dl><p class="guidance" id="training-note"></p></article>
+<article class="panel"><div class="panel-head"><h3>下一轮训练准备</h3></div><label><span data-en="Initial checkpoint" data-zh="初始化检查点">初始化检查点</span><select id="training-checkpoint"><option value="stage1">Stage 1 · step_4999</option><option value="warmup20k">Warmup 20k · 诊断未通过</option></select></label><p class="muted">训练脚本与路径由已登记运行记录给出。HPC 分配与实际启动需要在对应任务中核验资源和提交脚本。</p><pre id="training-command"></pre><div class="button-row"><button class="secondary" id="training-copy" type="button">复制运行位置</button><button class="secondary" disabled title="未登记可安全从网页启动的训练作业" type="button">申请 HPC · 待接入</button><span class="muted" id="training-copy-status"></span></div></article></div>
+<p class="muted" id="training-live-state">正在读取在线训练指标…</p>
+<div class="training-figures training-live-figures"><figure class="panel"><figcaption data-en="Online critic loss" data-zh="在线价值网络损失">在线价值网络损失</figcaption><svg id="training-live-loss" viewBox="0 0 300 120"></svg></figure><figure class="panel"><figcaption data-en="Online Q1 / Q2 / target Q" data-zh="在线 Q1 / Q2 / 目标 Q">在线 Q1 / Q2 / 目标 Q</figcaption><svg id="training-live-q" viewBox="0 0 300 120"></svg></figure><figure class="panel"><figcaption data-en="Online actor / BC / Q" data-zh="在线策略 / BC / Q">在线策略 / BC / Q</figcaption><svg id="training-live-actor" viewBox="0 0 300 120"></svg></figure></div>
+<div class="training-figures" id="training-figures"><figure class="panel"><figcaption>离线 warmup 训练 loss</figcaption><img alt="20k warmup loss curves" src="/assets/plug_v3_warmup_20260924/loss_curves.png" loading="lazy"/></figure><figure class="panel"><figcaption>训练与留出集 Q 排序</figcaption><img alt="Train versus heldout Q AUC" src="/assets/plug_v3_warmup_20260924/train_vs_holdout_q_auc.png" loading="lazy"/></figure><figure class="panel"><figcaption>留出集 Q 排序 AUC</figcaption><img alt="Heldout Q AUC" src="/assets/plug_v3_warmup_20260924/holdout_auc_by_stage.png" loading="lazy"/></figure><figure class="panel"><figcaption>Q 随 Episode 位置</figcaption><img alt="Heldout Q by progress" src="/assets/plug_v3_warmup_20260924/holdout_q_by_progress.png" loading="lazy"/></figure><figure class="panel"><figcaption>Actor 对 HIL 动作误差</figcaption><img alt="HIL action error" src="/assets/plug_v3_warmup_20260924/holdout_hil_action_error.png" loading="lazy"/></figure></div>
+</section>
+<section class="page" data-page="deployment">
+<div class="page-heading"><div><h2>部署</h2><p class="muted">固定模型的现场评估与结果记录；不在这里启动 HIL 或在线训练。</p></div><strong class="state-badge" id="deployment-gate">读取中</strong></div>
+<article class="panel camera-panel"><div class="panel-head"><h3>现场三相机</h3><span class="live-label" data-camera-sync-status="" data-status="unavailable">正在连接</span></div><div class="camera-grid"><figure><img alt="顶部相机" data-camera="camera_high"/></figure><figure><img alt="左腕相机" data-camera="camera_left"/></figure><figure><img alt="右腕相机" data-camera="camera_right"/></figure></div></article>
+<div class="workbench-grid"><article class="panel"><h3>部署模型</h3><label>已登记模型<select id="deployment-model"></select></label><dl class="workbench-facts" id="deployment-facts"></dl><p class="guidance" id="deployment-note"></p><div class="button-row"><button class="secondary" id="deployment-open-system" type="button">设备准备</button><button class="secondary" id="deployment-open-collection" type="button">历史 Episode / Replay</button></div></article>
+<article class="panel"><h3>固定评估记录</h3><p class="muted">开始评估时截取首帧；标记结果时截取末帧。记录只存于此浏览器，不写入 RLT replay 或训练数据。</p><div class="mini-stats four"><span><small>总轮次</small><strong id="deploy-total">0</strong></span><span><small>成功</small><strong id="deploy-success">0</strong></span><span><small>失败</small><strong id="deploy-failure">0</strong></span><span><small>成功率</small><strong id="deploy-rate">—</strong></span></div><div class="button-row"><button class="secondary" id="deploy-start-trial" type="button">开始评估并截首帧</button><button id="deploy-mark-success" type="button">记成功</button><button class="danger" id="deploy-mark-failure" type="button">记失败</button><button class="secondary" id="deploy-mark-abort" type="button">记放弃</button></div><p class="inline-status" id="deploy-ledger-status"></p><div class="deploy-frames" id="deploy-frames"></div><ol class="deploy-ledger" id="deploy-ledger"></ol></article></div>
+<article class="panel"><h3>部署流程与回放</h3><ol class="pipeline-list"><li>在操作台核验 CAN、五臂反馈和三相机。</li><li>选择已通过离线与现场门禁的固定 checkpoint；不允许把训练完成当作可部署。</li><li>使用登记的纯部署入口启动，现场 Arm 后逐轮评估；暂停、归位、结束和释放模型各有独立步骤。</li><li>记录成功/失败与起止画面，再按需打开历史视频或遥操 replay。</li></ol><p class="guidance">plug_v3 当前 20k warmup 未通过留出集门禁；网页不会把它伪装成可直接纯部署的模型。当前无经过验证的 plug_v3 无录制纯部署入口。历史遥操 replay 命令：<code>./scripts/teleop.sh replay</code>，仅在现场确认后使用。</p></article>
+</section>
+<section class="page" data-page="host">
+<div class="workbench-grid host-grid">
+<article class="panel"><h3>运行状态</h3><dl class="workbench-facts" id="host-runtime"></dl></article>
+<article class="panel"><h3>存储空间</h3><div class="host-disk"><div class="progress-track"><i id="host-disk-used"></i></div><strong id="host-disk-label">读取中</strong></div><dl class="workbench-facts" id="host-paths"></dl></article>
+<article class="panel"><h3>频率与相机</h3><dl class="workbench-facts" id="host-frequencies"></dl></article>
+<article class="panel"><h3>脚本入口</h3><dl class="workbench-facts" id="host-scripts"></dl></article>
+</div><p class="inline-status" id="host-message" role="status"></p>
+</section>
+</main>
+</div>
+</div>
+<aside class="settings-drawer" hidden="" id="settings-drawer"><div class="settings-head"><h2 data-en="Settings" data-zh="设置">设置</h2><button aria-label="Close" class="icon-button" id="settings-close" type="button">×</button></div><section><h3 data-en="Language" data-zh="语言">语言</h3><div class="setting-options"><button data-language-choice="zh" type="button">中文</button><button data-language-choice="en" type="button">English</button></div></section><section><h3 data-en="Appearance" data-zh="外观">外观</h3><div class="setting-options"><button data-en="Light" data-theme-choice="light" data-zh="浅色" type="button">浅色</button><button data-en="Dark" data-theme-choice="dark" data-zh="深色" type="button">深色</button></div></section></aside>
+<div aria-hidden="true" class="compatibility-nodes"><span id="selected-mode"></span><span id="active-mode"></span><span id="ros-readiness"></span><span id="rlt-backend-phase"></span><span id="rlt-model-release"></span><span id="top-actor"></span><span id="sys-console"></span><span id="sys-ros"></span><span id="sys-rlt"></span><span id="sys-recorder"></span><span id="sys-actor"></span><span id="sys-onsite"></span><span id="sys-improvement"></span><span id="sys-latency"></span><pre id="diag-system-json"></pre><span id="camera-sync-status"></span></div>
+<script src="/preferences.js?v=20260924-console-motion-v2"></script><script src="/ui.js?v=20260920-console-observability"></script><script src="/path_picker.js?v=20260923-direct-directory-picker-v2"></script><script src="/replay_timeline.js?v=20260923-htmlcollection-v2"></script><script src="/diagnostics_ui.js?v=20260925-workspace-v2"></script><script src="/camera_sync_ui.js?v=20260924-console-motion-v2"></script><script src="/device_control_ui.js?v=20260925-workspace-v3"></script><script src="/console_ui.js?v=20260924-rlt-shortcuts-v1"></script><script src="/post_save_home.js?v=20260923-capture-finish-v3"></script><script src="/workbench_ui.js?v=20260925-workspace-v3"></script><script src="/workspace_ui.js?v=20260925-workspace-v7"></script><script src="/app.js?v=20260925-global-v2"></script><script src="/ui-next/spatial_ui.js?v=20260925-unify-v1"></script><script src="/dashboard_locale.js?v=20260925-global-v2"></script>
+</body>
+</html>

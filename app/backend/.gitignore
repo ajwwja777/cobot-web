@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+scratch/
+runtime/
+logs/
+data/
+*.hdf5
+*.hdf5.incomplete

@@ -1,0 +1,26 @@
+{
+  "dataset_id": "plug-insertion-node-pilot-v1",
+  "status": "pilot-awaiting-capture",
+  "raw_schema": "task5-segmented-teach-v1",
+  "review_schema": "task5-segment-review-v1",
+  "raw_root": "/media/agilex/Getea1/jiaan/data/cobot-realworld-vla/task5/plug-insertion-node-pilot-v1/raw",
+  "archive_root": "/media/agilex/Getea1/jiaan/data/cobot-realworld-vla/task5/plug-insertion-node-pilot-v1/archive",
+  "task_id": "plug_insertion",
+  "instruction": "Locate the plug, pick it up, locate the socket, and insert the plug.",
+  "reset_is_outside_episode": true,
+  "reset_sequence": "open_task_gripper_then_home_front",
+  "reset_sequence_status": "proposed-not-implemented",
+  "camera_order": [
+    "cam_high",
+    "cam_left_wrist",
+    "cam_right_wrist"
+  ],
+  "physical_action_dim": 14,
+  "action_order": "left_joints_0_5,left_gripper,right_joints_0_5,right_gripper",
+  "sample_rate_hz": 30,
+  "training_selection": "reviewed_node_intervals_only",
+  "cross_boundary_windows": "forbidden",
+  "node_keyframes_are_training_frames": false,
+  "paused_gaps_are_training_frames": false,
+  "node_labels_are_rewards": false
+}

@@ -1,0 +1,61 @@
+/* Shared icon-only tools for settings, host information, docks and output. */
+body button.panel-tool-button,
+body.workbench-docked button.panel-tool-button,
+body.workbench-docked #settings-drawer button.panel-tool-button {
+  box-sizing:border-box;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 30px;
+  width:30px!important;
+  min-width:30px!important;
+  max-width:30px!important;
+  height:30px!important;
+  min-height:30px!important;
+  max-height:30px!important;
+  padding:0!important;
+  margin:0;
+  gap:0;
+  border:1px solid var(--line,#38383d);
+  border-radius:8px;
+  background:var(--surface-2,#242427);
+  color:var(--muted,#aaaab0);
+  box-shadow:none;
+  line-height:1;
+  cursor:pointer;
+  transform:none!important;
+  translate:none!important;
+  transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+body button.panel-tool-button>svg {
+  display:block;
+  flex:0 0 16px;
+  width:16px;
+  height:16px;
+  margin:0;
+  stroke-width:1.6;
+  pointer-events:none;
+}
+body button.panel-tool-button:hover:not(:disabled),
+body.workbench-docked button.panel-tool-button:hover:not(:disabled),
+body.workbench-docked #settings-drawer button.panel-tool-button:hover:not(:disabled) {
+  color:var(--text,#f0f0f1);
+  background:var(--surface-3,#2d2d31);
+  border-color:var(--line-strong,#56565e);
+}
+body button.panel-tool-button:active:not(:disabled),
+body.workbench-docked button.panel-tool-button:active:not(:disabled),
+body.workbench-docked #settings-drawer button.panel-tool-button:active:not(:disabled) {
+  background:var(--line,#38383d);
+  color:var(--text,#f0f0f1);
+}
+body button.panel-tool-button:focus-visible,
+body.workbench-docked button.panel-tool-button:focus-visible,
+body.workbench-docked #settings-drawer button.panel-tool-button:focus-visible {
+  outline:2px solid var(--text,#f0f0f1);
+  outline-offset:2px;
+}
+body button.panel-tool-button:disabled {opacity:.4;cursor:not-allowed}
+.workbench-docked .dock-head {height:36px;min-height:36px}
+.workbench-docked .settings-head>.panel-tool-button {align-self:center}
+@media(prefers-reduced-motion:reduce){body button.panel-tool-button{transition:none}}

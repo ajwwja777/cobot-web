@@ -1,0 +1,10 @@
+{
+  "derived_at": "2026-09-08",
+  "historical_root": "/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl",
+  "historical_head": "e0ecbbcc589eae2f286b2edb807eda0e1135e555",
+  "historical_status_sha256": "ab19480e05c1ef12f28f4b3c9fbbb282eab24f240e0fdc074dc2bb9b25a611e2",
+  "historical_selected_tree_sha256": "13a5a1ff7b063180e2a00bbbd85014545516a979ce5923c629090cf710602a22",
+  "history_policy": "read-only",
+  "overlay_role": "task5-segmented-teach-v1 independent personal repository",
+  "robot_control": false
+}

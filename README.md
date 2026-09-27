@@ -1,38 +1,73 @@
-# Cobot 操作网页
+# Cobot Web
 
-保留现有操作台、统一采集、训练和部署页面，以及相机／输出面板、模型与任务状态交互。
+Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状态、部署评测、相机与任务输出。
 
-## 入口与位置
+**A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 当前新目录已具备独立运行环境和只读预览，正式 8015 仍在旧目录，等待现场评测／在线更新结束后切换。不要把本次预览验收视为真机运动或模型成功率验收。
 
-- 先读统一框架：`/data/LFT-W02_data/jiaan/jiaan/agent-guide/AGENTS.md`。
-- A6000 主工作区：`/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web`。
-- 笔记本对话入口：`D:\Code\jiaan_workspace\cobot-web`。
-- 自有独立仓库：`https://github.com/ajwwja777/cobot-web`（目标分支 `main`）。
-- Cobot 目标部署位置：`/home/agilex/jiaan/project/cobot-web`，本轮尚未部署。
-- 当前阶段：入口与仓库初始化；旧业务代码、环境、模型和数据尚未迁移，现有服务入口未切换。
+## 从哪里读
 
-## 负责什么
+| 位置 | 负责内容 |
+|---|---|
+| `app/backend/cobot_console/` | 网页 API、设备健康、任务输出、模型／RLT 适配 |
+| `app/backend/capture_core/` | 反馈缓存、采样、HDF5 录制、标签、预览 |
+| `app/backend/segmented_capture/` | 分段采集、节点、暂停／继续与 HIL 协调 |
+| `app/backend/segmented_frontend/` | 当前操作网页，原生 JavaScript／CSS |
+| `app/backend/frontend/` | 保留的独立回放／审核页面 |
+| `app/shared/schemas/` | 持久化数据格式 |
+| `robot/` | 现有硬件适配；当前作为迁移兼容边界保留 |
+| `integrations/legacy_control/` | 现有控制辅助代码快照，等待 cobot-control 后续验收接管 |
+| `scripts/` | 网页启停、同步、现场命令封装与只读诊断 |
+| `configs/hosts/` | 按机器登记依赖位置；`configs/local.json` 是本机选择，不入 Git |
+| `app/backend/tests/` | 不依赖机器人运行的回归测试 |
+| `docs/MIGRATION.md` | 验收证据、当前限制与切换状态 |
 
-前端界面、网页 API 编排、状态展示、任务提交与输出查看。保留已确认的交互、快捷键和中英文行为。
+新的 Python 包不用任务编号命名。旧 ROS 话题、节点名、数据格式和模型配置中的编号属于兼容协议；这一批不改它们，避免破坏正在使用的真机／模型链路。来源与映射见 [SOURCE_PROVENANCE.json](docs/SOURCE_PROVENANCE.json)。
 
-设备与运动逻辑由 cobot-control 实现，采集由 cobot-dagger 提供，模型和 RL 调用对应平台，进程启动、PID、日志和健康管理与 cobot-ops 对齐；不能复制多套业务状态机。
+## 工作区与环境
 
-## 机器与资产
+| 机器 | 路径 |
+|---|---|
+| A6000 主工作区 | `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web` |
+| Cobot 运行副本 | `/home/agilex/jiaan/project/cobot-web` |
+| Cobot 日志／PID／任务状态 | `/home/agilex/jiaan/project/cobot-ops/runtime` |
+| 新的采集／评测数据根 | `/home/agilex/jiaan/data` |
 
-A6000 负责主代码、Git、维护文档、主要开发验证环境、数据处理和离线评测；训练按资源需要在 A6000／已授权训练机进行。Cobot 只部署本项目现场实际需要的硬件、采集、推理、网页或维护组件，不复制仿真资产和完整训练环境。
+仓库：[ajwwja777/cobot-web](https://github.com/ajwwja777/cobot-web)，`main`。笔记本只保留对话入口。
 
-Cobot 采集及评测数据统一规划在 `/home/agilex/jiaan/data/`。模型放所属项目的 `models/`（上游已有 `checkpoints/` 等目录时保留其源码布局，由配置明确实际权重位置）；同一资产跨项目引用，避免重复复制。现场服务日志、PID 和状态交由 `cobot-ops/runtime/` 管理；训练 checkpoint、配置和指标保留在所属项目 `outputs/<实验>/`。环境、模型、大数据与 runtime 不入 Git。
+Python 环境是项目内的 `.venv/`，依赖只在根目录的 `pyproject.toml` 声明，版本由 `uv.lock` 固定。保留 Cobot ROS Noetic 对 Python 3.8 的兼容。`.env` 如有使用只负责配置，不是 Python 环境。现有硬件 SDK 使用已安装的 `aloha` conda 环境；它不是本次网页环境，未改名或重建。
 
-## 项目协作
+在 A6000 的项目根目录：
 
-页面和展示问题由本项目负责；业务状态错误交对应控制／采集／模型／RL 项目；进程、存储和日志异常交 cobot-ops。
+```bash
+uv sync --locked
+uv run pytest -q
+npm ci
+npm test
+COBOT_DATA_UI_PORT=18015 ./scripts/preview.sh
+```
 
-先读本次任务涉及的依赖项目入口和接口说明，再修改相关边界；接口变更要记录受影响调用方与验证方式。常用项目：`cobot-control`、`cobot-dagger`、`vla-platform`、`rl-platform`、`cobot-web`、`cobot-ops`，主工作区均在 `/data/LFT-W02_data/jiaan/jiaan/projects/`。需要专题对话时仍共享所属项目，不因此重复建立业务仓库。
+Node 仅用于前端开发测试，Cobot 不需要安装 npm 或开发依赖。网页没有打包步骤，API 直接提供版本控制内的静态文件。当前可用的 uv 位于 `/home/LFT-W02/.local/bin/uv`；未加入 PATH 时使用完整路径。
 
-## 下一步
+## 同步与运行
 
-先制作当前页面与 API 的版本快照，迁移一个可隔离的静态资源／只读页面范围，以独立验证入口核对，不占用或替换现有 8015 服务。
+`python3 scripts/sync_cobot.py` 从 A6000 同步已提交的运行文件，核对逐文件 SHA-256，并写 `.release.json`。它不复制 Git、模型、数据、开发依赖、测试缓存，也不重启任何服务。
 
-旧位置、验收条件和切换／清理规则见迁移记录。
+Cobot 使用 `configs/hosts/cobot.json` 作为 `configs/local.json`。现场 uv 位于 `/home/agilex/jiaan/project/cobot-ops/tools/uv`：
 
-来源：2026-09-27 用户确认的项目划分、机器职责与逐批迁移方案；本轮范围仅初始化。
+```bash
+cd /home/agilex/jiaan/project/cobot-web
+UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-ops/runtime/cache/uv /home/agilex/jiaan/project/cobot-ops/tools/uv sync --frozen --no-dev --python /usr/bin/python3
+./scripts/preview.sh
+```
+
+只读预览默认在 **8018**：拒绝操作请求，不启动 ROS 录制订阅，不启动／停止模型或硬件节点。`./scripts/preview.sh ui-down` 只关闭该预览。正常网页入口是 `scripts/ui_up.sh`、`scripts/ui_down.sh`、`scripts/ui_status.sh`；当前不要使用新入口抢占正在评测的 8015。
+
+`scripts/verify_device_health.py` 是只读诊断：在配置好的 ROS 环境中运行，短暂订阅关节／示教反馈并监听 CAN，不发布运动指令，不调用控制服务。
+
+## 依赖与边界
+
+本次保留采集和硬件适配的唯一迁移副本，没有把同一状态机复制到六个项目。后续由 cobot-control 接管硬件、cobot-dagger 接管采集，web 保留 API 编排和展示；切分必须带接口与回归验证。
+
+模型权重、RLT 算法运行环境和已有评测数据尚未整体迁移。`configs/hosts/cobot.json` 明确登记其当前真实位置，仍可识别旧模型；不会伪造新路径为已部署。历史数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
+
+日期：2026-09-27。完整进度与未完成项见迁移记录。

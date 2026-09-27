@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Task5 HIL Rollout Recorder v1</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">TASK5 · V1</p>
+        <h1>人在环 Rollout 记录</h1>
+        <p class="subtle">Human-in-the-Loop Rollout Recorder</p>
+        <p class="notice">本页面只订阅 Task2 话题并记录数据，不会发布机械臂命令，也不会启动或停止推理。</p>
+      </header>
+
+      <section aria-labelledby="storage-title">
+        <div class="section-title">
+          <h2 id="storage-title">1. 实验与保存目录</h2>
+          <span id="storage-state" class="badge">尚未检查</span>
+        </div>
+        <form id="series-form" class="form-grid">
+          <label class="wide">保存根目录
+            <input name="data_root" value="/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/data/raw_rollouts" required />
+          </label>
+          <details class="wide advanced">
+            <summary>实验标识（通常无需修改）</summary>
+            <div class="form-grid inner-grid">
+              <label>Task ID<input name="task_id" value="in_the_pot" required /></label>
+              <label>Model ID<input name="model_id" value="pi05" required /></label>
+              <label>Checkpoint ID<input name="checkpoint_id" value="step_2000" required /></label>
+              <label>Dataset round<input name="dataset_round" value="round_001" required /></label>
+            </div>
+          </details>
+          <div class="actions"><button type="submit" class="secondary">检查并使用此目录</button></div>
+        </form>
+        <dl class="path-summary">
+          <div><dt>实际保存文件夹</dt><dd id="episode-directory">—</dd></div>
+          <div><dt>下一条 episode</dt><dd id="next-episode">—</dd></div>
+        </dl>
+      </section>
+
+      <section aria-labelledby="live-title">
+        <div class="section-title">
+          <h2 id="live-title">2. 实时状态与相机</h2>
+          <span class="subtle">预览最高 15 FPS；数据仍按 30 Hz 记录</span>
+        </div>
+        <div class="status-grid" aria-label="实时状态">
+          <article><span>Recorder</span><strong id="recorder-state">unknown</strong></article>
+          <article><span>Task2 mode</span><strong id="handover-mode">unknown</strong></article>
+          <article><span>Left source</span><strong id="left-source">unknown</strong></article>
+          <article><span>Right source</span><strong id="right-source">unknown</strong></article>
+          <article><span>Frames</span><strong id="frame-count">0 / 0</strong></article>
+          <article><span>ROS</span><strong id="ros-state">unknown</strong></article>
+        </div>
+        <div class="camera-grid">
+          <figure class="camera-card">
+            <div class="camera-frame"><img data-camera="camera_high" alt="前方相机实时画面" /><span class="camera-state">正在连接…</span></div>
+            <figcaption>前方相机</figcaption>
+          </figure>
+          <figure class="camera-card">
+            <div class="camera-frame"><img data-camera="camera_left" alt="左腕相机实时画面" /><span class="camera-state">正在连接…</span></div>
+            <figcaption>左腕相机</figcaption>
+          </figure>
+          <figure class="camera-card">
+            <div class="camera-frame"><img data-camera="camera_right" alt="右腕相机实时画面" /><span class="camera-state">正在连接…</span></div>
+            <figcaption>右腕相机</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section aria-labelledby="record-title">
+        <h2 id="record-title">3. 记录当前 rollout</h2>
+        <ol class="run-order">
+          <li>先开始记录，并确认 Frames 持续增加。</li>
+          <li>再到独立的部署终端按 Enter 开始推理。</li>
+          <li>结束时先 Ctrl-C 停止推理并等待终端返回，再停止并保存记录。</li>
+        </ol>
+        <div class="actions">
+          <button type="button" id="start-button" disabled>开始记录</button>
+          <button type="button" id="stop-button" class="danger" disabled>停止并保存</button>
+        </div>
+        <p id="operation-message" role="status"></p>
+      </section>
+
+      <section id="replay-section" class="hidden" aria-labelledby="replay-title">
+        <div class="section-title">
+          <h2 id="replay-title">4. 回放刚完成的 episode</h2>
+          <span id="preview-state" class="badge">尚未生成</span>
+        </div>
+        <p id="selected-episode-summary" class="subtle"></p>
+        <video id="episode-replay" controls preload="metadata"></video>
+        <p id="preview-message" class="subtle" role="status"></p>
+        <div id="interventions" class="interventions"></div>
+      </section>
+
+      <section id="outcome-section" class="hidden" aria-labelledby="outcome-title">
+        <div class="section-title">
+          <h2 id="outcome-title">5. 选择任务结果</h2>
+          <span id="outcome-state" class="badge warning">必须选择</span>
+        </div>
+        <p>选择成功或失败后，本条 episode 才完成；随后编号会自动增加。</p>
+        <div class="actions outcome-actions">
+          <button type="button" id="success-button">成功</button>
+          <button type="button" id="failure-button" class="danger">失败</button>
+        </div>
+      </section>
+
+      <details class="history-panel">
+        <summary>查看或修改历史 episode</summary>
+        <div class="history-controls">
+          <label>Episode<select id="episode-select"></select></label>
+          <button type="button" id="refresh-episodes" class="secondary">刷新</button>
+          <button type="button" id="replay-episode" class="secondary">生成 / 查看回放</button>
+          <button type="button" id="delete-episode" class="danger">永久删除</button>
+        </div>
+        <p class="warning-copy">永久删除会移除 HDF5、标签和回放缓存，不能恢复。删除中间 episode 不会重排其他文件；删除末尾 episode 后，该末尾编号可由下一条复用。</p>
+      </details>
+    </main>
+    <script src="/workflow.js" defer></script>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

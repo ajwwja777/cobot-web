@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1521">
+  <title>Cobot Magic · Dashboard 预览</title>
+  <link rel="stylesheet" href="./vendor/tabler.min.css">
+  <link rel="stylesheet" href="./dashboard.css?v=4">
+  <script src="./dashboard.js?v=4" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="主导航">
+      <a class="brand" href="./" aria-label="Cobot Magic Dashboard">
+        <span class="brand-mark">C</span>
+        <span><strong>Cobot Magic</strong><small>实验控制台</small></span>
+      </a>
+      <div class="nav-caption">工作区</div>
+      <nav class="side-nav">
+        <a class="nav-item active" href="./"><span class="nav-glyph">◈</span>总览 <span class="nav-current"></span></a>
+        <a class="nav-item" href="/?view=system"><span class="nav-glyph">▦</span>操作台</a>
+        <a class="nav-item" href="/?view=operation"><span class="nav-glyph">◉</span>数据采集</a>
+        <a class="nav-item" href="/?view=training"><span class="nav-glyph">▥</span>训练</a>
+        <a class="nav-item" href="/?view=deployment"><span class="nav-glyph">▷</span>部署</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="connection-line"><span class="signal-dot" id="connection-dot"></span><span id="connection-text">正在连接控制台</span></div>
+        <a href="/" class="legacy-link">打开当前完整控制台 <span aria-hidden="true">↗</span></a>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="breadcrumb-line"><span>COBOT MAGIC</span><b>/</b><strong>总览</strong></div>
+        <div class="topbar-right"><span class="topbar-tag">Dashboard 预览 · 只读</span><span id="clock" class="mono">--:--:--</span></div>
+      </header>
+
+      <div class="content">
+        <div class="page-intro">
+          <div><p class="eyebrow">REAL-WORLD ROBOTICS</p><h1>先看到状态，再决定动作。</h1><p>选择机械臂或相机，查看当前反馈；现场操作仍由原控制台执行。</p></div>
+          <div class="intro-actions"><a class="btn btn-primary" href="/?view=system">进入操作台</a><button class="btn btn-outline-secondary" id="refresh-now" type="button">刷新状态</button></div>
+        </div>
+
+        <section class="safety-banner" id="safety-banner" role="status" aria-live="polite"><span class="safety-icon">!</span><div><strong id="safety-title">正在检查设备反馈</strong><span id="safety-detail">状态未确认前不要启动动作。</span></div><span class="safety-age" id="safety-age">—</span></section>
+
+        <div class="dashboard-grid">
+          <section class="card scene-card" aria-labelledby="scene-title">
+            <div class="card-header"><div><p class="section-kicker">SPATIAL OVERVIEW</p><h2 id="scene-title" class="card-title">Cobot 空间状态</h2></div><div class="header-right"><span class="muted-small">俯视示意</span><span class="future-pill">3D 区域已预留</span></div></div>
+            <div class="card-body scene-body">
+              <div class="scene-stage" id="scene-root">
+                <svg viewBox="0 0 940 480" role="img" aria-label="Cobot 五臂、双夹爪与三相机空间示意图；可选中部件" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    <linearGradient id="table-grad" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#182d3c"/><stop offset="1" stop-color="#11212f"/></linearGradient>
+                    <filter id="glow"><feGaussianBlur stdDeviation="9" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                  </defs>
+                  <rect x="115" y="48" width="710" height="380" rx="24" class="table-outline" fill="url(#table-grad)"/>
+                  <path d="M135 143H805 M135 333H805 M294 66V409 M646 66V409" class="table-grid"/>
+                  <text x="470" y="244" class="table-label" text-anchor="middle">WORKSPACE</text>
+                  <path d="M321 226h298" class="work-line"/>
+                  <rect x="427" y="206" width="86" height="37" rx="8" class="work-object"/>
+                  <text x="470" y="230" text-anchor="middle" class="object-label">插孔区域</text>
+
+                  <g class="machine-part" data-part="rear-left" tabindex="0" role="button" aria-label="左后臂"><path d="M192 100 L255 142 L325 175" class="arm-link"/><circle cx="192" cy="100" r="25" class="arm-base"/><circle cx="255" cy="142" r="15" class="arm-joint"/><circle cx="325" cy="175" r="16" class="arm-tip"/><text x="189" y="55" class="part-label" text-anchor="middle">左后臂</text><circle cx="208" cy="88" r="7" class="part-light"/></g>
+                  <g class="machine-part" data-part="rear-right" tabindex="0" role="button" aria-label="右后臂"><path d="M748 100 L685 142 L615 175" class="arm-link"/><circle cx="748" cy="100" r="25" class="arm-base"/><circle cx="685" cy="142" r="15" class="arm-joint"/><circle cx="615" cy="175" r="16" class="arm-tip"/><text x="750" y="55" class="part-label" text-anchor="middle">右后臂</text><circle cx="765" cy="88" r="7" class="part-light"/></g>
+                  <g class="machine-part" data-part="front-left" tabindex="0" role="button" aria-label="左前臂"><path d="M190 376 L270 326 L355 290" class="arm-link"/><circle cx="190" cy="376" r="27" class="arm-base"/><circle cx="270" cy="326" r="16" class="arm-joint"/><circle cx="355" cy="290" r="17" class="arm-tip"/><text x="188" y="458" class="part-label" text-anchor="middle">左前臂</text><circle cx="206" cy="363" r="7" class="part-light"/></g>
+                  <g class="machine-part" data-part="front-right" tabindex="0" role="button" aria-label="右前臂"><path d="M750 376 L670 326 L585 290" class="arm-link"/><circle cx="750" cy="376" r="27" class="arm-base"/><circle cx="670" cy="326" r="16" class="arm-joint"/><circle cx="585" cy="290" r="17" class="arm-tip"/><text x="750" y="458" class="part-label" text-anchor="middle">右前臂</text><circle cx="765" cy="363" r="7" class="part-light"/></g>
+                  <g class="machine-part" data-part="mid" tabindex="0" role="button" aria-label="中臂"><path d="M470 81 L470 143 L470 172" class="arm-link"/><circle cx="470" cy="81" r="27" class="arm-base"/><circle cx="470" cy="143" r="15" class="arm-joint"/><circle cx="470" cy="172" r="15" class="arm-tip"/><text x="470" y="31" class="part-label" text-anchor="middle">中臂</text><circle cx="487" cy="69" r="7" class="part-light"/></g>
+                  <g class="machine-part camera-part" data-part="camera_left" tabindex="0" role="button" aria-label="左腕相机"><rect x="309" y="271" width="34" height="27" rx="7" class="camera-box"/><circle cx="326" cy="285" r="7" class="camera-lens"/><text x="278" y="293" class="camera-label" text-anchor="end">左腕相机</text></g>
+                  <g class="machine-part camera-part" data-part="camera_right" tabindex="0" role="button" aria-label="右腕相机"><rect x="597" y="271" width="34" height="27" rx="7" class="camera-box"/><circle cx="614" cy="285" r="7" class="camera-lens"/><text x="660" y="293" class="camera-label">右腕相机</text></g>
+                  <g class="machine-part camera-part" data-part="camera_high" tabindex="0" role="button" aria-label="中臂相机"><rect x="453" y="176" width="34" height="27" rx="7" class="camera-box"/><circle cx="470" cy="190" r="7" class="camera-lens"/><text x="506" y="195" class="camera-label">中臂相机</text></g>
+                  <g class="machine-part gripper-part" data-part="gripper_left" tabindex="0" role="button" aria-label="左夹爪"><circle cx="372" cy="282" r="13" class="gripper-dot"/><text x="360" y="327" class="camera-label" text-anchor="middle">左夹爪</text></g>
+                  <g class="machine-part gripper-part" data-part="gripper_right" tabindex="0" role="button" aria-label="右夹爪"><circle cx="568" cy="282" r="13" class="gripper-dot"/><text x="580" y="327" class="camera-label" text-anchor="middle">右夹爪</text></g>
+                </svg>
+                <div class="scene-caption"><span class="scene-caption-dot"></span>点击部件聚焦状态 <span class="scene-caption-divider">/</span> 模型网格将来可直接替换本示意层</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card focus-card" aria-labelledby="focus-title">
+            <div class="card-header"><div><p class="section-kicker">COMPONENT FOCUS</p><h2 id="focus-title" class="card-title">部件详情</h2></div><span class="focus-index" id="focus-index">01 / 10</span></div>
+            <div class="card-body focus-body"><div class="focus-icon" id="focus-icon">R</div><span class="focus-category" id="focus-category">机械臂</span><h3 id="focus-name">右前臂</h3><span class="status-pill" id="focus-status" data-state="unknown"><span></span>正在检查</span><p class="focus-detail" id="focus-detail">等待实时反馈…</p><dl class="focus-metrics"><div><dt>状态来源</dt><dd id="focus-source">被动 CAN 反馈</dd></div><div><dt>最近更新</dt><dd id="focus-updated">—</dd></div><div><dt>操作入口</dt><dd id="focus-action-label">操作台 · 恢复/归位</dd></div></dl><a class="btn btn-primary focus-link" id="focus-link" href="/?view=system">在操作台查看 <span aria-hidden="true">↗</span></a><p class="focus-footnote">预览页只读取状态，不发送控制命令。</p></div>
+          </section>
+
+          <section class="card cameras-card" aria-labelledby="camera-title"><div class="card-header"><div><p class="section-kicker">LIVE VISION</p><h2 id="camera-title" class="card-title">三相机</h2></div><div class="camera-summary"><span id="camera-health" class="status-pill" data-state="unknown"><span></span>连接中</span><span id="camera-skew" class="mono">skew —</span></div></div><div class="card-body"><div class="camera-grid">
+            <figure class="camera-tile" data-camera="camera_left"><div class="camera-frame"><img alt="左腕相机实时画面" id="image-camera_left"><span class="camera-overlay" id="camera-state-camera_left">等待画面</span></div><figcaption><span>左腕相机</span><small id="camera-age-camera_left">—</small></figcaption></figure>
+            <figure class="camera-tile" data-camera="camera_high"><div class="camera-frame"><img alt="中臂相机实时画面" id="image-camera_high"><span class="camera-overlay" id="camera-state-camera_high">等待画面</span></div><figcaption><span>中臂相机</span><small id="camera-age-camera_high">—</small></figcaption></figure>
+            <figure class="camera-tile" data-camera="camera_right"><div class="camera-frame"><img alt="右腕相机实时画面" id="image-camera_right"><span class="camera-overlay" id="camera-state-camera_right">等待画面</span></div><figcaption><span>右腕相机</span><small id="camera-age-camera_right">—</small></figcaption></figure>
+          </div></div></section>
+
+          <section class="card metrics-card" aria-labelledby="metrics-title"><div class="card-header"><div><p class="section-kicker">SYSTEM HEALTH</p><h2 id="metrics-title" class="card-title">基础连接</h2></div><span class="last-update" id="devices-update">—</span></div><div class="card-body"><div class="metric-list" id="system-metrics"><div class="metric-row" data-system="can"><span class="metric-marker"></span><span>CAN</span><strong>检查中</strong></div><div class="metric-row" data-system="roscore"><span class="metric-marker"></span><span>ROS Core</span><strong>检查中</strong></div><div class="metric-row" data-system="arms"><span class="metric-marker"></span><span>机械臂节点</span><strong>检查中</strong></div><div class="metric-row" data-system="cameras"><span class="metric-marker"></span><span>相机节点</span><strong>检查中</strong></div><div class="metric-row" data-system="rlt"><span class="metric-marker"></span><span>RLT 后端</span><strong>检查中</strong></div></div></div></section>
+
+          <section class="card model-card" aria-labelledby="model-title"><div class="card-header"><div><p class="section-kicker">MODEL / BRAIN</p><h2 id="model-title" class="card-title">模型与任务</h2></div><span class="brain-orb" aria-hidden="true"></span></div><div class="card-body"><span class="model-cohort" id="model-cohort">读取中</span><h3 id="model-name">正在读取模型目录…</h3><p id="model-description">模型身份和可用性以服务器记录为准。</p><div class="model-facts"><div><small>选择身份</small><strong id="model-kind">—</strong></div><div><small>运行状态</small><strong id="model-runtime">—</strong></div><div><small>检查点</small><strong id="model-checkpoint">—</strong></div></div><div class="model-actions"><a href="/?view=training" class="btn btn-outline-secondary">查看训练</a><a href="/?view=deployment" class="btn btn-outline-secondary">查看部署</a></div></div></section>
+
+          <section class="card data-card" aria-labelledby="data-title"><div class="card-header"><div><p class="section-kicker">DATA FLOW</p><h2 id="data-title" class="card-title">数据概览</h2></div><a href="/?view=operation" class="inline-link">进入采集 ↗</a></div><div class="card-body"><div class="data-stats"><div><small>专家示教</small><strong id="count-demonstrations">—</strong><span>episodes</span></div><div><small>Warmup</small><strong id="count-warmup">—</strong><span>episodes</span></div><div><small>Online</small><strong id="count-online">—</strong><span>episodes</span></div></div><div class="data-root">当前 Profile <strong id="data-profile">—</strong></div></div></section>
+
+          <section class="card events-card" aria-labelledby="events-title"><div class="card-header"><div><p class="section-kicker">EVENT STREAM</p><h2 id="events-title" class="card-title">最近变化</h2></div><span class="muted-small">仅显示本页打开后的状态变化</span></div><div class="card-body"><ol class="event-list" id="event-list"><li class="event-empty">等待首次状态快照…</li></ol></div></section>
+        </div>
+
+        <footer class="page-footer"><span>Cobot Magic Dashboard preview · Tabler 1.5.1</span><span>当前完整控制台继续运行于 <a href="/">8015 根页面</a></span></footer>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

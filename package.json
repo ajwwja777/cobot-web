@@ -1,0 +1,11 @@
+{
+  "name": "cobot-web",
+  "private": true,
+  "version": "0.2.0",
+  "scripts": {
+    "test": "cd app/backend && node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "24.1.3"
+  }
+}

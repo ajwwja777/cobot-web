@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task5/rollout_v1.schema.json",
+  "title": "Task5 rollout v1",
+  "type": "object",
+  "required": ["rollout_schema_version", "identity", "standard_fields", "rollout_fields"],
+  "properties": {
+    "rollout_schema_version": {"const": 1},
+    "identity": {
+      "type": "object",
+      "required": ["task_id", "model_id", "checkpoint_id", "dataset_round", "episode_index", "episode_uuid"],
+      "properties": {
+        "task_id": {"$ref": "#/$defs/identifier"}, "model_id": {"$ref": "#/$defs/identifier"},
+        "checkpoint_id": {"$ref": "#/$defs/identifier"}, "dataset_round": {"$ref": "#/$defs/identifier"},
+        "episode_index": {"type": "integer", "minimum": 0}, "episode_uuid": {"type": "string", "format": "uuid"}
+      }
+    },
+    "standard_fields": {"const": ["observations/images/cam_high", "observations/images/cam_left_wrist", "observations/images/cam_right_wrist", "observations/qpos", "observations/qvel", "observations/effort", "action", "base_action"]},
+    "rollout_fields": {"const": ["rollout/policy_command_submitted", "rollout/coordinator_command", "rollout/front_observation", "rollout/rear_observation", "rollout/teach_active_left", "rollout/teach_active_right", "rollout/handover_mode", "rollout/handover_fault", "rollout/control_source_left", "rollout/control_source_right", "rollout/is_intervention_left", "rollout/is_intervention_right", "rollout/intervention_id_left", "rollout/intervention_id_right", "rollout/topic_timestamp", "rollout/arrival_timestamp", "rollout/valid_mask"]}
+  },
+  "$defs": {"identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"}}
+}

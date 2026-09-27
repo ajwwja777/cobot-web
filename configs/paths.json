@@ -1,0 +1,6 @@
+{
+  "configuration": "configs/local.json",
+  "example": "configs/hosts/cobot.json",
+  "loader": "app/backend/cobot_console/paths.py",
+  "previous_data_roots": []
+}

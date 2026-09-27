@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task5/labels_v1.schema.json",
+  "title": "Task5 rollout labels v1",
+  "type": "object",
+  "required": ["label_schema_version", "episode_uuid", "episode_outcome", "episode_quality", "keep_for_training", "interventions", "label_updated_at"],
+  "properties": {
+    "label_schema_version": {"const": 1}, "episode_uuid": {"type": "string", "format": "uuid"},
+    "episode_outcome": {"enum": ["success", "failure", "aborted", "unknown"]},
+    "episode_quality": {"enum": ["good", "bad", "uncertain"]},
+    "last_completed_stage": {"type": ["string", "null"]}, "failure_stage": {"type": ["string", "null"]},
+    "failure_type": {"type": ["string", "null"]},
+    "termination_reason": {"enum": ["success", "failure", "timeout", "safety_stop", "operator_abort", null]},
+    "keep_for_training": {"enum": ["true", "false", "undecided"]}, "operator_note": {"type": ["string", "null"]},
+    "interventions": {"type": "array"}, "label_updated_at": {"type": "string", "format": "date-time"}
+  }
+}
