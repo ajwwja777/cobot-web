@@ -107,3 +107,20 @@ A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进�
 下一批迁移 RLT 与模型资产前核对原路径依赖。旧网页硬件代码仍被运行中的节点引用，旧目录继续保留。实际模型加载／真机采集循环与浏览器目视体验仍需现场验收；这一批没有为了验证网页自动运动。
 
 早期入口初始化提交：`7d81a477adb6e89625bb9454d6c3d465cc237966`；初始化记录提交：`d08e656a6e8f16b3bd4ab64269c270dd9e52a5b8`。本记录更新的是实际迁移进展，不撤销已保留的原成果。
+
+
+## 2026-09-27：命令行流程、网页诊断与 ops 归并（已部署）
+
+- 用户取消独立 ops 维护层：网页使用、任务管理、日志／PID 与 HTTP 恢复归 cobot-web；硬件／数据／算法直接在所属项目处理。旧 ops 保留 Git 历史、迁移记录和兼容转发，不再维护第二份实现。
+- 从 cobot-ops `da1f9a9` 迁入恢复工具、13 项进程身份／暂停测试及故障手册；工具按网页主机配置读取 runtime。当前 `/home/agilex/jiaan/project/cobot-ops/runtime`、恢复证据和 tools/uv 仍有使用者，本批未移动或删除。
+- 新入口 `scripts/console.py`：模型／Session、普通与模型采集、评测、路径、设备、状态、完整 API/schema，以及不依赖 8015 正常的 recovery。与网页同一套状态机，读取新鲜 episode／trial 身份，不自动重试写操作、不隐式复位。
+- `docs/COMMAND_LINE.md` 补齐开机、CAN／ROS／机械臂／相机、模型、采集、评测、home、输出、退出及纯终端原始入口；`docs/WEB_RECOVERY.md` 继续负责故障处置。旧 warmup.sh 是 plug_v2，不误写成 plug_v3 忠实复现入口。
+- 输出栏增加“诊断”，捕获方法／路径／状态／时间／原始错误并给出建议和终端命令，区分响应失败与操作未执行。可手动查设备／CAN／ROS、相机、采集、模型、录制器、磁盘。诊断不自动执行恢复，原始错误只在页面内保留。
+- 常用命令同步修正：旧无身份暂停请求改为读取当前 Session 后暂停；原“释放 RLT 模型”只关 Stage 1 的示例改为完整共享模型 unload；增加模型、采集与只读诊断命令及英文标签。
+- 功能发布 `91a5fe0ecc7f455dce12bffd6e620ccaa29d858f`，命令登记修正 `94840c1175227e7e339acbf3b8d15494065be8b6`，均已 push 并核对远端。同步工具现在包含 docs／AGENTS，285 个运行文件 SHA-256 校验一致。
+- 验证：完整 Python 571 passed／15 skipped；前端 34 passed。首轮全量中既有 HDF5 slow-drain 时序用例曾返回 stopping，单独复查与完整复跑均通过，未改录制代码规避；原始结果均保留。后续常用命令修改的相关 30 项 Python 回归、34 项前端通过，新增 locale 文件语法通过。
+- Cobot 只读 CLI：帮助、恢复状态、6 个模型列表、65 个主应用 API／20 个 recorder API，以及 console/model/devices/cameras/recorder/host/outputs/records/storage/training 全部成功；首页及诊断 JS/CSS 返回 200 且内容与同步文件一致。
+- 为常用命令后端更新生效，重新核验 active_mode 为空、模型 offline、无 active trial 和 operation 后，只重启 8015：PID `916985 → 967289`。启动就绪；机械臂 7、相机 4、ROS 3 个进程的 PID 与启动时间逐项不变。当前输出提供 61 条常用命令。
+- 没有启动采集、加载模型、执行运动／归位／恢复或停止硬件；未做真实模型回合验收、浏览器目视验收。UI 做了 DOM／错误捕获／脱敏／不重试测试；现场只读与静态资源验证不等于实机操作成功。
+- A6000 证据：`outputs/verification/20260927-cli-recovery/`；Cobot 同项目同相对目录。同步逐文件校验另在 `outputs/deployments/`；运行输出不入 Git。
+- 后续：在所属项目补充现场问题与验收；活跃 runtime 的实体搬迁另选可验收范围，不因此再建立独立 ops 管理层。
