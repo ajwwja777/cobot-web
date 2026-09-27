@@ -1,6 +1,26 @@
 "use strict";
 (function(root){
   const entries={
+    "加载 Reference（共享模型）":"Load Reference (shared model)",
+    "加载固定 Actor（共享模型）":"Load frozen actor (shared model)",
+    "加载在线学习模型":"Load online learning model",
+    "查看可用模型及路径":"List available models and paths",
+    "等待模型加载完成":"Wait for the model to load",
+    "开始采集 Session":"Start collection session",
+    "结束采集 Session":"End collection session",
+    "释放共享模型":"Release shared model",
+    "数采":"Collection",
+    "当前采集状态":"Current collection state",
+    "结束保存（未标注）":"Save episode (unlabelled)",
+    "结束放弃（删除本轮）":"Discard and delete this episode",
+    "进程、身份与服务状态":"Processes, identities and service state",
+    "保存故障现场":"Save diagnostic snapshot",
+    "预览模型中断范围（不执行）":"Preview model interruption (no execution)",
+    "命令行完整手册":"Complete command-line manual",
+    "诊断":"Diagnostics",
+    "操作未完成，请核对状态：":"Operation incomplete; check current state: ",
+    "结果待确认：":"Outcome unconfirmed: ",
+
     "在线更新模型 · 请在采集页开始 Session":"Online model · start a session in Collection",
     "在线更新已启用；评测请选择同路径的冻结模型":"Online updates are enabled; choose the frozen model at the same path for evaluation",
     "请先结束当前 Episode，再切换采集或评测":"Finish the current episode before switching between collection and evaluation",

@@ -91,3 +91,14 @@ def test_common_commands_no_password_or_arbitrary_shell_endpoint():
     assert any('read -rsp' in c['command'] for c in commands)
     from pydantic import ValidationError
     with pytest.raises(ValidationError):StopTaskRequest(id='x',component='arms',pid=1,start_ticks=2,command='rm -rf anything')
+
+
+def test_common_commands_use_shared_cli_and_token_aware_pause():
+    from cobot_console.task_outputs import common_commands
+    rows = common_commands()
+    commands = "\n".join(row["command"] for row in rows)
+    assert "console.py recovery pause" in commands
+    assert "console.py model unload" in commands
+    assert "console.py recovery interrupt model" in commands
+    assert "-d '{}'" not in commands
+    assert "rlt_v3_down.sh" not in commands

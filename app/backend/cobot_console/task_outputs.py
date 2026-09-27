@@ -46,6 +46,7 @@ def process_details(row):
 
 def common_commands():
     scripts = str(PLATFORM / 'scripts')
+    cli = 'python3 ' + shlex.quote(str(PLATFORM / 'scripts/console.py')) + ' '
     ros = 'source /home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash\n'
     def can_command(action):
         return "read -rsp 'sudo 密码: ' cobot_password\nprintf '\\n'\nprintf '%s\\n' \"$cobot_password\" | "+scripts+"/can_web.sh "+action+"\nunset cobot_password"
@@ -82,17 +83,30 @@ def common_commands():
         ('恢复','中臂恢复', scripts+'/recover.sh mid'),
         ('恢复','左夹爪恢复', scripts+'/recover.sh gripper-left'),
         ('恢复','右夹爪恢复', scripts+'/recover.sh gripper-right'),
-        ('部署','Reference 采集入口', scripts+'/rlt_v3_up.sh reference'),
-        ('部署','固定 Actor 采集入口', scripts+'/rlt_v3_up.sh frozen'),
-        ('部署','在线学习入口', scripts+'/rlt_v3_up.sh online'),
+        ('部署','加载 Reference（共享模型）', cli+'model load --id plug-v3-reference'),
+        ('部署','加载固定 Actor（共享模型）', cli+'model load --id plug_v3-frozen-latest'),
+        ('部署','加载在线学习模型', cli+'model load --id plug_v3-online-latest'),
+        ('部署','查看可用模型及路径', cli+'model list'),
+        ('部署','等待模型加载完成', cli+'model wait --seconds 600'),
+        ('部署','开始采集 Session', cli+'model session-start'),
+        ('部署','结束采集 Session', cli+'model session-stop'),
         ('部署','查看模型 / Session / 版本', scripts+'/rlt_v3_status.sh'),
         ('部署','查看部署状态', "curl --noproxy '*' -fsS http://127.0.0.1:8015/api/deployment/status | python3 -m json.tool"),
-        ('部署','暂停策略', "curl --noproxy '*' -fsS -X POST http://127.0.0.1:8026/api/session/pause -H 'Content-Type: application/json' -d '{}'"),
-        ('部署','释放 RLT 模型', scripts+'/rlt_v3_down.sh'),
+        ('部署','暂停策略', cli+'recovery pause'),
+        ('部署','释放共享模型', cli+'model unload'),
+        ('数采','当前采集状态', cli+'state capture'),
+        ('数采','暂停并打节点', cli+'capture pause'),
+        ('数采','继续并打节点', cli+'capture resume'),
+        ('数采','只打节点', cli+'capture marker'),
+        ('数采','结束保存（未标注）', cli+'--timeout 120 capture save'),
+        ('数采','结束放弃（删除本轮）', cli+'capture discard'),
         ('网页','启动网页', scripts+'/ui_up.sh'),
         ('网页','关闭网页', scripts+'/ui_down.sh'),
         ('网页','网页状态', scripts+'/ui_status.sh'),
-        ('诊断','平台状态', scripts+'/status.sh'),
+        ('诊断','进程、身份与服务状态', cli+'recovery status'),
+        ('诊断','保存故障现场', cli+'recovery snapshot'),
+        ('诊断','预览模型中断范围（不执行）', cli+'recovery interrupt model'),
+        ('诊断','命令行完整手册', 'less '+shlex.quote(str(PLATFORM/'docs/COMMAND_LINE.md'))),
         ('诊断','查看 GPU', 'nvidia-smi'),
         ('诊断','磁盘与内存', 'df -h / /media/agilex/Getea1\nfree -h'),
         ('诊断','查看端口占用', 'ss -ltnp'),

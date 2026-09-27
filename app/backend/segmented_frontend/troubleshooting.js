@@ -50,13 +50,13 @@
     render();
   }
   if (nativeFetch && root.location && typeof document !== "undefined") root.fetch = async function(input, options={}) {
-    const address=typeof input==="string" ? input : input.url;
+    const address=typeof input==="string" ? input : (input instanceof URL ? String(input) : input.url);
     const url=new URL(address,root.location.href);
     const method=String(options.method || input.method || "GET").toUpperCase();
     const tracked=url.origin===root.location.origin && url.pathname.startsWith("/api/")
       && !/\.(?:jpe?g|png|mjpeg|mjpg|mp4)$/.test(url.pathname);
     if(!tracked)return nativeFetch(input,options);
-    const controller=!options.signal ? new AbortController() : null;
+    const controller=!(options.signal || input.signal) ? new AbortController() : null;
     const timer=controller ? setTimeout(()=>controller.abort(),method==="GET"?15000:120000) : null;
     try {
       const response=await nativeFetch(input,controller?{...options,signal:controller.signal}:options);
