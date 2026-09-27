@@ -2,13 +2,13 @@
 
 Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状态、部署评测、相机与任务输出。
 
-**A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 正式 8015 已于 2026-09-27 切换到新目录，运行版本 `14b4484`；机械臂和相机原进程保持不变。网页接口验收不等于真机运动或模型成功率验收。
+**A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 正式 8015 已于 2026-09-27 切换到新目录，运行版本 `3b54cf7`；机械臂和相机原进程保持不变。网页接口验收不等于真机运动或模型成功率验收。
 
 ## 从哪里读
 
 | 位置 | 负责内容 |
 |---|---|
-| `app/backend/cobot_console/` | 网页 API、设备健康、任务输出、模型／RLT 适配 |
+| `app/backend/cobot_console/` | 网页 API、设备健康、任务输出、共享模型生命周期／RLT 适配 |
 | `app/backend/capture_core/` | 反馈缓存、采样、HDF5 录制、标签、预览 |
 | `app/backend/segmented_capture/` | 分段采集、节点、暂停／继续与 HIL 协调 |
 | `app/backend/segmented_frontend/` | 当前操作网页，原生 JavaScript／CSS |
@@ -69,5 +69,7 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-ops/runtime/cache/uv /home/agilex/
 本次保留采集和硬件适配的唯一迁移副本，没有把同一状态机复制到六个项目。后续由 cobot-control 接管硬件、cobot-dagger 接管采集，web 保留 API 编排和展示；切分必须带接口与回归验证。
 
 模型权重和 RLT 算法运行环境尚未整体迁移；已有部署评测数据已逐文件核验复制到新数据根。`configs/hosts/cobot.json` 明确登记其当前真实位置，仍可识别旧模型；不会伪造新路径为已部署。历史数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
+
+部署和采集共用同一份模型目录、进程与加载状态；模型选择展示实际权重路径。加载与准备 Session 不启动推理。RLT 每轮开始时固定采集／评测用途及目录，结束后才能切换用途；纯评测不写 recorder 或 replay。在线更新入口保留原 online.yaml 和 learner；固定模型评测使用对应冻结入口。目录可以在加载前选择，RLT 录制中的新选择用于下一轮。
 
 日期：2026-09-27。完整进度与未完成项见迁移记录。

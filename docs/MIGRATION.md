@@ -18,7 +18,7 @@
 
 仓库：https://github.com/ajwwja777/cobot-web，main。源码提交 `1cf4797f4942f2f27d3815943f7e23cab79452df`；启动依赖隔离修复 `117fe141aea17e9081a1db535e557a155fa136f3`。均已 push 并核验远端一致。
 
-A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进程。当前 Cobot `.release.json` 记录收尾接口修复版本 `14b4484`，273 个运行文件 SHA-256 一致。开发测试、Git、模型、数据不随源码同步。文档后续提交可能领先运行副本，运行版本以 .release.json 为准。
+A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进程。当前 Cobot `.release.json` 记录共享模型版本 `3b54cf7`，274 个运行文件 SHA-256 一致。开发测试、Git、模型、数据不随源码同步。文档后续提交可能领先运行副本，运行版本以 .release.json 为准。
 
 ## 原件与成果保留
 
@@ -89,6 +89,21 @@ A6000 的 `scripts/sync_cobot.py` 仅同步已提交运行文件，不重启进�
 
 证据：两台机器上述迁移证据目录中的 cutover/，包括 before.json、after.json、runtime-transfer.json 和 recording-contract-tests.log。未执行真实机械臂采集循环；不把接口回归称为现场成功率验收。
 
-当前继续完成两页共用模型加载、模型实际路径展示、独立选择数据目录。下一批迁移 RLT 与模型资产前，应先核对原路径依赖；尚不能删除仍被机械臂／相机进程引用的旧网页硬件代码。共享模型功能完成后更新本记录并同步运行版本。
+## 共享模型与目录选择发布
+
+2026-09-27 源码 3b54cf7f58f1a35f70756194cb218484ee39c0e9 已 push 并核验远端，274 个运行文件逐项同步。核对录制 idle、无评测轮次、RLT offline 后重启网页；正式 8015 当前 PID 916985，cwd 为新目录 app/backend。机械臂 724550、相机 631028 保持不变。
+
+- 部署／采集共用 DeploymentManager、模型目录、加载进程和状态。同一模型重复加载复用已有进程；加载后给出成功状态，准备 Session 保持暂停。
+- 六个入口的实际权重路径均可读：warmup 5k、Stage 1 Reference、π0.5 DAgger 2000+3000、π0.5 step2000、当前 actor 冻结版本、当前 actor 在线更新版本。在线入口仍沿用原 online.yaml 和 learner；评测拒绝在线更新入口并提示选择同路径冻结版本，避免评测期间权重变化。
+- shared_model_env.py 仅在 episode 边界选择用途：采集使用原 Task5 客户端和原 replay 门控，评测使用内存 lifecycle 且不提交 replay/trace；原 actor、执行器、HIL 状态机未改写。用途和数据路径每轮开始时固定，收尾及 replay 完成前不切换。
+- 数据目录编辑独立于模型加载；RLT 在录制时可为下一轮选目录。设置写入 cobot-ops/runtime/data-console/rlt-storage.json，兼容读取旧设置。切换时保留此前实际录制目录 /media/agilex/Getea1/jiaan/data/rlt/plug_v3_yyshadow/online；原始 rollout 尚未迁移，不以新默认根掩盖已有数据。
+- 原报错 episode cb5af67e-0f9b-484f-8a85-7488210faf74 的 failure 原件保留，历史列表已可读取。没有伪造已提交训练 replay 的结论，也没有重新标注或补写训练。
+- 前端保留后端 error 文本，避免所有异常仅显示 HTTP 503；正在加载仍用文字预计时间，不增加进度条。
+
+验证：完整网页后端 545 passed、15 skipped；之后新增的目录 HTTP 回归所在集合 12 passed（其中 3 项新覆盖 offline/loading/paused）。前端 31 passed，含真实 DOM 两页共享状态、路径展示和加载期间目录编辑。用现场原生 adapter 快照在独立 Python 3.10 环境测试：成功、失败、保存未标注连同节点写入，以及采集转评测隔离，共 4 passed。主开发 .venv 仍为 ROS 兼容的 Python 3.8。现场 Python 3.10 只做配置生成／资产存在性检查，三个冻结／Reference 配置引用的权重、归一化和 replay 文件存在；未加载模型、未运行真机 Episode。
+
+发布后 12 个 API、34 个页面资源均 HTTP 200；相机同步 ready，系统盘显示 /。证据为 cutover/after-shared-release.json、shared-storage-migration.json、shared-final-pytest.log、shared-storage-tests.log、shared-final-node.log、native-shared-contract.log 和 config-checks/；upstream-contract/manifest.json 记录只读合同快照来源和 SHA-256。after-shared-release.json 是目录设置承接之前的瞬时快照，最终录制目录以 shared-storage-migration.json 为准。
+
+下一批迁移 RLT 与模型资产前核对原路径依赖。旧网页硬件代码仍被运行中的节点引用，旧目录继续保留。实际模型加载／真机采集循环与浏览器目视体验仍需现场验收；这一批没有为了验证网页自动运动。
 
 早期入口初始化提交：`7d81a477adb6e89625bb9454d6c3d465cc237966`；初始化记录提交：`d08e656a6e8f16b3bd4ab64269c270dd9e52a5b8`。本记录更新的是实际迁移进展，不撤销已保留的原成果。
