@@ -2,7 +2,7 @@
 
 2026-09-28 用户确认：Cobot 的数据与 checkpoint 全部放 Getea1；代码、环境、日志和 PID 留在系统盘项目目录。A6000 维护主代码、Git、文档；本轮不新增数据或权重备份。此前已存在的 A6000 历史资产仍保留，不能把本轮迁移说成全机器已经去重。
 
-**状态：主体资产已迁移并验收清理；Getea1 随后 USB 掉线，FluxVLA 补充迁移和最终清理未完成。网页已停止。恢复连接后需重新校验，详见本页末尾。**
+**当前状态：迁移和对应旧文件清理已完成。Getea1/jiaan 顶层仅 data、model；USB 掉线后已重新连接并完成文件哈希复核。验收范围与硬件限制见文末。**
 
 ## 两个入口
 
@@ -116,3 +116,36 @@ plan.json 是旧根到新根的映射，copied-files.jsonl 保存逐文件 SHA-2
 所有迁移进程已退出；正式网页 PID 366090 正常停止，无 GPU 模型进程，临时 ROS master 已停止。本轮未做运动。尚未验收的 FluxVLA 旧目录、暂存副本未清理，**Getea1/jiaan 仅保留 data/model 的目标尚未完成**。已验证结果仅代表掉线前状态，恢复连接后仍须核对文件系统并按迁移收据重新校验新资产，不能直接继续删除或开始在线训练。
 
 证据：相邻 rl-platform/outputs/migrations/20260928-getea-storage/cobot/，现场同目录不带 cobot/。包括 retirement.json、validation/retirement.json、cutover-verification.json、extras/copy-status.json、disk-disconnect.json 和 disk-disconnect-kernel.log。源码和证据位于系统盘/A6000，本轮没有新增 A6000 数据/权重备份。
+
+## 2026-09-28 20:56：本批迁移验收完成
+
+Getea1/jiaan 顶层实测仅 data、model；旧 projects、旧系统盘 /home/agilex/jiaan/data 和 rl-platform/models 已按收据核验清理。共享 ROS/Piper/Astra 与既有 π0.5 Python 依赖保留；cobot_magic 中少量已登记的模型兼容链接指向 Getea1，不保存第二份权重。
+
+| 当前资产根 | 实际磁盘占用 |
+|---|---|
+| /media/agilex/Getea1/jiaan/data | 156.33 GiB |
+| /media/agilex/Getea1/jiaan/model | 198.46 GiB |
+
+完整根目录映射、文件计数和逻辑字节数见 [当前资产清单](storage-canonical-assets-20260928.csv)。CSV 的条目逻辑大小与上表文件系统占用口径不同。DM0.5 的 Cobot 目录仅保留元数据，真实历史权重仍在 A6000 vla-platform/models/history/dm0-5/step_4000；不能据目录存在宣称已部署。
+
+磁盘空间快照（字节）：
+
+    Filesystem          1B-blocks          Used      Available Use% Mounted on
+    /dev/nvme0n1p3  1983828611072 1458988732416   423991336960  78% /
+    /dev/sdb2      14000501813248 3895226773504 10105275039744  28% /media/agilex/Getea1
+
+验收：
+- 主体 12,059 条目/351,844,176,546 字节，以及恢复验证资产 6 文件/117,047,594 字节迁移通过，源文件按清单清理。
+- FluxVLA 补充环境、代码、基础权重与缓存 58,859 条目/39,533,681,872 字节校验通过。外接盘同分区基础权重采用已验 SHA 的硬链接切换，源入口验收后移除；环境和安装缓存归系统盘项目。
+- USB 掉线后，对已有收据的 32,262 条目、382,143,983,305 字节重新完整读出核对 SHA；恢复后续复制的其余条目在复制时重新校验。FluxVLA 安装暂存目录逐文件比较，独有的小文件归档，重复副本清理。
+- RLT Warmup/online 加载到 ready、disarmed、paused；learner 5000 / actor 2500 / Replay 2567，正式资产内容不变。37 个网页资源、历史标签/视频/首尾图及 92 条有效评测读通；删除旧路径后再核验。
+- π0.5 baseline 与 DAgger 新入口 dry-run 通过，未重做 π0.5 真机推理。FluxVLA 旧固定版本在新环境完成离线 baseline 与 prefix-RTC 校验并停止服务。全程没有 Episode、归位、机器人动作或新的成功率评测。
+
+RLT 这次外接盘加载分别约 441 秒和 136 秒，受缓存和当时 I/O 状况影响，不是稳定延迟承诺。首次页面预览验收曾因并行复制超时，停止竞争读取后通过。网页测试完整运行 575 passed/15 skipped、1 个计时敏感断言失败；该文件随后 8 个用例全部通过，Session 文件 9 个用例通过。详情 test-summary.json，不能把重跑说成原完整运行零失败。
+
+20:00 的 USB 掉线是真实硬件链路故障；本次文件复核通过不代表线缆/供电/硬盘盒/盘本体根因已排除。SMART 读取需要本机 sudo，本轮未取得健康报告。没有格式化、自动修复文件系统或修改 USB 内核驱动。当前网页可读，模型全部释放，Session 未开始；现场在线采集仍需确认硬件状态。
+
+证据：Cobot /home/agilex/jiaan/project/rl-platform/outputs/migrations/20260928-getea-storage/；A6000 对应项目同名目录的 cobot/。核心回执为 final-storage-verification.json、post-reconnect-verification.json、flux-runtime-validation.json、retirement.json、extras/retirement.json、flux-staging-retired.json。A6000 只同步代码和本轮证据，没有新增数据/权重备份。
+
+
+重连后的内核日志仍出现 xHCI 控制器 `ERROR unknown event type 37`；本次新设备 sdb 的完整读取校验未出现新的 I/O 失败。这不能证明 USB 控制器或硬件链路已经修复；长时间在线训练前仍应检查该异常。原始日志：`final-kernel-since-reconnect.log`。
