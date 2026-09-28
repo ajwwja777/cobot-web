@@ -80,3 +80,7 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-web/runtime/cache/uv /home/agilex/
 部署和采集共用同一份模型目录、进程与加载状态；模型选择展示实际权重路径。加载与准备 Session 不启动推理。RLT 每轮开始时固定采集／评测用途及目录，结束后才能切换用途；纯评测不写 recorder 或 replay。在线更新入口保留原 online_rl.yaml 和 learner；固定模型评测使用对应冻结入口。目录可以在加载前选择，RLT 录制中的新选择用于下一轮。
 
 日期：2026-09-28。完整进度与未完成项见迁移记录。
+
+## 数据和模型存放
+
+2026-09-28用户确认按用途单机单份保留数据/模型：原始采集、现场评测和当前部署checkpoint归Cobot；训练中间checkpoint与停止部署的历史模型归A6000。当前仍有迁移副本和旧模型副本，尚未全量去重。实际绝对路径、占用、剩余空间与待收尾项见[存放清单](docs/STORAGE.md)及其CSV；这是带日期的实测快照。场景命名目标为in_the_pot、plug_insertion，当前线上目录未因此改名。

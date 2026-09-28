@@ -1,0 +1,55 @@
+host,kind,label,path,allocated_bytes,gib,recommended_host,note
+Cobot,data,插孔 v3 示范,/home/agilex/jiaan/data/rlt/plug_v3_yyshadow/demonstrations,56717176832,52.822,Cobot,实际路径，场景目录尚未改名
+Cobot,data,插孔 v3 warmup rollout,/home/agilex/jiaan/data/rlt/plug_v3_yyshadow/warmup,87501361152,81.492,Cobot,实际路径，场景目录尚未改名
+Cobot,data,插孔 v3 online rollout,/home/agilex/jiaan/data/rlt/plug_v3_yyshadow/online,335441920,0.3124,Cobot,实际路径，场景目录尚未改名
+Cobot,data,插孔 v2 历史数据,/home/agilex/jiaan/data/rlt/plug_v2,9611276288,8.9512,Cobot,实际路径，场景目录尚未改名
+Cobot,data,插孔早期数据,/home/agilex/jiaan/data/rlt/plug,812482560,0.7567,Cobot,实际路径，场景目录尚未改名
+Cobot,data,旧 test 录制,/home/agilex/jiaan/data/test,2087886848,1.9445,Cobot,实际路径，场景目录尚未改名
+Cobot,data,旧 record 录制,/home/agilex/jiaan/data/record,983535616,0.916,Cobot,实际路径，场景目录尚未改名
+Cobot,data,旧平台录制,/home/agilex/jiaan/data/cobot-platform,22626304,0.0211,Cobot,实际路径，场景目录尚未改名
+Cobot,data,评测记录,/home/agilex/jiaan/data/evaluations,13803520,0.0129,Cobot,实际路径，场景目录尚未改名
+Cobot,data,新数据根合计,/home/agilex/jiaan/data,158085619712,147.2287,Cobot,包含上面各项，不重复相加
+Cobot,data,in_the_pot 数据及 LeRobot,/home/agilex/cobot_magic/task3/jiaan/datasets/in_the_pot,433213440,0.4035,Cobot,旧位置，尚未归入新场景根
+Cobot,data,in_the_pot 旧 RL 数据,/home/agilex/cobot_magic/task3/jiaan/realworld_rl/data/task5-rlt-r1/in_the_pot,1247440896,1.1618,Cobot,旧位置，尚未归入新场景根
+Cobot,data,in_the_pot DAgger 原始 rollout,/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/data/raw_rollouts/in_the_pot,6517911552,6.0703,Cobot,旧位置，尚未归入新场景根
+Cobot,data,in_the_pot DAgger LeRobot,/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/data/lerobot/in_the_pot,500019200,0.4657,Cobot,旧位置，尚未归入新场景根
+Cobot,diagnostic,旧失败录制排障材料,/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/v1/runtime/failed_recordings,495292416,0.4613,Cobot,不可直接当作可训练数据
+Cobot,checkpoint,RLT Stage 1 Reference,/home/agilex/jiaan/project/rl-platform/models/rlt/plug_v3_yyshadow/stage1/4999,15428354048,14.3688,Cobot,当前现场部署；冻结对照与在线工作状态是不同资产
+Cobot,checkpoint,RLT 固定 warmup 5000,/home/agilex/jiaan/project/rl-platform/models/rlt/plug_v3_yyshadow/warmup-5000,39743488,0.037,Cobot,当前现场部署；冻结对照与在线工作状态是不同资产
+Cobot,checkpoint,RLT 可更新在线权重,/home/agilex/jiaan/project/rl-platform/models/rlt/plug_v3_yyshadow/online,42856448,0.0399,Cobot,当前现场部署；冻结对照与在线工作状态是不同资产
+Cobot,checkpoint,deployments/in_the_pot/galaxea_g0_5/checkpoints/step_4000,/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/galaxea_g0_5/checkpoints/step_4000,11970625536,11.1485,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,deployments/in_the_pot/galaxea_g0_5_dagger_round001/checkpoints/step_4000,/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/galaxea_g0_5_dagger_round001/checkpoints/step_4000,11440574464,10.6549,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,deployments/in_the_pot/lingbot_v2/checkpoints/step_2000,/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/lingbot_v2/checkpoints/step_2000,25520062464,23.7674,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,deployments/in_the_pot/pi05/checkpoints/step_2000,/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/pi05/checkpoints/step_2000,12441456640,11.587,Cobot,当前网页使用
+Cobot,checkpoint,deployments/in_the_pot/xiaomi_robotics_0/checkpoints/step_4000,/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/xiaomi_robotics_0/checkpoints/step_4000,10988867584,10.2342,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,deployments/in_the_pot/xiaomi_robotics_1/checkpoints/step_4000,/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/xiaomi_robotics_1/checkpoints/step_4000,11004878848,10.2491,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,deployments/lift_book/pi05/checkpoints/step_2000,/home/agilex/cobot_magic/task3/jiaan/deployments/lift_book/pi05/checkpoints/step_2000,12441493504,11.587,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,deployments/put_two_fruits/pi05/checkpoints/step_2000,/home/agilex/cobot_magic/task3/jiaan/deployments/put_two_fruits/pi05/checkpoints/step_2000,12441567232,11.5871,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,task3/jiaan/lingbot_v2/checkpoints/global_step_4000,/home/agilex/cobot_magic/task3/jiaan/lingbot_v2/checkpoints/global_step_4000,25520062464,23.7674,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,task3/jiaan/pi05/checkpoints/step_4999,/home/agilex/cobot_magic/task3/jiaan/pi05/checkpoints/step_4999,12441436160,11.587,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,checkpoint,deployments/in_the_pot/pi05_dagger_round001/checkpoints/step_3000,/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/deployments/in_the_pot/pi05_dagger_round001/checkpoints/step_3000,12441378816,11.5869,Cobot,当前网页使用
+Cobot,checkpoint,projects/fluxvla-cobot-platform/pi05/checkpoints/step_5000,/media/agilex/Getea1/jiaan/projects/fluxvla-cobot-platform/pi05/checkpoints/step_5000,14467145728,13.4736,A6000（历史；迁移前核验用途）,旧模型；待核定是否仍需现场常驻，不按大小直接判重
+Cobot,base_model,Lingbot 依赖 Qwen3-VL-4B,/home/agilex/cobot_magic/task3/jiaan/lingbot_v2/runtime/pretrained/Qwen3-VL-4B-Instruct,8887414784,8.2771,随使用该基础模型的任务,独立于微调checkpoint
+A6000,checkpoint,当前Stage1异机副本,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/rlt/plug_v3_yyshadow/stage1/4999,15428362240,14.3688,Cobot,当前仍存在，部署副本待按单份规则收尾
+A6000,checkpoint,warmup部署迁移副本,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/rlt/plug_v3_yyshadow/warmup-5000,76369920,0.0711,Cobot,当前仍存在，部署副本待按单份规则收尾
+A6000,checkpoint,历史legacy40 Stage1,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-legacy40/4999,15428554752,14.369,A6000,当前仍存在，部署副本待按单份规则收尾
+A6000,checkpoint,历史e78 Stage1 2000,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-plug-e78/step_2000,15428534272,14.3689,A6000,当前仍存在，部署副本待按单份规则收尾
+A6000,checkpoint,历史e78 Stage1 4000,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-plug-e78/step_4000,15428481024,14.3689,A6000,当前仍存在，部署副本待按单份规则收尾
+A6000,checkpoint,历史plug v2 Stage1,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-plug-v2/3999,6508552192,6.0616,A6000,当前仍存在，部署副本待按单份规则收尾
+A6000,checkpoint,历史DM0-5 step4000,/data/LFT-W02_data/jiaan/jiaan/projects/vla-platform/models/history/dm0-5/step_4000,11691880448,10.8889,A6000,已归入所属项目
+A6000,checkpoint,历史Xiaomi DAgger step4000,/data/LFT-W02_data/jiaan/jiaan/projects/vla-platform/models/history/xiaomi-robotics-1-dagger-round001/step_4000,11004755968,10.249,A6000,已归入所属项目
+A6000,data,RLT历史转换数据,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/data/history/legacy-rlt,610021376,0.5681,A6000,重复关系需按内容/格式核验
+A6000,data,旧RLT示范转换数据,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/data,1209307136,1.1263,A6000,重复关系需按内容/格式核验
+A6000,data,旧RLT样例数据,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/fixtures,422277120,0.3933,A6000,重复关系需按内容/格式核验
+A6000,data,旧插孔原始数据副本,/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/plug-stage1-prep-20260909/cobot-raw,37138620416,34.588,Cobot,重复关系需按内容/格式核验
+A6000,checkpoint,旧A6000 Stage1工作副本,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/checkpoints/plug_v3_yyshadow/stage1-faithful-s42/4999,15428349952,14.3688,A6000,待去重；不按同名/大小单独判定
+A6000,checkpoint,旧插孔Stage1 2000转移副本,/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/plug-rlt-stage1-deployment-20260909/step_2000,15428489216,14.3689,A6000,待去重；不按同名/大小单独判定
+A6000,checkpoint,旧插孔Stage1 4000转移副本,/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/plug-rlt-stage1-deployment-20260909/step_4000,15428468736,14.3689,A6000,待去重；不按同名/大小单独判定
+A6000,checkpoint,旧XR1 DAgger转移副本,/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/xr1-dagger-hpc-587328/final-transfer,11004870656,10.2491,A6000,待去重；不按同名/大小单独判定
+A6000,experiment,完整历史RLT实验runs,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/migrations/20260927-rlt/legacy-rlt-source/runs,49059569664,45.6903,A6000,包含checkpoint/Replay/指标，不是纯权重大小
+A6000,experiment,新位置warmup对比历史,/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/rlt/plug_v3_yyshadow/history,2101157888,1.9569,A6000,包含checkpoint/Replay/指标，不是纯权重大小
+A6000,experiment,旧warmup对比历史,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/plug_v3_yyshadow,2101186560,1.9569,A6000,包含checkpoint/Replay/指标，不是纯权重大小
+A6000,experiment,旧real-batch smoke,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/real-batch-smoke,12589457408,11.7248,A6000,包含checkpoint/Replay/指标，不是纯权重大小
+A6000,experiment,旧Stage1 production preflight,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/stage1-production-preflight,22304837632,20.773,A6000,包含checkpoint/Replay/指标，不是纯权重大小
+A6000,experiment,旧Stage1调试实验,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/stage1,4492599296,4.1841,A6000,包含checkpoint/Replay/指标，不是纯权重大小
+A6000,base_model,π0.5 基础模型,/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/assets/pi05_base,12441890816,11.5874,A6000,旧训练依赖，归A6000
