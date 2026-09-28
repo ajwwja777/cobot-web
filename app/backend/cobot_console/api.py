@@ -71,6 +71,7 @@ def load_rlt_storage():
 class RltStorageRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     data_root: str
+    reset_on_refresh: bool = False
 
 
 
@@ -278,6 +279,7 @@ def create_app(
             "profile": selected_profile,
             "read_only": os.environ.get("COBOT_READ_ONLY") == "1",
             "normal_data_root": str(DEFAULT_DATA_ROOT.expanduser().resolve()),
+            "test_data_root": str((allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve() / "datasets/test"),
             "data_root_choices": recording_directories(),
             "data_root_aliases": SETTINGS.get("data_root_aliases", {}),
             "storage_layout": "flat",
@@ -363,12 +365,27 @@ def create_app(
             raise HTTPException(status_code=409,detail="pending_episode_finalization")
         return {"state":raw.get("state"),"recovered":False}
 
+    def can_reset_rlt_storage(status):
+        manager = getattr(application.state, "deployment_manager", None)
+        model = manager.status() if manager else {}
+        phase = status.get("phase")
+        idle = phase in ("disarmed", "ready", "armed", "waiting_scene", "stopped")
+        if phase == "offline":
+            idle = model.get("phase", "offline") == "offline"
+        return (idle and not model.get("operation") and not model.get("active")
+                and model.get("phase") != "running"
+                and modes.snapshot().active_mode is None
+                and shared_recorder.status().get("state") in ("idle", "stopped"))
+
     @application.get("/api/rlt/storage")
     def get_rlt_storage():
         storage, phase, status = rlt_storage_state()
         return {"data_root": str(storage.selected_root(phase)), "data_phase": phase,
                 "editable": True, "applies_to": "next_episode",
                 "recording_data_root": status.get("recording_data_root"),
+                "can_reset_on_refresh": can_reset_rlt_storage(status),
+                "recent_data_roots": list(dict.fromkeys([str(storage.selected_root(phase))] +
+                    [p for paths in (storage.settings().get("history") or {}).values() for p in paths])),
                 "data_root_choices": list(dict.fromkeys(([str(storage.ALLOWED / "test")] if not SETTINGS.get("recording_roots") else []) +
                     [str(p) for kind in ("warmup", "online") for p in storage.roots_for_phase(kind)]))}
 
@@ -382,6 +399,8 @@ def create_app(
             except BlockingIOError:
                 raise HTTPException(status_code=409, detail="learning_or_start_in_progress")
             storage, phase, status = rlt_storage_state()
+            if request.reset_on_refresh and not can_reset_rlt_storage(status):
+                raise HTTPException(status_code=409, detail="active_task_keeps_recording_directory")
             # Legacy workers latch their directory at startup; only shared
             # workers support staging a directory during an active episode.
             if (status["phase"] not in ("offline", "disarmed", "ready", "armed", "waiting_scene", "stopped", "fault")
@@ -395,10 +414,11 @@ def create_app(
             except (ValueError, OSError) as error:
                 raise HTTPException(status_code=422, detail=str(error)) from error
             data = storage.settings()
+            old_root = str(storage.selected_root(phase))
             data["selected"] = str(root)
             data.setdefault("current", {})[phase] = str(root)
             previous = data.setdefault("history", {}).setdefault(phase, [])
-            if str(root) not in previous: previous.append(str(root))
+            data["history"][phase] = list(dict.fromkeys([str(root), old_root] + previous))[:12]
             storage.SETTINGS.parent.mkdir(parents=True, exist_ok=True)
             temporary = storage.SETTINGS.with_suffix(".tmp")
             with temporary.open("w") as f:

@@ -38,7 +38,8 @@
   }
   function migrateStoredPaths(storage, profile, aliases) {
     const keys = ["cobot-recording-directories", "cobot-data-console-config:" + profile,
-      "cobot-recent-paths-v2:" + profile, "cobot-recent-rlt-paths-v2:" + profile];
+      "cobot-recent-paths-v2:" + profile, "cobot-recent-rlt-paths-v2:" + profile,
+      "cobot-unified-collection-paths", "cobot-recent-evaluation-paths"];
     for (const key of keys) {
       try {
         const raw = storage.getItem(key);
@@ -172,7 +173,54 @@
     });
     return { refresh, remember, close, setDisabled, recent };
   }
-  const api = { mergeRecent, completeDirectory, pathName, migratedPath, migrateStoredPaths, create };
+  function recentSelector({input, id, storage, storageKey, extraPaths=()=>[], onSelect}) {
+    storage = storage || root.localStorage;
+    const label = document.createElement("label");
+    label.className = "storage-recent";
+    const title = document.createElement("span");
+    title.dataset.zh = "最近使用目录"; title.dataset.en = "Recent directories";
+    const select = document.createElement("select");
+    select.id = id;
+    let signature = "";
+    function update() {
+      const english = root.CobotPreferences?.language === "en";
+      title.textContent = english ? title.dataset.en : title.dataset.zh;
+      const paths = mergeRecent([...readRecent(storage, storageKey), ...cleanPaths(extraPaths())], null, 12);
+      const next = JSON.stringify([english, paths]);
+      if (next === signature) return;
+      signature = next;
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = paths.length
+        ? (english ? "Choose a recent directory…" : "选择最近使用的目录…")
+        : (english ? "No recent directories" : "暂无最近使用目录");
+      select.replaceChildren(placeholder, ...paths.map(path => {
+        const option = document.createElement("option");
+        option.value = path; option.textContent = path; option.title = path;
+        return option;
+      }));
+    }
+    function remember(path) {
+      if (!path) return;
+      try { storage.setItem(storageKey, JSON.stringify(mergeRecent(
+        readRecent(storage, storageKey), String(path).replace(/\/+$/, ""), 12))); } catch (_) {}
+      update();
+    }
+    select.addEventListener("change", () => {
+      const path = select.value;
+      if (!path || select.disabled) return;
+      input.value = path;
+      input.dispatchEvent(new Event("input", {bubbles:true}));
+      if (onSelect) onSelect(path);
+      select.value = "";
+    });
+    label.append(title, select);
+    (input.closest("label") || input).after(label);
+    document.addEventListener("cobot:language", update);
+    update();
+    return {remember, update, setDisabled: value => {select.disabled = Boolean(value);}};
+  }
+  const api = { mergeRecent, completeDirectory, pathName, migratedPath, migrateStoredPaths, create, recentSelector };
   root.CobotPathPicker = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

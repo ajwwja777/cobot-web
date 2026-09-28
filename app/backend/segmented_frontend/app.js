@@ -20,6 +20,9 @@ let consoleStatus = null;
 let rltSession = null;
 let consoleRefreshBusy = false;
 let rltStorageDirty = false;
+let rltStorageInitialized = false;
+let testDataRoot = null;
+let captureProfileReadOnly = false;
 let rltStorageEditable = false;
 let rltHistoryCount = null;
 let rltEpisodeSummaryByUuid = new Map();
@@ -410,7 +413,17 @@ async function refreshConsole() {
   }
 }
 async function refreshRltStorage() {
-  const storage = await request("/api/rlt/storage");
+  let storage = await request("/api/rlt/storage");
+  window.CobotRecordingDirectories = [...new Set([...(window.CobotRecordingDirectories || []), ...(storage.recent_data_roots || [storage.data_root])])];
+  if (!rltStorageInitialized && testDataRoot) {
+    rltStorageInitialized = captureProfileReadOnly || storage.can_reset_on_refresh || Boolean(storage.recording_data_root);
+    if (!captureProfileReadOnly && storage.can_reset_on_refresh) {
+      try {
+        await request("/api/rlt/storage", {method:"POST", body:JSON.stringify({data_root:testDataRoot, reset_on_refresh:true})});
+        storage = await request("/api/rlt/storage");
+      } catch (error) { rltMessage((window.CobotPreferences?.language === "en" ? "Test directory was not selected: " : "测试目录未切换：") + error.message, true); }
+    }
+  }
   $("#rlt-recording-directory").textContent = storage.data_root;
   window.CobotFeaturePaths?.update("rl",{model:selectedModel(),dataRoot:storage.data_root});
   if (!rltStorageDirty) $("#rlt-data-root").value = storage.data_root;
@@ -473,10 +486,12 @@ async function refreshRltRecorderBrowser() {
   }
 }
 async function saveRltStorage() {
+  rltStorageInitialized = true; // An explicit choice supersedes a deferred refresh default.
   try {
     const payload = await request("/api/rlt/storage", {method:"POST", body:JSON.stringify({data_root:$("#rlt-data-root").value.trim()})});
     rltStorageDirty = false; rltHistoryCount = null;
     if (rltPathPicker) rltPathPicker.remember(payload.data_root);
+    document.dispatchEvent(new CustomEvent("cobot:storage-used", {detail:{kind:"collection",path:payload.data_root}}));
     rltMessage("录制目录已设置：" + payload.data_root);
     await refreshConsole();
   } catch (error) { rltMessage("目录未设置：" + error.message, true); }
@@ -1274,6 +1289,7 @@ async function prepareStorage(silent = false) {
     $("#next-episode").textContent = `episode_${String(prepared.next_episode_index).padStart(6, "0")}`;
     saveConfig();
     if (normalPathPicker) normalPathPicker.remember(prepared.data_root);
+    document.dispatchEvent(new CustomEvent("cobot:storage-used", {detail:{kind:"collection",path:prepared.data_root}}));
     updateButtons();
     await refreshHistory({loadSelected: true});
     if (!silent) message("数据目录已核验；不存在时已安全创建。", false);
@@ -1929,9 +1945,14 @@ async function initializeCaptureProfile() {
     refreshCaptureHomePoses();
     const form = $("#capture-form");
     const recentDirectories = previousRecordingDirectories();
-    const recentRoot = recentDirectories.find(path => typeof path === "string" && path.trim()) || config.normal_data_root;
-    form.elements.namedItem("data_root").value = recentRoot;
-    renderRecordingDirectories([recentRoot, ...(config.data_root_choices || []), ...recentDirectories]);
+    captureProfileReadOnly = Boolean(config.read_only);
+    testDataRoot = config.test_data_root || config.normal_data_root;
+    const capture = await request("/api/segmented-teach/status");
+    const captureActive = ["recording", "paused", "finalizing"].includes(capture.capture_state);
+    const initialRoot = captureActive ? (capture.data_root || recentDirectories[0] || config.normal_data_root) : testDataRoot;
+    form.elements.namedItem("data_root").value = initialRoot;
+    window.CobotRecordingDirectories = [...recentDirectories];
+    renderRecordingDirectories([initialRoot, ...(config.data_root_choices || []), ...recentDirectories]);
     const fetchDirectories = value => request("/api/segmented-teach/storage/directories?path=" + encodeURIComponent(value));
     const pathStorage = window.localStorage;
     normalPathPicker = window.CobotPathPicker.create({
@@ -1948,7 +1969,7 @@ async function initializeCaptureProfile() {
     await refreshModels();
     refresh();
     refreshConsole();
-    prepareStorage(true);
+    if (!captureActive && !captureProfileReadOnly) prepareStorage(true);
   } catch (error) {
     message("无法读取采集目录配置：" + error.message, true);
   }

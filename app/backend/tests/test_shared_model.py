@@ -176,6 +176,17 @@ def test_directory_http_does_not_wait_for_model_and_only_stages_next_episode(tmp
     with TestClient(app) as client:
         state=client.get("/api/rlt/storage")
         assert state.status_code == 200 and state.json()["editable"]
+        old=tmp_path/"data/previous"
+        atomic_json(storage.SETTINGS, {"selected":str(old)})
+        test_root=tmp_path/"data/datasets/test"
+        reset=client.post("/api/rlt/storage", json={"data_root":str(test_root), "reset_on_refresh":True})
+        if backend_phase == "offline":
+            assert reset.status_code == 200, reset.text
+            assert str(old) in client.get("/api/rlt/storage").json()["recent_data_roots"]
+        else:
+            assert reset.status_code == 409, reset.text
+            assert storage.selected_root("online") == old
+            assert not test_root.exists()
         target=tmp_path/"data/next"
         reply=client.post("/api/rlt/storage", json={"data_root":str(target)})
         assert reply.status_code == 200,reply.text

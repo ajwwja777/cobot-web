@@ -439,6 +439,7 @@ class SegmentedCaptureService:
                     "error_code": self._monitor_error,
                 }
             public = self._plain(self._reducer.snapshot())
+            public["data_root"] = str(self._recording_data_root) if self._recording_data_root else None
             public["error_code"] = self._monitor_error
             public["finalized"] = self.finalized_successfully()
             return public

@@ -1,7 +1,7 @@
 "use strict";
 (function(root){
   const $=s=>document.querySelector(s);
-  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,lastLoadedKey='';
+  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='';
   const english=()=>root.CobotPreferences?.language==='en';
   const text=(zh,en)=>english()?en:zh;
   const useModel=()=>Boolean($('#capture-use-model')?.checked);
@@ -112,6 +112,7 @@
     input.disabled=false;directoryPicker?.setDisabled(false);
     $('#collection-storage-browse').disabled=input.disabled;
     $('#collection-storage-use').disabled=Boolean(changing||(!rlt&&active()));
+    recentDirectories?.update();recentDirectories?.setDisabled($('#collection-storage-use').disabled);
     value($('#collection-recording-directory'),$(rlt?'#rlt-recording-directory':'#episode-directory').textContent);
     const msg=$(rlt?'#rlt-message':'#message');value($('#collection-message'),msg.textContent);$('#collection-message').classList.toggle('error',msg.classList.contains('error'));
     label($('#episode-browser-title'),'数据','Data');
@@ -178,6 +179,8 @@
     storage.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="录制目录" data-en="Recording directory">录制目录</h3></div><label><span data-zh="目录" data-en="Directory">目录</span><input id="collection-data-root" autocomplete="off" aria-controls="collection-directory-options" role="combobox"/></label><div class="directory-browser" hidden id="collection-directory-browser"><p class="muted" id="collection-directory-hint"></p><div class="path-options" id="collection-directory-options" role="listbox"></div></div><div class="button-row"><button id="collection-storage-browse" type="button" data-zh="浏览" data-en="Browse">浏览</button><button id="collection-storage-use" type="button" data-zh="检查并使用" data-en="Check and use">检查并使用</button></div><p class="path-caption"><span data-zh="当前：" data-en="Current: ">当前：</span><code data-localize id="collection-recording-directory">—</code></p>');
     const input=$('#collection-data-root');
     directoryPicker=root.CobotPathPicker.create({input,panel:$('#collection-directory-browser'),list:$('#collection-directory-options'),hint:$('#collection-directory-hint'),fetchDirectories:path=>root.request('/api/segmented-teach/storage/directories?path='+encodeURIComponent(path)),storage:localStorage,storageKey:'cobot-unified-collection-paths',onChange:()=>{input.dataset.dirty='true';const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;target.dispatchEvent(new Event('input'));}});
+    recentDirectories=root.CobotPathPicker.recentSelector?.({input,id:'collection-recent-directories',storage:localStorage,storageKey:'cobot-unified-collection-paths',extraPaths:()=>root.CobotRecordingDirectories||[],onSelect:()=>$('#collection-storage-use').click()});
+    document.addEventListener('cobot:storage-used',event=>{if(event.detail.kind==='collection'){directoryPicker.remember(event.detail.path);recentDirectories?.remember(event.detail.path);}});
     $('#collection-storage-browse').addEventListener('click',()=>directoryPicker.refresh());
     $('#collection-storage-use').addEventListener('click',()=>{const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;if(isRlt())target.dispatchEvent(new Event('input'));$(isRlt()?'#rlt-save-storage':'#prepare-storage').click();delete input.dataset.dirty;});
     document.querySelector('[data-view="operation"]')?.addEventListener('click',()=>{if(useModel()&&!active())changeRuntime();});$('#capture-home-enabled').addEventListener('change',()=>render());document.addEventListener('cobot:language',()=>render());render();

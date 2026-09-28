@@ -385,13 +385,18 @@ class DeploymentManager:
         group = self.EVALUATION_GROUPS.get(model.get("id"))
         return root / group / time.strftime("%Y-%m-%d") if group else root
 
-    def save_settings(self, data_root):
+    def save_settings(self, data_root, *, reset_on_refresh=False):
         with self.lock:
             if self.active:
                 raise DeploymentError("本轮结束后再更换保存位置")
+            if reset_on_refresh and (self.operation or self.busy() or self.cached.get("phase") == "running"):
+                raise DeploymentError("active_task_keeps_evaluation_directory")
             root = self.root(data_root)
             require_storage(root, write=True)
             root.mkdir(parents=True, exist_ok=True)
+            previous = self.settings.get("recent_data_roots") or []
+            self.settings["recent_data_roots"] = list(dict.fromkeys(
+                [str(root), str(self.root())] + previous))[:12]
             self.settings["data_root"] = str(root)
             atomic_json(self.directory / "settings.json", self.settings)
         return {"data_root": str(root)}
@@ -430,6 +435,9 @@ class DeploymentManager:
             collection_session = (session.get("session_use") == "collection" and session.get("phase") not in ("disarmed", "stopped")) if session else self.collection_session
             self.last_status = {**state, "session_active": collection_session, "operation": self.operation, "error": self.error,
                     "data_root": self.settings.get("data_root") or str(self.allowed_root / "evaluations"),
+                    "default_data_root": str(self.allowed_root / "evaluations/test"),
+                    "read_only": os.environ.get("COBOT_READ_ONLY") == "1",
+                    "recent_data_roots": self.settings.get("recent_data_roots", []),
                     "active": dict(self.active) if self.active else None,
                     "selected_model": self.settings.get("model_id"), "models": self.models,
                     "observed_at": self.observed_at, "status_age_sec": age,
@@ -664,6 +672,7 @@ class DeploymentAction(BaseModel):
 class DeploymentStorage(BaseModel):
     model_config = ConfigDict(extra="forbid")
     data_root: str
+    reset_on_refresh: bool = False
 
 
 def install_routes(app, cameras, modes, devices):
@@ -717,7 +726,7 @@ def install_routes(app, cameras, modes, devices):
     @app.post("/api/deployment/storage")
     def storage(request: DeploymentStorage):
         try:
-            return manager.save_settings(request.data_root)
+            return manager.save_settings(request.data_root, reset_on_refresh=request.reset_on_refresh)
         except (DeploymentError, OSError) as error:
             raise HTTPException(409, str(error)) from error
 

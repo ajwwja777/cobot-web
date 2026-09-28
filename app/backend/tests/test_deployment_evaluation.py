@@ -392,3 +392,33 @@ def test_grouped_abort_removes_trial_without_leaving_result(manager, monkeypatch
     manager.perform("abort")
     assert not folder.exists()
     assert manager.records()["total"] == 0
+
+def test_refresh_default_preserves_recent_paths_and_active_trial(manager):
+    previous = manager.allowed_root / "evaluations/plug"
+    test_root = manager.allowed_root / "evaluations/test"
+    manager.save_settings(str(previous))
+    manager.save_settings(str(test_root), reset_on_refresh=True)
+    assert manager.root() == test_root
+    assert str(previous) in manager.status()["recent_data_roots"]
+    assert manager.status()["default_data_root"] == str(test_root)
+    manager.save_settings(str(previous))
+    manager.perform("load", "fixed")
+    manager.perform("start")
+    trial = dict(manager.active)
+    with pytest.raises(DeploymentError):
+        manager.save_settings(str(test_root), reset_on_refresh=True)
+    assert manager.root() == previous and manager.active == trial
+
+
+@pytest.mark.parametrize("reason", ["operation", "recording", "running"])
+def test_refresh_never_changes_storage_during_another_operation(manager, reason):
+    previous = manager.root()
+    if reason == "operation":
+        manager.operation = "start"
+    elif reason == "recording":
+        manager.busy = lambda: True
+    else:
+        manager.cached = {"phase": "running"}
+    with pytest.raises(DeploymentError):
+        manager.save_settings(str(manager.allowed_root / "evaluations/test"), reset_on_refresh=True)
+    assert manager.root() == previous

@@ -7,7 +7,7 @@
   const outcomes={success:"成功",failure:"失败",abort:"放弃",start_failed:"启动失败"};
   let state=null, localBusy=false, selectedModel="", modelSignature="", selectedRecord="", records=[], recordKey="", lastNotice="", lastLoaded="", activeBefore=null,loadedSelectionKey="";
   let homePoses={}, outputsBusy=false, statusBusy=false, recordRequest=0;
-  let connectionError="",transportMessage=false;
+  let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null;
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
   function notify(text,error=false,tone=null){transportMessage=false;$("deployment-message").textContent=text;$("deployment-message").classList.toggle("error",error);window.CobotWorkspaceUI?.report(text,tone||(error?"error":"success"),"部署");}
   async function request(path, body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});let p;try{p=await r.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error("服务返回异常（HTTP "+r.status+"）");}if(!r.ok)throw new Error(typeof p.detail==="string"?p.detail:JSON.stringify(p.detail||p.error||r.status));return p;}catch(error){if(controller.signal.aborted||error.name==="AbortError"||error instanceof TypeError){const failure=new Error(controller.signal.aborted||error.name==="AbortError"?"请求超时（12 秒），正在重新连接":"连接中断，正在重新连接");failure.transport=true;throw failure;}throw error;}finally{clearTimeout(timer);}}
@@ -28,6 +28,7 @@
     for(const name of ["success","failure"]){$("deploy-"+name).disabled=busy||uncertain||!active||!loaded;}
     $("deploy-abort").disabled=busy||!active;
     $("deployment-storage-apply").disabled=active;
+    recentDirectories?.setDisabled(active);recentDirectories?.update();
     $("deployment-storage").disabled=false;
     $("deploy-home").disabled=busy||uncertain||!$("deploy-home-pose").value;
     $("deployment-model").disabled=busy||active;
@@ -59,7 +60,18 @@
     window.CobotFeaturePaths?.update("deployment",{model:model(),state:next});
     if(next.phase!=="offline"&&next.model)window.CobotWorkspaceUI?.sessionStatus(null,null);
   }
-  async function poll(){if(statusBusy)return;statusBusy=true;try{renderStatus(await request("/api/deployment/status"));}catch(error){connectionError=error.message;if(state)renderControls();else $("deployment-load-state").textContent=connectionError;}finally{statusBusy=false;}}
+  async function poll(){if(statusBusy)return;statusBusy=true;try{
+    let next=await request("/api/deployment/status");
+    if(!storageInitialized&&!next.status_stale&&!next.operation){
+      storageInitialized=true;
+      recentDirectories?.remember(next.data_root);
+      if(next.default_data_root&&!next.read_only&&!next.active&&!next.operation){
+        try{const result=await request("/api/deployment/storage",{data_root:next.default_data_root,reset_on_refresh:true});next={...next,data_root:result.data_root};}
+        catch(error){notify((window.CobotPreferences?.language==="en"?"Test directory was not selected: ":"测试目录未切换：")+error.message,true);}
+      }
+    }
+    renderStatus(next);
+  }catch(error){connectionError=error.message;if(state)renderControls();else $("deployment-load-state").textContent=connectionError;}finally{statusBusy=false;}}
   async function act(action){if(localBusy)return false;localBusy=true;renderControls();notify(action==="load"?window.CobotModelLoading(model()).zh:operationName[action]+"中",false,"running");try{let next=await request("/api/deployment/action",{action,model_id:selectedModel,trial_id:state?.active?.id||null});renderStatus(next);window.CobotOutputPanel?.follow({id:'deployment',component:'deployment'});for(let i=0;next.operation&&i<150;i++){await sleep(600);next=await request("/api/deployment/status");renderStatus(next);}if(next.operation)throw new Error("操作仍在进行，请到输出页查看进度");if(next.error)throw new Error(next.error);if(action!=="load")notify(operationName[action]+"完成");else if(!["ready","paused","running"].includes(next.phase))notify(window.CobotModelLoading(next.model||model()).zh);await refreshRecords();return true;}catch(error){if(error.transport){connectionError=error.message;notify(error.message+"；操作结果待确认，请勿重复点击。后台操作可能仍在执行。",true);transportMessage=true;}else notify(error.message,true);return false;}finally{localBusy=false;renderControls();}}
   async function home(confirmed=false){const pose=$("deploy-home-pose").value;if(!pose)return;if(state?.active){if(!await act("abort"))return;}return window.CobotDeviceUI?.execute({component:"home",action:"run",target:$("deploy-home-target").value,pose},"归位到 "+pose,confirmed);}
   async function terminal(action){if(await act(action)){if($("deploy-auto-home").checked)await home(true);}}
@@ -78,7 +90,7 @@
   $("deployment-model").addEventListener("change",()=>{selectedModel=$("deployment-model").value;if(model()?.available)localStorage.setItem("cobot-capture-model",selectedModel);selectedRecord="";describeModel();refreshRecords();});
   for(const action of ["load","unload","start","pause","resume"])$("deploy-"+action).addEventListener("click",()=>act(action));
   for(const action of ["success","failure","abort"])$("deploy-"+action).addEventListener("click",()=>terminal(action));
-  $("deployment-storage-apply").addEventListener("click",async()=>{try{const result=await request("/api/deployment/storage",{data_root:$("deployment-storage").value.trim()});state.data_root=result.data_root;delete $("deployment-storage").dataset.dirty;selectedRecord="";await refreshRecords();notify("保存位置已更新");}catch(error){notify(error.message,true);}});
+  $("deployment-storage-apply").addEventListener("click",async()=>{storageInitialized=true;try{const result=await request("/api/deployment/storage",{data_root:$("deployment-storage").value.trim()});state.data_root=result.data_root;recentDirectories?.remember(result.data_root);delete $("deployment-storage").dataset.dirty;selectedRecord="";await refreshRecords();notify("保存位置已更新");}catch(error){notify(error.message,true);}});
   $("deployment-storage").addEventListener("input",()=>{$("deployment-storage").dataset.dirty="true";});
   $("deployment-records").addEventListener("change",()=>{selectedRecord=$("deployment-records").value;renderFrames();});
   $("deploy-home-target").addEventListener("change",()=>{renderHomePoses();renderControls();});$("deploy-home").addEventListener("click",()=>home());
@@ -88,5 +100,6 @@
   window.CobotDeploymentUI={get state(){return state;},set state(value){state=value;},poll,refreshOutputs};
   document.querySelector('[data-view="outputs"]').addEventListener("click",refreshOutputs);document.querySelector('[data-view="deployment"]').addEventListener("click",()=>{poll();refreshRecords();});
   async function devices(){try{const d=await request("/api/console/devices");homePoses=d.home_poses||{};renderHomePoses();renderControls();}catch(_){} }
+  recentDirectories=window.CobotPathPicker?.recentSelector?.({input:$("deployment-storage"),id:"deployment-recent-directories",storage:localStorage,storageKey:"cobot-recent-evaluation-paths",extraPaths:()=>state?.recent_data_roots||[],onSelect:()=>$("deployment-storage-apply").click()});
   renderFrames();poll();devices();setInterval(()=>{if(!document.hidden){poll();if(document.querySelector('[data-page="outputs"].active'))refreshOutputs();}},1000);setInterval(()=>{if(document.querySelector('[data-page="deployment"].active'))devices();},15000);
 })();
