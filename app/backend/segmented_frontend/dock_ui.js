@@ -185,11 +185,19 @@
   function renderCommands(){if(!snapshot)return;const job=task(),groups=$('#command-group-select'),select=$('#common-command-select');const catalog=snapshot.commands||[],labels=[...new Set(catalog.map(c=>c.group))];if(!commandGroup)commandGroup=groupFor(job?.component);if(!labels.includes(commandGroup))labels.unshift(commandGroup);
     const groupSignature=JSON.stringify(labels);if(groups.dataset.signature!==groupSignature){groups.replaceChildren(...labels.map(label=>{const o=node('option','',label);o.value=label;return o;}));groups.dataset.signature=groupSignature;}groups.value=commandGroup;
     const entries=catalog.map((cmd,index)=>({...cmd,id:String(index)})).filter(cmd=>cmd.group===commandGroup);
-    if(job&&groupFor(job.component)===commandGroup)entries.unshift({id:'current',label:'本次执行 · '+(names[job.component]||job.component)});
+    if(job&&groupFor(job.component)===commandGroup){
+      const choices=[{id:'current',label:'本次执行 · '+(names[job.component]||job.component)}];
+      if(job.terminal_command)choices.push({id:'process',label:'实际启动与进程'});
+      entries.unshift(...choices);
+    }
     if(!entries.some(c=>c.id===commandChoice))commandChoice=entries[0]?.id||'';
     const signature=JSON.stringify(entries.map(c=>[c.id,c.label]));if(select.dataset.signature!==signature){select.replaceChildren(...entries.map(cmd=>{const o=node('option','',cmd.label);o.value=cmd.id;return o;}));select.dataset.signature=signature;}select.value=commandChoice;
-    let text='';if(commandChoice!=='current')text=entries.find(c=>c.id===commandChoice)?.command||'暂无命令';else if(job){const chunks=[];if(job.cwd)chunks.push('cd '+job.cwd);if(job.command_text)chunks.push(window.CobotPreferences.text('# 启动命令')+'\n'+job.command_text);if(job.process_command&&job.process_command!==job.command_text)chunks.push(window.CobotPreferences.text('# 当前进程')+'\n'+job.process_command);if(job.stop_command)chunks.push(window.CobotPreferences.text('# 核对 PID 后停止')+'\n'+job.stop_command);text=chunks.join('\n\n')||window.CobotPreferences.text('未登记启动命令');}
-    const code=$('#output-command-text');if(code.textContent!==text)code.textContent=text;$('#output-log-path').textContent=commandChoice==='current'&&job?.log_path?'日志：'+job.log_path:'';
+    const recipe=entry=>{if(!entry)return window.CobotPreferences.text('暂无命令');const lang=window.CobotPreferences?.language==='en'?'en':'zh';const note=entry.implementation?.[lang];return [entry.terminal_command||entry.command,note&&note.split('\n').map(line=>'# '+line).join('\n')].filter(Boolean).join('\n\n');};
+    let text='';
+    if(commandChoice!=='current'&&commandChoice!=='process')text=recipe(entries.find(c=>c.id===commandChoice));
+    else if(job&&commandChoice==='current'&&job.terminal_command)text=recipe(job);
+    else if(job){const chunks=[];if(job.cwd_command||job.cwd)chunks.push(job.cwd_command||('cd '+job.cwd));if(job.command_text)chunks.push(window.CobotPreferences.text('# 启动命令')+'\n'+job.command_text);if(job.process_command&&job.process_command!==job.command_text)chunks.push(window.CobotPreferences.text('# 当前进程')+'\n'+job.process_command);if(job.stop_command)chunks.push(window.CobotPreferences.text('# 核对 PID 后停止')+'\n'+job.stop_command);text=chunks.join('\n\n')||window.CobotPreferences.text('未登记启动命令');}
+    const code=$('#output-command-text');if(code.textContent!==text)code.textContent=text;$('#output-log-path').textContent=['current','process'].includes(commandChoice)&&job?.log_path?'日志：'+job.log_path:'';
   }
   async function refreshOutputs(){if(fetching||!initialized)return;fetching=true;try{snapshot=await json('/api/console/outputs?history='+$('#output-history-check').checked);renderOutput();}catch(error){$('#output-feedback').textContent=error.message;}finally{fetching=false;}}
   async function stopTask(){const job=task();if(stopping||!job?.can_stop)return;const label=names[job.component]||job.component;const msg=job.stop_kind==='model'?'停止并释放当前模型组？':'终止 '+label+'（PID '+job.pid+'）？';if(!confirm(window.CobotPreferences.text(msg)))return;stopping=true;renderOutput();report('正在停止 '+label);try{await json('/api/console/outputs/stop',{id:String(job.id),component:job.component,pid:job.pid,start_ticks:job.start_ticks,model_pid:job.model_pid||null,model_start_ticks:job.model_start_ticks||null});report('停止请求已提交，等待进程退出');}catch(error){report(error.message,true);}finally{stopping=false;await refreshOutputs();}}

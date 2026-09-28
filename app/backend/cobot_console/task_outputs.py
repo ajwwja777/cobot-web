@@ -11,6 +11,10 @@ from pydantic import BaseModel, ConfigDict
 
 from .deployment import PLATFORM, RUNTIME, RUN, DeploymentError, process_identity, read_json, tail
 from .device_control import DeviceControlError
+from .terminal_commands import (
+    in_directory, script_command, cli_command, ros_command_prefix,
+    can_command, implementation_help, task_terminal_details,
+)
 
 
 class StopTaskRequest(BaseModel):
@@ -41,20 +45,19 @@ def process_details(row):
             pass
     result['command_text'] = command_text(row.get('command'))
     result['stop_command'] = 'kill -INT -- -%s' % pid if ticks is not None and result['pgid'] == pid else ''
+    result.update(task_terminal_details(row))
+    result['cwd_command'] = 'cd ' + shlex.quote(result['cwd'])
     return result
 
 
 def common_commands():
-    scripts = str(PLATFORM / 'scripts')
-    cli = 'python3 ' + shlex.quote(str(PLATFORM / 'scripts/console.py')) + ' '
-    ros = 'source /home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash\n'
-    def can_command(action):
-        return "read -rsp 'sudo 密码: ' cobot_password\nprintf '\\n'\nprintf '%s\\n' \"$cobot_password\" | "+scripts+"/can_web.sh "+action+"\nunset cobot_password"
-    return [dict(label=label, command=command, group=group) for group, label, command in [
-        ('机械臂','启动五臂节点', scripts+'/arms_up.sh'),
+    cli = cli_command("")
+    ros = ros_command_prefix()
+    return [dict(label=label, command=command, group=group, implementation=implementation_help(command)) for group, label, command in [
+        ('机械臂','启动五臂节点', script_command('arms_up.sh')),
         ('机械臂','查看节点和 PID', ros+'rosnode list\nps -eo pid,pgid,stat,args | grep -E "[r]oslaunch.*arms.launch|[p]iper_start_ms_node|[p]iper_rear_teach"'),
         ('机械臂','查看发布者和订阅者', ros+'rostopic list'),
-        ('相机','启动三相机', scripts+'/cameras_up.sh'),
+        ('相机','启动三相机', script_command('cameras_up.sh')),
         ('相机','左相机帧率', ros+'rostopic hz /camera_l/color/image_raw'),
         ('相机','顶部相机帧率', ros+'rostopic hz /camera_f/color/image_raw'),
         ('相机','右相机帧率', ros+'rostopic hz /camera_r/color/image_raw'),
@@ -63,26 +66,26 @@ def common_commands():
         ('CAN','重置 CAN · 1 Mbps', can_command('reset')),
         ('CAN','查看链路与错误计数', 'ip -details -statistics link show'),
         ('CAN','查看 USB / CAN 内核日志', 'sudo dmesg --ctime | tail -n 80'),
-        ('ROS','启动 ROS', scripts+'/roscore_up.sh'),
+        ('ROS','启动 ROS', script_command('roscore_up.sh')),
         ('ROS','查看节点', ros+'rosnode list'),
         ('ROS','查看服务', ros+'rosservice list'),
-        ('归位','前后四臂 · plug2', scripts+'/home.sh all --pose plug2'),
-        ('归位','五臂 · plug2', scripts+'/home.sh selected --targets front-left,front-right,rear-left,rear-right,mid --pose plug2'),
-        ('归位','前双臂 · plug2', scripts+'/home.sh front --pose plug2'),
-        ('归位','后双臂 · plug2', scripts+'/home.sh rear --pose plug2'),
-        ('归位','中臂 · plug2', scripts+'/home.sh mid --pose plug2'),
-        ('归位','四臂 · origin', scripts+'/home.sh all --pose origin'),
-        ('归位','夹爪复位', scripts+'/home.sh gripper --pose reinit'),
-        ('位姿','查看前双臂位姿', scripts+'/home.sh show --arm front --pose plug2'),
-        ('位姿','查看中臂位姿', scripts+'/home.sh show --arm mid --pose plug2'),
-        ('位姿','记录前双臂 · new_pose', scripts+'/home.sh capture --arm front --pose new_pose'),
-        ('位姿','记录中臂 · new_pose', scripts+'/home.sh capture --arm mid --pose new_pose'),
-        ('恢复','前双臂恢复', scripts+'/recover.sh front-pair'),
-        ('恢复','右前臂恢复', scripts+'/recover.sh front-right'),
-        ('恢复','左前臂恢复', scripts+'/recover.sh front-left'),
-        ('恢复','中臂恢复', scripts+'/recover.sh mid'),
-        ('恢复','左夹爪恢复', scripts+'/recover.sh gripper-left'),
-        ('恢复','右夹爪恢复', scripts+'/recover.sh gripper-right'),
+        ('归位','前后四臂 · plug2', script_command('home.sh all --pose plug2')),
+        ('归位','五臂 · plug2', script_command('home.sh selected --targets front-left,front-right,rear-left,rear-right,mid --pose plug2')),
+        ('归位','前双臂 · plug2', script_command('home.sh front --pose plug2')),
+        ('归位','后双臂 · plug2', script_command('home.sh rear --pose plug2')),
+        ('归位','中臂 · plug2', script_command('home.sh mid --pose plug2')),
+        ('归位','四臂 · origin', script_command('home.sh all --pose origin')),
+        ('归位','夹爪复位', script_command('home.sh gripper --pose reinit')),
+        ('位姿','查看前双臂位姿', script_command('home.sh show --arm front --pose plug2')),
+        ('位姿','查看中臂位姿', script_command('home.sh show --arm mid --pose plug2')),
+        ('位姿','记录前双臂 · new_pose', script_command('home.sh capture --arm front --pose new_pose')),
+        ('位姿','记录中臂 · new_pose', script_command('home.sh capture --arm mid --pose new_pose')),
+        ('恢复','前双臂恢复', script_command('recover.sh front-pair')),
+        ('恢复','右前臂恢复', script_command('recover.sh front-right')),
+        ('恢复','左前臂恢复', script_command('recover.sh front-left')),
+        ('恢复','中臂恢复', script_command('recover.sh mid')),
+        ('恢复','左夹爪恢复', script_command('recover.sh gripper-left')),
+        ('恢复','右夹爪恢复', script_command('recover.sh gripper-right')),
         ('部署','加载 Reference（共享模型）', cli+'model load --id plug-v3-reference'),
         ('部署','加载固定 Actor（共享模型）', cli+'model load --id plug_v3-frozen-latest'),
         ('部署','加载在线学习模型', cli+'model load --id plug_v3-online-latest'),
@@ -90,7 +93,7 @@ def common_commands():
         ('部署','等待模型加载完成', cli+'model wait --seconds 600'),
         ('部署','开始采集 Session', cli+'model session-start'),
         ('部署','结束采集 Session', cli+'model session-stop'),
-        ('部署','查看模型 / Session / 版本', scripts+'/rlt_v3_status.sh'),
+        ('部署','查看模型 / Session / 版本', script_command('rlt_v3_status.sh')),
         ('部署','查看部署状态', "curl --noproxy '*' -fsS http://127.0.0.1:8015/api/deployment/status | python3 -m json.tool"),
         ('部署','暂停策略', cli+'recovery pause'),
         ('部署','释放共享模型', cli+'model unload'),
@@ -100,13 +103,13 @@ def common_commands():
         ('数采','只打节点', cli+'capture marker'),
         ('数采','结束保存（未标注）', cli+'--timeout 120 capture save'),
         ('数采','结束放弃（删除本轮）', cli+'capture discard'),
-        ('网页','启动网页', scripts+'/ui_up.sh'),
-        ('网页','关闭网页', scripts+'/ui_down.sh'),
-        ('网页','网页状态', scripts+'/ui_status.sh'),
+        ('网页','启动网页', script_command('ui_up.sh')),
+        ('网页','关闭网页', script_command('ui_down.sh')),
+        ('网页','网页状态', script_command('ui_status.sh')),
         ('诊断','进程、身份与服务状态', cli+'recovery status'),
         ('诊断','保存故障现场', cli+'recovery snapshot'),
         ('诊断','预览模型中断范围（不执行）', cli+'recovery interrupt model'),
-        ('诊断','命令行完整手册', 'less '+shlex.quote(str(PLATFORM/'docs/COMMAND_LINE.md'))),
+        ('诊断','命令行完整手册', in_directory(PLATFORM, 'less docs/COMMAND_LINE.md')),
         ('诊断','查看 GPU', 'nvidia-smi'),
         ('诊断','磁盘与内存', 'df -h / /home/agilex/jiaan\nfree -h'),
         ('诊断','查看端口占用', 'ss -ltnp'),

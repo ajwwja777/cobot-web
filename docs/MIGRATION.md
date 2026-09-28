@@ -254,3 +254,11 @@ Cobot 数据与模型统一在 /media/agilex/Getea1/jiaan/data/ 和 /media/agile
 USB 掉线重连后已完成已迁移资产的全量收据复核；尚不能据此认定硬件链路根因已消除。RLT 新路径暂停加载、在线状态恢复与历史媒体通过；FluxVLA 固定版本离线 baseline/prefix-RTC 通过；π0.5 两入口只做 dry-run。本批未启动真实 Episode 或机器人动作。
 
 完整路径、占用、各项验证边界及回执见实际 cobot-web/docs/STORAGE.md。证据位于 rl-platform/outputs/migrations/20260928-getea-storage/cobot/（Cobot 去掉末尾 cobot/）。同批源码与项目记录已按各自仓库发布；guide Git 保持由其他会话管理。
+
+## 2026-09-28：按钮命令与后台进程说明
+
+按用户要求，输出栏的本次执行／常用命令改为实际终端配方：先 cd 对应项目，再执行相对脚本；CAN 配置使用 control/scripts/can_up.sh，重置显示 sudo ip link 的五臂参数，不再让人手工读取密码并通过管道交给 can_web.sh。命令后以注释说明真正实现；“实际启动与进程”保留原始入口、当前进程及 PID。配置入口的差异明确注明：网页失败会重置再重试一次，直接 can_up 只执行一次。
+
+docs/COMMAND_LINE.md 补充设备／模型／采集／评测的按钮、CLI 和真正实现对照，区分后台会话、手动前台终端和 API 请求。暂停／节点等操作不单开进程，tail 的 Ctrl+C 不停止后台任务；CLI 终结不会继承浏览器自动归位选项。
+
+本批仅改网页命令展示和文档，web/control 职责下沉仍按用户要求延期。验证覆盖命令 shell 语法、参数引用、原始命令保留、中英文及前端切换，不执行 CAN、节点启动、归位或模型加载。A6000 相关后端 45 项测试、前端全套 35 项测试通过，全部常用命令通过 bash -n（仅语法解析）。发布与现场同步结果在本节追加。

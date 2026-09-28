@@ -2,7 +2,7 @@
 
 网页和终端操作归 `cobot-web` 维护；硬件实现仍交 `cobot-control`，数据格式交 `cobot-dagger`，模型／RL 算法交所属平台。不需要另开 ops 项目对话。
 
-本文核对当前仓库入口，日期 2026-09-27。所有现场命令在 **Cobot** 的 Bash 终端执行：
+本文核对当前仓库入口，日期 2026-09-28。所有现场命令在 **Cobot** 的 Bash 终端执行：
 
 ```bash
 ssh agilex@10.7.165.64
@@ -38,6 +38,130 @@ ui_down／ui_up 只重启网页，不会自动清理机械臂、相机、模型�
 CLI 没有另写一套控制状态机。`device` 走同一套 confirm/action 协议；模型与采集复用共享模型管理；每次暂停／保存会重新读取 episode 身份和 generation；失败不会自动重试。命令执行可能导致运动／删除的含义与网页按钮一致，输入命令就是主动操作。
 
 日常命令通常返回 JSON。`operation` 未空或 `phase=loading` 表示已受理仍在执行，不等于加载成功；设备 `running` 不等于反馈就绪，应查 `state devices`。命令超时不取消后台任务。
+
+## 网页按钮、终端命令与实际实现
+
+本节按 2026-09-28 已部署源码核对。所有 CLI 在 Cobot 的 `/home/agilex/jiaan/project/cobot-web` 中执行；下表“CLI 参数”前均加 `python3 scripts/console.py `。模型、臂、位姿和数据目录须替换为当次实际选择；表中的命令是逐项对照，不是应连续执行的脚本。
+
+`W` 表示 `/home/agilex/jiaan/project/cobot-web`，`C` 表示 `/home/agilex/jiaan/project/cobot-control`，`R` 表示 `/home/agilex/jiaan/project/rl-platform`，`V` 表示 `/home/agilex/jiaan/project/vla-platform`。这些缩写只为说明路径，不是要求设置的 shell 变量。
+
+### 终端直接执行的例子
+
+硬件命令先进入 control；例如配置 CAN：
+
+```bash
+cd /home/agilex/jiaan/project/cobot-control
+./scripts/can_up.sh
+```
+
+该脚本真正执行的是 `integrations/legacy_control/can_config_cobot.sh task2`，由 sudo 正常提示密码。`can_web.sh` 的 stdin 密码协议只供网页后端使用，不作为日常终端范例。两者有一个区别：网页配置失败会自动重置并重试一次，`can_up.sh` 执行一次配置／链路检查；重置的纯终端命令见第 1 节。
+
+机械臂与相机分别在两个终端前台运行：
+
+```bash
+cd /home/agilex/jiaan/project/cobot-control
+./scripts/arms_up.sh
+```
+
+```bash
+cd /home/agilex/jiaan/project/cobot-control
+./scripts/cameras_up.sh
+```
+
+机械臂脚本加载已登记环境后执行 `roslaunch robot/arms/arms.launch`；相机脚本执行 `roslaunch integrations/legacy_control/launch/multi_camera_shuai.launch`，具体节点见下表后的说明。已有对应节点时先查状态，不重复 launch。
+
+如果需要和网页完全相同的任务管理、前置检查和停止入口，则回到 web 使用下一节的 CLI。例如：
+
+```bash
+cd /home/agilex/jiaan/project/cobot-web
+python3 scripts/console.py device can configure
+```
+
+### 设备按钮
+
+| 网页操作 | CLI 参数 | 实际执行链与实现 |
+|---|---|---|
+| 配置 CAN | `device can configure` | `W/scripts/can_web.sh configure` → `C/scripts/can_web.sh` → `C/integrations/legacy_control/can_config_cobot.sh`；配置 USB/CAN 映射、速率并检查链路 |
+| 重置 CAN | `device can reset` | 同上转入 control 的 reset 分支；按现有五臂接口配置 1 Mbps、restart-ms 100 |
+| 启动 ROS | `device roscore start` | `W/scripts/roscore_up.sh` → `C/scripts/roscore_up.sh` → `/opt/ros/noetic/bin/roscore -p 11311`；脚本将 ROS Master 放入后台 |
+| 启动机械臂 | `device arms start` | `W/scripts/arms_up.sh` → `C/scripts/arms_up.sh` → `roslaunch C/robot/arms/arms.launch` |
+| 启动相机 | `device cameras start` | `W/scripts/cameras_up.sh` → `C/scripts/cameras_up.sh` → `C/integrations/legacy_control/launch/multi_camera_shuai.launch` |
+| 停止机械臂 | `device arms stop` | 当前由 `W/app/backend/cobot_console/device_control.py` 核对登记进程身份、发送 SIGINT 并等待退出；不是调用一个尚不存在的 control/arms_down.sh |
+| 停止相机 | `device cameras stop` | 同上，对相机启动进程组执行停止 |
+| 停止 ROS | `device roscore stop` | 同上；先检查机械臂、相机依赖，仍运行时拒绝停止 ROS |
+| 选臂归位 | `device home run --target selection --arms mid,front-right --pose plug2` | `W/scripts/home.sh selected --targets mid,front-right --pose plug2 --yes` → `C/scripts/home.sh` → `C/robot/home.py` |
+| 停止归位 | `device home stop` | 当前网页设备任务管理器停止登记的 home 进程组；停止请求后仍须查看现场反馈 |
+| 保存位姿 | `device pose capture --target selection --arms front-right --pose my_pose` | `C/robot/home.py capture` 读取实测位姿，写入正式位姿文件 |
+| 删除位姿 | `device pose delete --target all --pose my_pose` | `C/robot/home.py delete` 删除该命名位姿记录 |
+| 恢复对应臂 | `device recover run --target front-right` | `W/scripts/recover.sh` → `C/scripts/recover.sh` → `C/robot/recover.py`，按目标执行现有恢复检查与操作 |
+
+五臂 launch 的真正节点是 `C/robot/arms/code/piper_start_ms_node.py`（前臂、中臂）、`piper_rear_teach_task2_node.py`（后臂）和 `teach_handover.py`（控制权交接）。驱动使用登记的 aloha 环境中的 Piper SDK；ROS 消息仍来自已安装的 Piper 工作区。
+
+三相机 launch 进一步 include `$(find astra_camera)/launch/dabai.launch`。当前现场解析到 `/home/agilex/cobot_magic/camera_ws/src/ros_astra_camera/launch/dabai.launch`，运行编译后的 `camera_ws/devel/lib/astra_camera/astra_camera_node`。因此顶层入口在 control，相机公共驱动仍在登记的现场工作区。
+
+归位由 home.py 检查选择、位姿和控制状态，再调用已有协调器／后臂节点服务或相应中臂实现；不会另起一套前后臂控制权。正式位姿在 `/media/agilex/Getea1/jiaan/data/motion/poses/home_poses.yaml`。硬件诊断与部分启停规则目前仍在 web，后续边界整理尚未实施。
+
+### 模型、采集和评测按钮
+
+| 网页操作 | CLI 参数 | 实际实现 |
+|---|---|---|
+| 加载模型 | `model load --id plug-v3-warmup-5k` | 共享 `collection_model.py`／`deployment.py` 管理器 → `W/scripts/deployment_run.sh`；具体模型选择下述 RLT 或 π0.5 链路 |
+| 等待加载成功 | `model wait --seconds 600` | 轮询已提交加载任务；不会另开一份模型 |
+| 释放模型 | `model unload` | 共享管理器暂停、结束相应 Session、停止登记的模型进程；不是只杀输出栏中的某一个子 PID |
+| 开始／结束 Session | `model session-start` ／ `model session-stop` | 共享管理器处理生命周期；准备 Session 不自动开始机器人推理 |
+| 选择采集目录 | `storage normal /media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/manual` | 普通采集目录检查；RLT 使用 `storage rlt 路径`，评测使用 `storage evaluation 路径` |
+| 开始无模型采集 | `capture start --data-root /media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/manual` | `segmented_capture/api.py` → `capture_service.py` → `capture_core` 中的录制与 HDF5 写入 |
+| 加载模型后开始一轮 | `capture start --model plug-v3-warmup-5k` | CLI 根据模型类型进入普通模型辅助采集或 RLT Session；RLT 根据当前身份选择 start／next |
+| 暂停并打节点／继续并打节点 | `capture pause` ／ `capture resume` | 操作当前录制器和模型暂停状态；RLT 请求携带刚读取的 episode/generation |
+| 只打节点 | `capture marker` | 调用当前模式的节点接口，不重新加载模型 |
+| 结束保存，不标成功失败 | `--timeout 120 capture save` | 普通采集终结录制；RLT 使用 operator_save，不当作成功／失败提交 |
+| 成功／失败 | `--timeout 120 capture success` ／ `--timeout 120 capture failure` | 按当前采集模式保存相应 outcome；CLI 的明确操作不读取浏览器勾选框 |
+| 结束并放弃 | `capture discard` | 使用当前模式的放弃接口，按既有规则删除本轮，不新增放弃记录 |
+| 开始部署评测 | `evaluate start` | `deployment.py` 建立评测轮次并启动已加载策略；与训练采集用途分开 |
+| 暂停／继续评测 | `evaluate pause` ／ `evaluate resume` | 调用已加载策略的暂停／继续接口，不再启动模型服务器 |
+| 评测成功／失败／放弃 | `evaluate success` ／ `evaluate failure` ／ `evaluate abort` | 从当前 active 取得 trial_id，再由部署管理器校验并终结轮次 |
+
+普通及 π0.5 采集的状态机在 `W/app/backend/segmented_capture/`，录制底层在 `capture_core/`；RLT 操作由 web 的 Session 适配转给已启动的 RL 服务。并非每次按按钮都执行一条新的 Linux 进程命令，暂停、节点和保存主要是现有服务的 API 调用。
+
+RLT 加载实际链：`deployment_run.sh → W/scripts/rlt_v3_up.sh → R/scripts/rlt_up.sh → methods.openpi_rlt.scripts.online_role`，并按配置使用 Stage 1 模型服务。π0.5 加载实际链：`deployment_run.sh → W/scripts/deployment_pi05.sh → V/integrations/cobot/pi05/{baseline,dagger}/common/inference_pi05_rtc.sh`，启动相应策略服务和客户端。外部 Python/ROS 环境依赖以主机配置及各项目记录为准；此处不是绕过共享管理器重新启动模型的操作建议。
+
+网页“保存／成功／失败／放弃并复位”还包含后续 home 操作。CLI 不读取网页本地的自动复位勾选和选臂结果：先确认终结完成，再执行选定臂／位姿的 `device home run ...`；不要把两步不加状态检查地串成一条命令。详见第 4 节。
+
+### 是不是每个任务开一个终端
+
+网页启动机械臂、相机和 home 等设备任务时，后端用 `subprocess.Popen(..., start_new_session=True)` 创建独立后台会话，stdout 和 stderr 写入该任务日志。没有逐个打开可见终端，也没有为每个任务分配可交互的 PTY；输出栏是任务日志查看器，不能在其中输入任意 shell 命令。ROS launch、模型服务器还可以创建多个子进程。
+
+手动执行时可以这样区分：
+
+| 使用方式 | 是否需要多个终端 | Ctrl+C 的含义 |
+|---|---|---|
+| `console.py device ...`、模型／采集 CLI | 通常一个终端即可，API 返回后后台任务继续 | 不能据 CLI 被打断断定后台任务已取消 |
+| 直接前台执行 `C/scripts/arms_up.sh`、`C/scripts/cameras_up.sh` | 建议机械臂一个终端、相机另一个终端；ROS 启动脚本本身会后台化 | 在原启动终端请求停止对应前台 launch，随后核对残留节点 |
+| `tail -F 实际日志路径` | 可以为每个日志单开终端，也可只看当前关心的任务 | 只停止看日志，不停止机械臂／相机／模型 |
+| 网页“终止任务”或正常 stop／unload | 不需要可见终端 | 后端核对当前任务身份再停止；模型行走模型卸载，不能等同于对任意 PID 发 kill |
+
+硬件任务的 launch PID、具体驱动节点 PID、GPU 策略服务 PID 可以不同。不要拿一个 PID 去推断整个任务只有一个进程，停止后仍应使用 `recovery status` 核实。
+
+### 输出栏已经展示什么
+
+选择任务后打开“命令”：
+
+- “本次执行”默认显示可直接复制的终端命令，例如先 `cd .../cobot-control`，再 `./scripts/can_up.sh`。下方以 `# 实际实现：` 注释说明真实脚本／launch／Python 链路；复制整段时说明不会当作命令执行。
+- “实际启动与进程”保留原始启动入口、工作目录和 `/proc/<pid>/cmdline`，供核对网页内部调用、exec 后的 roslaunch／Python 进程。此视图是排查信息，不是应整段执行的启动流程。
+- 任务栏显示 PID、状态，命令区保留日志路径；“常用命令”按机械臂、相机、CAN、归位、恢复、部署、数采等分类，项目命令采用 `cd` 加相对脚本的形式。
+- 尚无对应终端配方的任务仍显示真实登记信息，不伪造另一个入口；PID 身份有效且满足进程组条件时才提供停止命令。
+
+说明来自已核对的实现，不自动展开完整 ROS include 或子进程树。没有独立进程的 API 操作不会凭空出现一个新 PID。输出内容可能采用“关键输出”筛选，可切换“原始日志”查看完整任务日志。
+
+终端可读取相同信息：
+
+```bash
+cd /home/agilex/jiaan/project/cobot-web
+python3 scripts/console.py state outputs
+python3 scripts/console.py recovery status
+```
+
+来源：2026-09-28 用户要求补充按钮／终端／真正实现对照，并将网页中的内部密码管道改为实际终端命令。本批修改命令展示与手册，不执行上述硬件控制命令。
 
 ## 1. 开机至可以采集的流程
 
@@ -85,7 +209,7 @@ CAN 命令在终端隐藏输入 sudo 密码，不把密码放在命令行参数�
 终端一：
 
 ```bash
-cd /home/agilex/jiaan/project/cobot-web
+cd /home/agilex/jiaan/project/cobot-control
 ./scripts/can_up.sh
 ./scripts/roscore_up.sh
 ./scripts/arms_up.sh
@@ -94,7 +218,7 @@ cd /home/agilex/jiaan/project/cobot-web
 终端二：
 
 ```bash
-cd /home/agilex/jiaan/project/cobot-web
+cd /home/agilex/jiaan/project/cobot-control
 ./scripts/cameras_up.sh
 ```
 
@@ -103,7 +227,9 @@ cd /home/agilex/jiaan/project/cobot-web
 CAN 重置会中断通信，必须先停止推理／采集并确认现场安全。网页对应的重置参数为 1 Mbps、restart-ms 100；确需在纯终端重置时：
 
 ```bash
+cd /home/agilex/jiaan/project/cobot-control
 sudo -v
+sudo modprobe gs_usb
 for iface in can_left can_right can_mid can_rear_left can_rear_right; do
   sudo ip link set "$iface" down || break
   sudo ip link set "$iface" type can bitrate 1000000 restart-ms 100 || break
@@ -115,6 +241,12 @@ done
 缺接口时先查电源／USB-CAN，不用反复 reset 代替排查。
 
 ## 2. 选择路径与普通采集
+
+以下模型、采集和评测 CLI 仍在 web 项目执行；如果刚使用了 control 的直接脚本，先切回：
+
+```bash
+cd /home/agilex/jiaan/project/cobot-web
+```
 
 路径可以先于模型选择。当前允许数据根由主机配置决定；新数据建议在 `/media/agilex/Getea1/jiaan/data` 下，历史根只有明确登记的路径可用。
 

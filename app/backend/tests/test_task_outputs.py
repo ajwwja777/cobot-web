@@ -1,4 +1,5 @@
 import json
+import shlex
 import os
 import subprocess
 import time
@@ -88,7 +89,10 @@ def test_snapshot_has_actual_command_pid_and_history_cannot_stop(tmp_path,monkey
 def test_common_commands_no_password_or_arbitrary_shell_endpoint():
     commands=common_commands()
     assert len(commands)>=15
-    assert any('read -rsp' in c['command'] for c in commands)
+    assert all('read -rsp' not in c['command'] and 'cobot_password' not in c['command'] for c in commands)
+    configure = next(c for c in commands if c['label'] == '配置五臂 CAN')
+    assert configure['command'].endswith('\n./scripts/can_up.sh')
+    assert 'cobot-control' in configure['command'] and 'can_config_cobot.sh' in configure['implementation']['zh']
     from pydantic import ValidationError
     with pytest.raises(ValidationError):StopTaskRequest(id='x',component='arms',pid=1,start_ticks=2,command='rm -rf anything')
 
@@ -102,3 +106,23 @@ def test_common_commands_use_shared_cli_and_token_aware_pause():
     assert "console.py recovery interrupt model" in commands
     assert "-d '{}'" not in commands
     assert "rlt_v3_down.sh" not in commands
+
+
+def test_terminal_can_recipe_preserves_original_command_and_has_no_password_pipe():
+    from cobot_console.task_outputs import process_details
+    row = dict(component='can', pid=-1, command=['/site/web/scripts/can_web.sh', 'configure'])
+    details = process_details(row)
+    assert details['command_text'] == '/site/web/scripts/can_web.sh configure'
+    assert details['terminal_command'].endswith('\n./scripts/can_up.sh')
+    assert 'can_web.sh' not in details['terminal_command']
+    assert 'cobot_password' not in details['terminal_command']
+    assert details['process_command'] == ''
+
+
+def test_terminal_home_recipe_quotes_arguments_and_all_recipes_are_valid_bash():
+    from cobot_console.terminal_commands import task_terminal_details
+    details = task_terminal_details(dict(command=['/web/scripts/home.sh', 'capture', '--pose', 'literal $(false)']))
+    assert shlex.split(details['terminal_command'].splitlines()[1])[-1] == 'literal $(false)'
+    assert "'literal $(false)'" in details['terminal_command']
+    for row in common_commands():
+        subprocess.run(['bash', '-n'], input=row['command'], text=True, check=True)
