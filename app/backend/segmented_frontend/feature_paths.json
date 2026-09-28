@@ -35,7 +35,7 @@
     [
       "CAN 配置入口",
       "CAN configuration entry",
-      "/home/agilex/jiaan/project/cobot-control/integrations/legacy_control/multi_arm_launch_tools/can_config_cobot.sh",
+      "/home/agilex/jiaan/project/cobot-control/integrations/legacy_control/can_config_cobot.sh",
       "Cobot"
     ],
     [
@@ -73,7 +73,7 @@
     [
       "相机启动配置",
       "Camera launch",
-      "/home/agilex/jiaan/project/cobot-control/integrations/legacy_control/multi_arm_launch_tools/launch/multi_camera_shuai.launch",
+      "/home/agilex/jiaan/project/cobot-control/integrations/legacy_control/launch/multi_camera_shuai.launch",
       "Cobot"
     ],
     [
