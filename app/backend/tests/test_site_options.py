@@ -150,3 +150,11 @@ def test_registered_model_forwards_selected_weight_to_existing_adapter(configure
     assert calls[0][0][-1] == "custom-123"
     assert calls[0][1]["env"]["COBOT_CUSTOM_CHECKPOINT"] == "/chosen/model"
     assert calls[0][1]["env"]["COBOT_DEPLOYMENT_ADAPTER"] == "pi05-in-the-pot"
+
+def test_metadata_only_asset_is_visible_but_never_available(configured):
+    folder = site.MODEL_ROOT / "metadata"
+    folder.mkdir()
+    (folder / "deployment_manifest.json").write_text("{}")
+    row = site.inventory_models([])[0]
+    assert not row["available"]
+    assert row["unavailable_reason_en"] == "Metadata only; checkpoint missing locally"

@@ -269,4 +269,4 @@ docs/COMMAND_LINE.md 补充设备／模型／采集／评测的按钮、CLI 和�
 
 Getea1 权重按实际格式发现，未接入网页暂停／HIL 协议的历史模型明确显示需适配；不把 safetensors 或训练 checkpoint 冒充当前 RLT／π0.5。基于实际 training_manifest 的 action_dim=7、chunk_len=10、z_dim=2048 及当前 v3 历史记录，补充 experts120_20k_20260925 冻结对比入口（step 20000、actor 10000）；保留当前默认值。本批没有修改模型权重。
 
-主代码在 A6000；现场只同步 web 运行文件，并为本机配置补 model_root，保留其他本地项。配置/适配边界见 COMMAND_LINE.md 新增章节。相关后端 110 passed、1 skipped（原有跳过项），前端 36 passed；额外终端配方与监督进程退出检查通过。未运行 CAN、launch、真实推理或训练。正式同步及现场只读验收结果另记于本节。
+主代码在 A6000；现场只同步 web 运行文件，并为本机配置补 model_root，保留其他本地项。配置/适配边界见 COMMAND_LINE.md 新增章节。相关后端 111 passed、1 skipped（原有跳过项），前端 36 passed；额外终端配方与监督进程退出检查通过。未运行 CAN、launch、真实推理或训练。正式同步及现场只读验收结果另记于本节。

@@ -181,7 +181,7 @@ python3 scripts/console.py recovery status
 ### 已有和自选权重
 
 - 内置 RLT Reference、5k、在线／冻结和两个 π0.5 模型继续可用。已补充同一 plug_v3 配置的历史 20k actor，作为冻结对比项；它不是新的推荐默认模型。
-- 权重清单自动扫描本机配置的 `model_root`，后台约每 30 秒刷新。Getea1 上的 FluxVLA、Galaxea、DM0.5、LingBot、Xiaomi 和其他历史权重也可看见；“需适配”表示还没有对应的网页控制入口，不代表权重文件损坏。
+- 权重清单自动扫描本机配置的 `model_root`，后台约每 30 秒刷新。Getea1 上的 FluxVLA、Galaxea、DM0.5、LingBot、Xiaomi 和其他历史权重也可看见；“需适配”表示还没有对应的网页控制入口，不代表权重文件损坏。DM0.5 的 Getea1 目录仅有清单，界面另标“仅元数据，本机缺少权重”；实际历史权重记录在 A6000 的 /data/LFT-W02_data/jiaan/jiaan/projects/vla-platform/models/history/dm0-5/step_4000。
 - “检查并登记”用于复用**同任务、同相机／动作布局**的已有适配器。选择模板和权重，确认其任务、归一化和控制约定一致后保存；可同时设为默认选择。配置面板不会试运行权重。
 - 当前可复用三个模板：plug_insertion 的冻结 RLT actor，以及 in_the_pot 的 π0.5 baseline RTC／DAgger RTC。RLT 选择 `actor_snapshot.pkl`，其上级运行目录需保留 `action_norm_stats.json`；不能把 learner 的 `latest.pkl` 当成 actor。π0.5 选择完整 checkpoint 目录，保留 `params`、checkpoint 元数据和模板对应 asset 的 norm_stats。
 - 检查通过只表示文件与已登记入口满足基本要求，不是推理或成功率验收。新场景、不同架构、FluxVLA 的 safetensors、分布式训练 checkpoint 等，不能仅换路径冒充上述模板。

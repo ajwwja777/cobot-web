@@ -227,6 +227,8 @@ def discover():
             candidate, format_name = path, "Safetensors"
         elif any(f.endswith(".pt") for f in files) and ("deployment_manifest.json" in files or "mp_rank_00_model_states.pt" in files):
             candidate, format_name = path, "PyTorch / distributed checkpoint"
+        elif "deployment_manifest.json" in files:
+            candidate, format_name = path, "Metadata only; checkpoint missing locally"
         dirs[:] = sorted(d for d in dirs if d not in {
             "params", "assets", "optimizer", "opt_state", "hf_processor", "replay_clean_v1"
         } and not d.startswith("."))
@@ -242,8 +244,10 @@ def inventory_models(builtins):
                  label=row["relative"], kind="unadapted", mode="unavailable",
                  checkpoint=row["checkpoint"], available=False, format=row["format"],
                  validation="Web control adapter not registered",
-                 unavailable_reason="选择同类适配器登记；不同模型需要推理、暂停、HIL 与动作映射适配",
-                 unavailable_reason_en="Register a matching adapter; different families need inference and control adaptation")
+                 unavailable_reason=("仅元数据，本机缺少权重" if row["format"].startswith("Metadata only")
+                                     else "选择同类适配器登记；不同模型需要推理、暂停、HIL 与动作映射适配"),
+                 unavailable_reason_en=("Metadata only; checkpoint missing locally" if row["format"].startswith("Metadata only")
+                                        else "Register a matching adapter; different families need inference and control adaptation"))
             for row in discover() if row["checkpoint"] not in known]
 
 
