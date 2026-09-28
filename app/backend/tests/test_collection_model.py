@@ -38,8 +38,9 @@ def test_prepare_does_not_move_and_inference_is_explicit():
     assert not control.status()['enabled'] and m.active is None
 
 
-def test_session_start_stop_only_pause_and_keep_model():
+def test_session_start_stop_only_pause_and_keep_model(tmp_path):
     m=manager()
+    m.allowed_root=tmp_path
     DeploymentManager.perform(m, 'collection_session_start')
     assert m.collection_session and m.runtime.calls == ['pause']
     DeploymentManager.perform(m, 'collection_session_stop')

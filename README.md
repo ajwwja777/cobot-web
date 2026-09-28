@@ -75,7 +75,7 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-web/runtime/cache/uv /home/agilex/
 
 硬件实现、位姿和 launch 已由同级 cobot-control 接管，web 仅保留脚本转发、API 编排和展示。采集库仍由本项目提供；后续迁往 cobot-dagger 时单独验证接口。
 
-当前 RLT 模型、算法环境、Replay 和约158GB历史数据已迁入新根，原始数据校验后旧副本已删除。`configs/hosts/cobot.json` 明确登记其当前真实位置，两个π0.5入口仍依赖登记的共享部署目录；尚未整体迁入vla-platform。浏览器旧目录偏好按前缀迁到新根，数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
+当前数据、Replay 与部署权重使用 Getea1 的 data/model 分类目录；算法环境和代码留在系统盘。`configs/hosts/cobot.json` 明确登记其当前真实位置，两个 π0.5 入口已由 vla-platform/integrations/cobot/pi05 接管，继续引用登记的既有 Python/ROS 环境。浏览器旧目录偏好按前缀迁到新根，数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
 
 部署和采集共用同一份模型目录、进程与加载状态；模型选择展示实际权重路径。加载与准备 Session 不启动推理。RLT 每轮开始时固定采集／评测用途及目录，结束后才能切换用途；纯评测不写 recorder 或 replay。在线更新入口保留原 online_rl.yaml 和 learner；固定模型评测使用对应冻结入口。目录可以在加载前选择，RLT 录制中的新选择用于下一轮。
 
@@ -83,4 +83,4 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-web/runtime/cache/uv /home/agilex/
 
 ## 数据和模型存放
 
-2026-09-28用户确认按用途单机单份保留数据/模型：原始采集、现场评测和当前部署checkpoint归Cobot；训练中间checkpoint与停止部署的历史模型归A6000。当前仍有迁移副本和旧模型副本，尚未全量去重。实际绝对路径、占用、剩余空间与待收尾项见[存放清单](docs/STORAGE.md)及其CSV；这是带日期的实测快照。场景命名目标为in_the_pot、plug_insertion，当前线上目录未因此改名。
+2026-09-28 最终确认：Cobot 数据和 checkpoint 实体放 /media/agilex/Getea1/jiaan/{data,model}；数据按场景分，模型按项目/模型/场景/版本分。本轮不新增 A6000 资产备份，既有 A6000 历史资产另行保留。当前路径、占用、验收与清理状态见[存放清单](docs/STORAGE.md)。

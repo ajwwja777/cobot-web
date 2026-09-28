@@ -2,7 +2,7 @@
 
 2026-09-28 用户确认：Cobot 的数据与 checkpoint 全部放 Getea1；代码、环境、日志和 PID 留在系统盘项目目录。A6000 维护主代码、Git、文档；本轮不新增数据或权重备份。此前已存在的 A6000 历史资产仍保留，不能把本轮迁移说成全机器已经去重。
 
-**迁移状态：新布局配置已完成，文件复制与现场切换正在进行；最终验收见本页末尾。**
+**状态：主体资产已迁移并验收清理；Getea1 随后 USB 掉线，FluxVLA 补充迁移和最终清理未完成。网页已停止。恢复连接后需重新校验，详见本页末尾。**
 
 ## 两个入口
 
@@ -106,3 +106,13 @@ A6000：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/migrations/2
 plan.json 是旧根到新根的映射，copied-files.jsonl 保存逐文件 SHA-256；extras 保存 FluxVLA 和 tokenizer 等补充迁移。
 
 本批之前的两机路径、体积和历史重复项保留在 [storage-inventory-20260928.csv](storage-inventory-20260928.csv)，它是迁移前快照，不是当前路径表。A6000 原有历史权重和训练资料未因本轮自动删除；没有新增权重备份。
+
+## 2026-09-28 20:00：迁移中遇到 Getea1 USB 掉线
+
+已完成主体 12,059 条目、351,844,176,546 字节及 6 个恢复验证资产、117,047,594 字节的迁移、SHA 校验、运行验收和对应源文件清理。Warmup 与在线模型在新路径加载/释放通过；在线状态 5000/2500/2567，正式权重和 Replay 的 SHA 不变，未启动 Episode 或真机运动。历史读取、92 条有效评测和媒体通过；主副本清理后再次读通。系统盘当时剩余约 404 GiB。
+
+剩余 FluxVLA 环境复制到 libcublasLt.so.12 时出现 I/O error。内核在 19:59:53 将 sda 下线，随后 USB 设备枚举失败；20:00 检查已无 Getea1 块设备和挂载。不能把它归因于单个 Python 包或仅网页错误，也不能仅凭这些日志判定是线缆、供电、硬盘盒或盘本体。
+
+所有迁移进程已退出；正式网页 PID 366090 正常停止，无 GPU 模型进程，临时 ROS master 已停止。本轮未做运动。尚未验收的 FluxVLA 旧目录、暂存副本未清理，**Getea1/jiaan 仅保留 data/model 的目标尚未完成**。已验证结果仅代表掉线前状态，恢复连接后仍须核对文件系统并按迁移收据重新校验新资产，不能直接继续删除或开始在线训练。
+
+证据：相邻 rl-platform/outputs/migrations/20260928-getea-storage/cobot/，现场同目录不带 cobot/。包括 retirement.json、validation/retirement.json、cutover-verification.json、extras/copy-status.json、disk-disconnect.json 和 disk-disconnect-kernel.log。源码和证据位于系统盘/A6000，本轮没有新增 A6000 数据/权重备份。
