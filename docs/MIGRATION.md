@@ -219,3 +219,13 @@ configs/hosts/cobot.json 是新切换配置；现场 configs/local.json 尚未�
 - 旧cobot-platform已完整归档到A6000 vla-platform，9,629条目验证通过；最终无变化/活动引用复核后，先改名使旧路径不可用，再冷启动正式8015，核验模型目录、历史、受管理相机启停和home --help，最后删除旧目录。模型/Session未启动，未归位。删除回执 outputs/migrations/20260928-platform-retirement/cobot/retirement.json（现场去掉cobot/）。
 - 本次冷启动网页PID153484，预览8018已停止；PID仅记录本次实例，不是永久服务标识。相机任务已停止，无残留；ROS master仍运行。删除host中的legacy_platform_root，不再登记已退休硬件根。
 - 旧RLT历史归档仍在传输、校验，原RLT目录尚未删除；Piper/ROS/Astra/aloha和两个π0.5共享部署目录另批处理。
+
+## 2026-09-28：旧 RLT 清理后的最终验收
+
+旧RLT完整SHA归档与环境异机备份通过后，隔离旧RLT路径并重启正式网页，PID153484→222607。最新在线模型经共享入口ready/disarmed/paused，Session未开始；learner5000/actor2500/Replay2567，随后释放为offline。正式权重与Replay未改变，旧RLT及cobot-realworld-rl别名现已删除。
+
+网页6个共享模型路径可用；9类只读API、37个引用资源、episode171标签/视频和首尾六图均HTTP200。系统盘/剩余约77.6GiB，无GPU计算进程。最终证据在相邻rl-platform/outputs/migrations/20260928-retirement/cobot/final-runtime.json，以及同目录加载/释放、learner和清理回执。
+
+后续网页任务已启动机械臂PID148006及相机PID158179，均是新control路径；设备读数为5臂、5CAN、3相机可用。早先相机停止回执对应PID130873，不能据旧回执断言现在硬件全停；保留这些后续任务，没有为收尾中断它们。没有开展真实Episode或浏览器目视动画验收。
+
+两个π0.5共享部署保留原登记位置。删除旧cobot-platform后，两者COBOT_DEPLOY_DRY_RUN入口返回成功，证明路径/命令预检可用，不等同于重新验收π0.5真实推理。证据outputs/verification/20260928-cutover/cobot/pi05-after-platform-retirement-dry-run.json。完整命令及HTTP故障处理继续见COMMAND_LINE.md、WEB_RECOVERY.md；RLT在线手册在相邻rl-platform/docs/RUNBOOK.md。
