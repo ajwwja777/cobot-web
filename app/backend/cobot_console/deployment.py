@@ -104,10 +104,12 @@ def catalog():
             "deterministic": not online,
             "entry": str(PLATFORM / "scripts/deployment_run.sh"),
         })
+    from .model_metadata import vla_models, describe
+    definitions.extend(vla_models())
     from .site_options import registered_models, inventory_models
     definitions.extend(registered_models(definitions))
     definitions.extend(inventory_models(definitions))
-    return definitions
+    return [describe(item) for item in definitions]
 
 
 def process_identity(pid):
@@ -162,7 +164,7 @@ class ManagedRuntime:
         from .device_control import _default_process_finder
         if self._owned_members(read_json(self.registry)):
             raise DeploymentError("请先释放当前部署模型")
-        for marker in ("methods.openpi_rlt.scripts.online_role", "inference_pi05_rtc_task2.py", "deployment_pi05_client.py", "methods.openpi_rlt.plug_v2.runtime"):
+        for marker in ("methods.openpi_rlt.scripts.online_role", "inference_pi05_rtc_task2.py", "deployment_pi05_client.py", "g05_task2_client.py", "inference_xr1_async.py", "adapters.fluxvla_cobot.task2_client", "methods.openpi_rlt.plug_v2.runtime"):
             if _default_process_finder(marker):
                 raise DeploymentError("已有推理进程，请先结束并释放当前模型")
         # An existing v3 Stage-1 server can be reused only by v3 evaluation.
@@ -178,6 +180,9 @@ class ManagedRuntime:
         environment = {**os.environ, "COBOT_MODEL_SESSION_USE": str(self.directory / "session-use.json")}
         environment.pop("COBOT_DEPLOYMENT_ADAPTER", None)
         environment.pop("COBOT_CUSTOM_CHECKPOINT", None)
+        if model["kind"] == "vla":
+            environment["COBOT_MODEL_GATE_STATE"] = str(self.directory / "vla-gate.json")
+            atomic_json(self.directory / "vla-gate.json", {"ready": False, "paused": True})
         if model.get("custom"):
             environment["COBOT_DEPLOYMENT_ADAPTER"] = model["adapter_id"]
             environment["COBOT_CUSTOM_CHECKPOINT"] = model["checkpoint"]
@@ -216,6 +221,15 @@ class ManagedRuntime:
                 saved["ready_confirmed"] = True
                 atomic_json(self.registry, saved)
             return {**saved, "phase": mapped, "session": session, "intervention_count": (session or {}).get("intervention_count", 0), "detail": (session or {}).get("fault_reason"), "log_tail": output}
+        if model["kind"] == "vla":
+            gate = read_json(self.directory / "vla-gate.json")
+            ready = gate.get("ready") and gate.get("pid") == saved["pid"]
+            phase = "paused" if ready and gate.get("paused", True) else "running" if ready else "loading"
+            if ready and not saved.get("ready_confirmed"):
+                saved["ready_confirmed"] = True
+                atomic_json(self.registry, saved)
+            return {**saved, "phase": phase, "log_tail": output,
+                    "intervention_count": gate.get("intervention_count", 0)}
         ready = "ready and PAUSED" in output or saved.get("ready_confirmed")
         if ready and not saved.get("ready_confirmed"):
             saved["ready_confirmed"] = True
@@ -275,9 +289,11 @@ class ManagedRuntime:
                 return state
             return self._session_action("/api/session/" + operation)
         paused = operation != "start" and operation != "resume"
-        command = ["bash", "-c", "source /home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash && exec /usr/bin/python3 \"$1\" \"$2\"", "deployment",
+        command = ["bash", "-c", "source /home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash && exec /usr/bin/python3 \"$@\"", "deployment",
                    str(PLATFORM / "app/backend/cobot_console/deployment_ros.py"), "pause" if paused else "resume"]
-        result = subprocess.run(command, capture_output=True, text=True, timeout=6)
+        if state["model"]["kind"] == "vla" and not paused:
+            command.append("--arm")
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10)
         if result.returncode:
             raise DeploymentError((result.stderr or result.stdout).strip()[-900:])
         return {"phase": "paused" if paused else "running"}

@@ -243,6 +243,7 @@ def inventory_models(builtins):
     return [dict(id="asset-" + hashlib.sha256(row["checkpoint"].encode()).hexdigest()[:16],
                  label=row["relative"], kind="unadapted", mode="unavailable",
                  checkpoint=row["checkpoint"], available=False, format=row["format"],
+                 availability="missing_files" if row["format"].startswith("Metadata only") else "unregistered",
                  validation="Web control adapter not registered",
                  unavailable_reason=("仅元数据，本机缺少权重" if row["format"].startswith("Metadata only")
                                      else "选择同类适配器登记；不同模型需要推理、暂停、HIL 与动作映射适配"),

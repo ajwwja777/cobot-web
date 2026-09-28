@@ -34,7 +34,7 @@
   function updateCatalog(list){
     if(list)rltCatalog=list.models||[];
     if(!mounted)return;
-    catalog=(modelState().models||[]).map(m=>({...m,runtime:m.kind==='pi05'?'normal':'rlt'}));
+    catalog=(modelState().models||[]).map(m=>({...m,runtime:m.kind==='rlt'?'rlt':'normal'}));
     const select=$('#collection-model-select');
     if(!initialized&&catalog.length&&context.console){
       const saved=localStorage.getItem('cobot-collection-model-id');

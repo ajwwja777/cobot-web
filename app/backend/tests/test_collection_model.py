@@ -108,3 +108,14 @@ def test_real_saved_episode_labels_and_history_summary(tmp_path):
     assert service._outcome_summary(payload,tmp_path)['episode_outcome']=='failure'
     service.label_outcome('unknown')
     assert LabelStore(tmp_path).get_labels(uuid)['keep_for_training']=='false'
+
+
+def test_paused_vla_uses_normal_collection_without_moving_on_prepare():
+    m=manager()
+    m.runtime.status=lambda: {"phase":"paused","model":{"id":"g05","kind":"vla"}}
+    control=CollectionModel(m)
+    control.before_start(True,"g05")
+    assert m.runtime.calls == []
+    control.action("start")
+    control.action("pause")
+    assert m.runtime.calls == ["resume","pause"]

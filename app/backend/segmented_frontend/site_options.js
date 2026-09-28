@@ -75,10 +75,10 @@
   }
   async function refresh() {
     data = await api("/api/site/options");
-    fill($("#site-assets"), data.models, "id", m => m.checkpoint + (m.available ? "" : text(" [需适配]", " [adapter required]")));
+    fill($("#site-assets"), data.models, "id", m => window.CobotModelChoiceLabel?.(m) || m.checkpoint);
     fill($("#site-template"), data.templates, "id", m => m.label);
     const available = data.models.filter(m => m.available);
-    fill($("#site-default"), available, "id", m => m.checkpoint);
+    fill($("#site-default"), available, "id", m => window.CobotModelChoiceLabel?.(m) || m.checkpoint);
     if (available.some(m => m.id === data.selected_model)) $("#site-default").value = data.selected_model;
     renderHardware(); selectAsset();
   }

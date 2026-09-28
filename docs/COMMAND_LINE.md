@@ -558,3 +558,22 @@ python3 scripts/console.py recovery interrupt model
 输出栏常用命令也已更新为上述共享 CLI，暂停会读取当前身份，释放会调用完整模型卸载。
 
 命令按现有 API/schema 和原生脚本核对，测试验证参数、身份、失败不重试及恢复进程边界；2026-09-28已追加共享模型加载／释放、独立在线更新、媒体读取和硬件被动启动／停止验证。未进行真实采集、归位或动作，上电运动仍需现场验收。更改公共控制逻辑时仍需对应领域的现场验收。
+
+### 历史模型的原 .sh 入口（2026-09-28）
+
+以下目录均在 Cobot 的 /home/agilex/jiaan/project/vla-platform/integrations/cobot 下；A6000 主代码在 /data/LFT-W02_data/jiaan/jiaan/projects/vla-platform/integrations/cobot。先 cd 到表中目录，再执行对应命令。标“终端”的旧 live 入口会按原流程运动，不能当成仅加载命令；本次没有改变其初始位姿、RTC、动作映射或滤波参数。
+
+| 模型/场景 | 相对目录 | 原终端启动命令 | 网页 |
+|---|---|---|---|
+| FluxVLA π0.5 / in_the_pot / 5000 | fluxvla_pi05 | ./interface_task2_teach_rtc_live.sh 5000 | 暂停加载入口已接入 |
+| G0.5 / in_the_pot / 4000 | galaxea_g05/baseline | ./interface_task2_teach_rtc_live.sh 4000 | 暂停加载入口已接入 |
+| G0.5 DAgger / 4000+4000 | galaxea_g05/dagger | ./interface_task2_teach_rtc_live.sh 4000 | 暂停加载入口已接入 |
+| XR1 / in_the_pot / 4000 | xiaomi/xr1 | ./interface_task2_teach_rtc_live.sh 4000 | 暂停加载入口已接入 |
+| XR0 / in_the_pot / 4000 | xiaomi/xr0 | ./interface_live.sh 4000 | 原终端入口 |
+| LingBot V2 / in_the_pot / 2000、4000 | lingbot_v2 | ./interface_live.sh 4000 | 原终端入口 |
+| π0.5 / lift_book / 2000 | pi05/lift_book | ./interface_live.sh 2000 | 原终端入口 |
+| π0.5 / put_two_fruits / 2000、4999 | pi05/put_two_fruits | ./interface_live.sh 4999 | 原终端入口 |
+
+网页的“加载”通过 deployment_run.sh → vla-platform/integrations/cobot/managed_model.py → 对应旧 run_checkpoint*.sh 加载服务和暂停客户端。点击“开始/继续”才调用原 /task2/policy/arm 与 /task2/policy/set_paused。一个受管理的进程组包含客户端和它启动的服务，输出栏仍可看 PID 并释放整个模型；不自动启动独立终端窗口。启动计划可用 managed_model.py <模型ID> --check 做只读文件/命令检查。
+
+完整版本、checkpoint、依赖和具体缺失文件以 configs/cobot_models.json 与网页模型详情为准。DM0.5 和 XR1 DAgger 在本机缺权重；已有 Python/ROS 安装仍是现场依赖，不能仅复制 .sh 就认为新机器已具备环境。本批是入口迁入、控制接入和无动作验证，不代表重新完成真机成功率测试。

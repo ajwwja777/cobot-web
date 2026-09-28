@@ -269,7 +269,7 @@ def test_fixed_catalog_dagger_lineage(monkeypatch, tmp_path):
     dagger=models["pi05-in-the-pot-dagger"]
     assert dagger["checkpoint"].endswith("checkpoints/step_3000")
     assert dagger["base_checkpoint"].endswith("pi05/checkpoints/step_2000")
-    assert all(m["available"] for m in models.values() if not m["id"].startswith("plug_v3-"))
+    assert all(models[key]["available"] for key in ["plug-v3-reference", "plug-v3-warmup-5k", "plug-v3-warmup-20k", "pi05-in-the-pot", "pi05-in-the-pot-dagger"])
     assert "models/rlt/plug_v3_yyshadow/warmup-5000/" in models["plug-v3-warmup-5k"]["checkpoint"]
 
 def test_config_pins_snapshot_and_isolates_replay(tmp_path, monkeypatch):

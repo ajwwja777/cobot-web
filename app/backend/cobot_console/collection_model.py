@@ -24,7 +24,7 @@ class CollectionModel:
                 raise DeploymentError("请先结束部署操作或评估轮次")
             state = manager.runtime.status()
             if use_model:
-                if (state.get("model", {}).get("kind") != "pi05"
+                if (state.get("model", {}).get("kind") not in {"pi05", "vla"}
                         or state.get("model", {}).get("id") != model_id
                         or state.get("phase") not in {"ready", "paused"}):
                     raise DeploymentError("请先加载所选采集模型并等待就绪")

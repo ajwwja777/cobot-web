@@ -270,3 +270,15 @@ docs/COMMAND_LINE.md 补充设备／模型／采集／评测的按钮、CLI 和�
 Getea1 权重按实际格式发现，未接入网页暂停／HIL 协议的历史模型明确显示需适配；不把 safetensors 或训练 checkpoint 冒充当前 RLT／π0.5。基于实际 training_manifest 的 action_dim=7、chunk_len=10、z_dim=2048 及当前 v3 历史记录，补充 experts120_20k_20260925 冻结对比入口（step 20000、actor 10000）；保留当前默认值。本批没有修改模型权重。
 
 主代码在 A6000；现场只同步 web 运行文件，并为本机配置补 model_root，保留其他本地项。配置/适配边界见 COMMAND_LINE.md 新增章节。相关后端 111 passed、1 skipped（原有跳过项），前端 36 passed；额外终端配方与监督进程退出检查通过。未运行 CAN、launch、真实推理或训练。源码 9a12d0a 已 push 并同步，216 个运行文件 SHA 一致；本机配置仅追加 model_root，原配置保存在 runtime/migrations/20260928-site-config-before.json。确认模型 offline／采集 idle 后仅重启网页，实际 API 列出 25 项资产与 7 个可加载入口；DM0.5 仅元数据已独立标注，当前默认 plug_v3-online-latest 和内置硬件入口未变。模型根、control 脚本目录浏览和新静态资源通过。回执：outputs/deployments/site-options-verification.json；现场对应 runtime/migrations/20260928-site-options-verification.json。
+
+## 2026-09-28：复用历史部署脚本与模型身份标注
+
+来源：cobot_rlt 会话；用户要求复用以前直接 .sh 部署的成果，并在权重路径后标明模型、场景、训练步数与状态。
+
+- 历史 Galaxea G0.5（baseline/DAgger）、Xiaomi XR0/XR1/XR1 DAgger、LingBot V2、DM0.5、π0.5 lift_book/put_two_fruits 的脚本、客户端、配置、测试和 XR1 URDF 纳入 vla-platform/integrations/cobot；主代码在 A6000，Cobot 同步运行副本。来源和文件哈希在 configs/assets/legacy_deployment_entries.json。
+- configs/cobot_models.json 登记 12 个历史版本/入口；现有 FluxVLA、G05 两版本、XR1 原版复用旧服务、动作映射和 RTC 参数，通过原暂停/arm服务连接网页。加载不 arm、不恢复推理；网页 Start/Resume 才调用原 arm + resume；暂停锁防止示教释放覆盖网页手动暂停。
+- XR0、LingBot 两版本、另两场景的 π0.5 三版本保留原终端入口，不将会直接运动的原 live 脚本冒充“仅加载”。列表区分终端可用/网页待接入、缺少文件、基础模型依赖。DM0.5 与 XR1 DAgger 本机缺权重，历史权重仍在 A6000，不擅自复制。
+- 旧共享 Python/ROS 与 G05/Xiaomi/LingBot 的已安装 runtime 仍作为显式依赖保留，没有宣称环境整体迁移或跨机器从零重建完成。原部署目录暂保留，未达到完整现场验收的部分不清理。
+- 模型选择统一显示真实路径、模型、场景、步数与状态；RLT 分开标 Stage1 checkpoint / learner steps / actor version，π0.5 DAgger 保留 2000+3000 来源。备份目录名字不推断训练步数，没有证据时标待核验。
+
+验证：A6000 web 相关后端 39 passed/1 skipped；前端 37 passed。新网页手动暂停锁 3 passed，原 G05 generation/资产 preflight 6 passed，原 XR1 HIL/旧动作过期处理 26 passed。Cobot 四个 managed 启动计划 --check 通过；G05 两版本的 checkpoint 大小、归一化/配置/processor 哈希 preflight 通过。本批未加载新 GPU 模型、未启动真实 Episode、未发送机器人动作；真实模型加载和现场动作效果仍待逐个验收。
