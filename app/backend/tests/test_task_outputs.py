@@ -19,7 +19,7 @@ def test_only_exact_job_and_process_identity_can_be_stopped(tmp_path, monkeypatc
     entry=dict(job_id='arms-1',component='arms',pid=23456,phase='running',owned=True,
                stop_marker='cobot-platform/robot/arms/arms.launch',command=['arms_up.sh'])
     controller._write('arms',entry)
-    monkeypatch.setattr(deployment,'process_identity',lambda pid:42)
+    monkeypatch.setattr('cobot_control.processes.process_identity',lambda pid:42)
     for values in [('arms','arms-old',23456,42),('arms','arms-1',23457,42),('arms','arms-1',23456,99),('../other','arms-1',23456,42)]:
         with pytest.raises(DeviceControlError):controller.stop_job(*values)
     assert not stopped
@@ -33,7 +33,7 @@ def test_ros_stop_preserves_dependency_check(tmp_path,monkeypatch):
     controller=DeviceController(tmp_path,pid_probe=lambda pid,marker:True,process_finder=lambda marker:[1],
                                 stopper=lambda *args:stopped.append(args),system_probe=lambda:{})
     controller._write('roscore',dict(job_id='roscore-1',component='roscore',pid=12345,phase='running',command=['roscore'],stop_marker='roscore'))
-    monkeypatch.setattr(deployment,'process_identity',lambda pid:77)
+    monkeypatch.setattr('cobot_control.processes.process_identity',lambda pid:77)
     with pytest.raises(DeviceControlError,match='先停止机械臂和相机'):controller.stop_job('roscore','roscore-1',12345,77)
     assert not stopped
 

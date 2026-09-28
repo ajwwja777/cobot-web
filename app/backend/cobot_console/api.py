@@ -36,7 +36,7 @@ from segmented_capture.api import (
 from segmented_capture.capture_service import SegmentedCaptureService
 from segmented_capture.ports import CaptureGate
 
-from .paths import RUNTIME_ROOT, RLT, RLT_MODELS, LEGACY_DATA, SETTINGS
+from .paths import CONTROL, RUNTIME_ROOT, RLT, RLT_MODELS, LEGACY_DATA, SETTINGS
 from .mode import ModeConflict, RecorderModeCoordinator
 from .diagnostics import ConsoleDiagnostics
 from .rlt_proxy import RltBackendClient, RltBackendError, RltLifecycleRegistry
@@ -180,7 +180,7 @@ def create_app(
         camera_preview = SynchronizedCameraPreview(shared_cache, clock=monotonic)
     if device_controller is None:
         from .device_control import DeviceController
-        device_controller = DeviceController(Path(os.environ.get('COBOT_CONSOLE_JOB_RUNTIME',str(RUNTIME_ROOT / 'console-jobs'))))
+        device_controller = DeviceController(CONTROL / 'runtime/devices', extra_runtime=Path(os.environ.get('COBOT_CONSOLE_JOB_RUNTIME',str(RUNTIME_ROOT / 'console-jobs'))))
 
     def model_release() -> Dict[str, object]:
         manager = getattr(application.state, "deployment_manager", None)

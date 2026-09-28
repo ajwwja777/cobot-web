@@ -89,59 +89,9 @@ def browse(value=""):
     return {"path": str(path), "parent": parent, "entries": entries}
 
 
-def hardware():
-    return read().get("hardware", {})
-
-
-def device_marker(component, fallback):
-    entry = hardware().get(component)
-    return entry["path"] if entry else fallback
-
-
-def hardware_terminal(entry):
-    path = Path(entry["path"])
-    relative = "./" + path.name if str(path.parent) == entry["cwd"] else str(path)
-    lines = ["cd " + shlex.quote(entry["cwd"])]
-    if entry.get("setup"):
-        lines.append("source " + shlex.quote(entry["setup"]))
-    lines.append(("roslaunch " if path.suffix == ".launch" else "bash ") +
-                 " ".join(shlex.quote(x) for x in [relative, *entry.get("args", [])]))
-    return "\n".join(lines)
-
-
-def device_command(component):
-    entry = hardware().get(component)
-    if not entry:
-        return None
-    path = checked_path(entry["path"], directory=False)
-    setup = entry.get("setup", "")
-    if setup:
-        setup = str(checked_path(setup, directory=False))
-    return ["/usr/bin/python3", str(PROJECT / "scripts/site_device.py"),
-            "--component", component, "--path", str(path), "--setup", setup,
-            "--cwd", str(checked_path(entry["cwd"], directory=True)), "--", *entry.get("args", [])]
-
-
-def save_hardware(component, path, setup="", cwd="", args=None):
-    if component not in {"arms", "cameras"}:
-        raise ValueError("Unsupported hardware component")
-    with LOCK:
-        state = read()
-        config = state.setdefault("hardware", {})
-        if not path:
-            config.pop(component, None)
-        else:
-            target = checked_path(path, directory=False)
-            if target.suffix not in {".sh", ".launch"}:
-                raise ValueError("Choose a .sh or ROS 1 .launch file")
-            if target.suffix == ".launch" and not setup:
-                raise ValueError("ROS .launch requires its environment setup.bash")
-            if setup:
-                checked_path(setup, directory=False)
-            directory = checked_path(cwd or str(target.parent), directory=True)
-            config[component] = {"path": str(target), "setup": setup, "cwd": str(directory), "args": args or []}
-        write(state)
-
+from .control_import import control_package
+control_package()
+from cobot_control.site_hardware import hardware, device_marker, hardware_terminal, device_command, save_hardware
 
 def validate_checkpoint(template, checkpoint):
     if template not in TEMPLATES:

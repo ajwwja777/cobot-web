@@ -3,7 +3,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from cobot_console import device_control as dc
+from cobot_console.control_import import control_package
+control_package()
+from cobot_control import device_control as dc
 
 
 def test_selected_home_and_capture_are_exactly_allowlisted(tmp_path, monkeypatch):

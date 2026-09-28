@@ -5,7 +5,7 @@ import pytest
 import yaml
 
 from cobot_console.device_control import DeviceControlError, DeviceController
-import cobot_console.device_control as device_control
+from cobot_control import device_control
 
 class Process:
     def __init__(self,pid=123): self.pid=pid; self.code=None
@@ -180,7 +180,7 @@ def test_can_password_is_one_shot_and_never_persisted(tmp_path):
     spec={'component':'can','action':'configure','target':'task2'}
     token=control.confirm(spec)['confirmation_token']
     result=control.start({**spec,'sudo_password':'transient-secret'},token)
-    assert received==[([str(Path(__file__).resolve().parents[3] / 'scripts/can_web.sh'),'configure'],'transient-secret')]
+    assert received==[([str(device_control.CONTROL / 'scripts/can_web.sh'),'configure'],'transient-secret')]
     serialized=json.dumps(result)+((tmp_path/'can.json').read_text())
     assert 'transient-secret' not in serialized
     assert 'sudo_password' not in serialized

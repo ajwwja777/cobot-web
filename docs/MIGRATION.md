@@ -302,3 +302,7 @@ Cobot 已建立 /media/agilex/Getea1/jiaan/data/datasets/test 和 /media/agilex/
 - A6000 证据：outputs/verification/20260929-test-directories/；现场回执：runtime/migrations/20260929-test-directories.json。
 
 用户安排下一次现场整体验收 Cobot 使用、普通／模型辅助采集、部署评测及终端恢复，再进行 RLT 在线更新；这些现场验收尚未执行。后续长任务收到后按具体条目继续跟踪，不将本批目录功能验收视为整体任务完成。guide Git 仍由框架维护对话处理。
+
+## 2026-09-29：硬件规则共用（第一批，源码验收）
+
+CAN/ROS 探测、健康判定和设备任务管理移到 cobot-control/src/cobot_control；网页保留 HTTP、翻译、RLT/console 扩展和输出展示。新增 control/scripts/control.py，无需网页运行。67 个网页兼容测试、3 个独立进程用例通过。未改变动作/ROS 参数，未执行硬件运动；尚未同步现场。来源：cobot_rlt 本轮跨项目整理。

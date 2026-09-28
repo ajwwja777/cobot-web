@@ -159,7 +159,7 @@ class TaskOutputs:
         for component, job in devices['jobs'].items():
             row = {'id':job.get('job_id', component), 'component':component, **job}
             if not row.get('log_path'):
-                logs = sorted(self.devices.runtime.glob(component+'-*.log'), key=lambda p:p.stat().st_mtime, reverse=True)
+                logs = sorted((p for directory in getattr(self.devices, 'job_directories', [self.devices.runtime]) for p in directory.glob(component+'-*.log')), key=lambda p:p.stat().st_mtime, reverse=True)
                 if logs:
                     row.update(log_path=str(logs[0]), log_tail=tail(logs[0]))
                     if row.get('phase') == 'invalid':
@@ -196,7 +196,7 @@ class TaskOutputs:
         for log in sorted((RUNTIME/'pi05/logs').glob('rtc_policy_server_*.log'), reverse=True)[:1]:
             rows.append(dict(id='pi05-loader',component='pi05',phase='model',log_path=str(log),log_tail=tail(log),can_stop=False))
         known={row.get('log_path') for row in rows}
-        for log in (sorted(self.devices.runtime.glob('*.log'), key=lambda p:p.stat().st_mtime, reverse=True)[:30] if history else []):
+        for log in (sorted((p for directory in getattr(self.devices, 'job_directories', [self.devices.runtime]) for p in directory.glob('*.log')), key=lambda p:p.stat().st_mtime, reverse=True)[:30] if history else []):
             if str(log) not in known:
                 rows.append(dict(id='history-'+log.stem,component=log.stem.rsplit('-',1)[0],phase='archived',started_at=log.stat().st_mtime,
                                  log_path=str(log),log_tail=tail(log),can_stop=False))

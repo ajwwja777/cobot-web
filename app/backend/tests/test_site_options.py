@@ -21,6 +21,9 @@ def configured(tmp_path, monkeypatch):
     monkeypatch.setattr(site, "STATE", tmp_path / "state.json")
     monkeypatch.setattr(site, "MODEL_ROOT", tmp_path / "model")
     monkeypatch.setattr(site, "roots", lambda: [tmp_path])
+    from cobot_control import site_hardware
+    monkeypatch.setattr(site_hardware, "STATE", tmp_path / "hardware.json")
+    monkeypatch.setattr(site_hardware, "roots", lambda: [tmp_path])
     site.MODEL_ROOT.mkdir()
     return tmp_path
 
