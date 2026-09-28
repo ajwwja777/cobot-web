@@ -163,6 +163,44 @@ python3 scripts/console.py recovery status
 
 来源：2026-09-28 用户要求补充按钮／终端／真正实现对照，并将网页中的内部密码管道改为实际终端命令。本批修改命令展示与手册，不执行上述硬件控制命令。
 
+## 更换本机启动路径和模型
+
+设置中的“启动路径与模型”，以及采集／部署中的“选择路径 / 登记模型”打开同一个配置面板。浏览的是运行网页的服务器文件，不是笔记本文件；选择和保存只更新配置，不会启动机械臂、加载模型或开始推理。默认记住选择，仍由人点击“启动／加载”。
+
+### 机械臂和相机
+
+1. 先结束采集、释放模型并停止设备任务，再选择“机械臂 / 相机”。
+2. 选择自己的前台 `.sh` 或 ROS 1 `.launch`。launch 文件还要选择提供 ROS 包路径的 `setup.bash`；脚本也可自行激活 Python／ROS 环境。工作目录留空时使用启动文件所在目录，启动参数每行一个。
+3. 保存后，设备面板的原启动按钮使用该路径；“恢复内置入口”可回到当前 control 脚本。
+4. 输出栏继续显示启动命令、PID、日志和终止入口，常用命令也跟随配置。自定义脚本保持前台运行，不使用 `nohup`、`&` 或自行脱离会话，否则无法保证网页跟踪到完整进程生命周期。
+
+自定义入口由 web 的 `scripts/site_device.py` 保持稳定的任务 PID，子任务在同一会话运行；路径和参数通过 argv 传递，不拼进任意 shell 命令。保存配置时拒绝正在运行的设备任务，避免更换后无法正确停止旧任务。
+
+**更换 launch 路径不等于适配另一种机器人。** 设备健康、示教、归位、相机订阅仍使用当前 Cobot 话题／服务契约；节点名、话题、动作顺序不同，需要 cobot-control 适配。前台脚本由现场使用者提供其正确环境。
+
+### 已有和自选权重
+
+- 内置 RLT Reference、5k、在线／冻结和两个 π0.5 模型继续可用。已补充同一 plug_v3 配置的历史 20k actor，作为冻结对比项；它不是新的推荐默认模型。
+- 权重清单自动扫描本机配置的 `model_root`，后台约每 30 秒刷新。Getea1 上的 FluxVLA、Galaxea、DM0.5、LingBot、Xiaomi 和其他历史权重也可看见；“需适配”表示还没有对应的网页控制入口，不代表权重文件损坏。
+- “检查并登记”用于复用**同任务、同相机／动作布局**的已有适配器。选择模板和权重，确认其任务、归一化和控制约定一致后保存；可同时设为默认选择。配置面板不会试运行权重。
+- 当前可复用三个模板：plug_insertion 的冻结 RLT actor，以及 in_the_pot 的 π0.5 baseline RTC／DAgger RTC。RLT 选择 `actor_snapshot.pkl`，其上级运行目录需保留 `action_norm_stats.json`；不能把 learner 的 `latest.pkl` 当成 actor。π0.5 选择完整 checkpoint 目录，保留 `params`、checkpoint 元数据和模板对应 asset 的 norm_stats。
+- 检查通过只表示文件与已登记入口满足基本要求，不是推理或成功率验收。新场景、不同架构、FluxVLA 的 safetensors、分布式训练 checkpoint 等，不能仅换路径冒充上述模板。
+
+新模型适配归 vla-platform／rl-platform：提供推理加载／预处理、相机与状态输入、动作映射、暂停／继续、HIL、状态查询和退出接口，再接入 web 的共享模型生命周期。不要把另一个能运动的脚本直接当作“加载模型”入口；加载必须保持暂停，开始 Episode 才推理。历史模型已有命令行实现时优先复用，但还要核对网页的暂停与释放协议。
+
+### 配置在哪里
+
+| 内容 | Cobot 实际位置 |
+|---|---|
+| 本机启动路径、自选模型登记 | `/home/agilex/jiaan/project/cobot-web/runtime/data-console/site-options.json` |
+| 全局默认模型、评测目录 | `/home/agilex/jiaan/project/cobot-web/runtime/deployment/settings.json` |
+| 本机模型根与额外浏览根 | `/home/agilex/jiaan/project/cobot-web/configs/local.json` 的 `model_root`、`extension_roots` |
+| 当前内置权重根 | `/media/agilex/Getea1/jiaan/model` |
+
+浏览默认允许本机用户目录、项目根、模型根和登记的 ROS 工作区；其他共享目录可加入 `extension_roots`。另一台机器使用自己的绝对路径和环境，不需修改前端源码。机器配置保存在本机系统盘；代码和配置示例仍由 A6000／Git 管理，权重不复制进 web 仓库。修改 model_root／extension_roots 后，在任务结束时重启网页生效。
+
+来源：2026-09-28 用户要求可选择路径、补充磁盘模型清单，并确认“记住选择，手动启动／加载”。本批不升级 ROS 驱动，不执行真实模型推理或机器人动作。
+
 ## 1. 开机至可以采集的流程
 
 先检查机械臂工作范围、电源及连接。下面的顺序是完整流程，**不要把整段不加判断地批量执行**；已有服务使用状态检查，不重复启动。

@@ -262,3 +262,11 @@ USB 掉线重连后已完成已迁移资产的全量收据复核；尚不能据�
 docs/COMMAND_LINE.md 补充设备／模型／采集／评测的按钮、CLI 和真正实现对照，区分后台会话、手动前台终端和 API 请求。暂停／节点等操作不单开进程，tail 的 Ctrl+C 不停止后台任务；CLI 终结不会继承浏览器自动归位选项。
 
 本批仅改网页命令展示和文档，web/control 职责下沉仍按用户要求延期。验证覆盖命令 shell 语法、参数引用、原始命令保留、中英文及前端切换，不执行 CAN、节点启动、归位或模型加载。A6000 相关后端 45 项测试、前端全套 35 项测试通过，全部常用命令通过 bash -n（仅语法解析）。源码提交 0519849 已 push 并同步 Cobot，212 个运行文件 SHA 校验通过。确认模型 offline、采集 idle 后仅重启正式网页；首页、新版本静态文件和输出 API 均通过，现场 59 条命令不含手工密码管道。CAN/相机/home 的历史任务默认显示直接终端配方，同时保留真实登记命令。验证回执：A6000 outputs/deployments/terminal-recipes-verification.json，Cobot runtime/migrations/20260928-terminal-recipes.json。
+
+## 2026-09-28：可配置启动入口和模型登记
+
+新增 site_options 后端与设置面板：服务器文件浏览、机械臂／相机 .sh 或 ROS 1 .launch 路径、环境／工作目录／argv，保留内置恢复入口。独立 site_device 监督进程保持任务身份，配置在运行期间拒绝更改，输出命令跟随配置。模型支持复用同契约适配器登记路径和保存默认选择；不会自动启动或推理。
+
+Getea1 权重按实际格式发现，未接入网页暂停／HIL 协议的历史模型明确显示需适配；不把 safetensors 或训练 checkpoint 冒充当前 RLT／π0.5。基于实际 training_manifest 的 action_dim=7、chunk_len=10、z_dim=2048 及当前 v3 历史记录，补充 experts120_20k_20260925 冻结对比入口（step 20000、actor 10000）；保留当前默认值。本批没有修改模型权重。
+
+主代码在 A6000；现场只同步 web 运行文件，并为本机配置补 model_root，保留其他本地项。配置/适配边界见 COMMAND_LINE.md 新增章节。相关后端 110 passed、1 skipped（原有跳过项），前端 36 passed；额外终端配方与监督进程退出检查通过。未运行 CAN、launch、真实推理或训练。正式同步及现场只读验收结果另记于本节。

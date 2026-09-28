@@ -242,6 +242,12 @@ def mock_assets(monkeypatch, tmp_path):
     monkeypatch.setattr(deployment,"RLT",root);monkeypatch.setattr(deployment,"RUN",run)
     monkeypatch.setattr(paths,"RLT",root)
     monkeypatch.setattr(deployment,"RLT_WARMUP",actor.parent.parent)
+    model_root = actor.parent.parent.parent
+    monkeypatch.setattr(deployment,"RLT_MODELS",model_root)
+    historical = model_root / "history/candidates/experts120_20k_20260925"
+    (historical / "actor_snapshot").mkdir(parents=True)
+    (historical / "actor_snapshot/actor_snapshot.pkl").write_bytes(b"fixture")
+    (historical / "action_norm_stats.json").write_text("{}")
     for attr,name,step in [("LEGACY","pi05",2000),("DAGGER","pi05-dagger",3000)]:
         entry=tmp_path/name;(entry/("checkpoints/step_"+str(step))).mkdir(parents=True)
         (entry/"run_checkpoint_rtc_task2.sh").write_text("# fixture only")
@@ -256,6 +262,10 @@ def mock_assets(monkeypatch, tmp_path):
 def test_fixed_catalog_dagger_lineage(monkeypatch, tmp_path):
     mock_assets(monkeypatch, tmp_path)
     models={m["id"]:m for m in catalog()}
+    historical=models["plug-v3-warmup-20k"]
+    assert historical["mode"] == "frozen" and historical["actor_version"] == 10000
+    assert historical["adapter_id"] == "plug-v3-warmup-5k"
+    assert historical["training_enabled"] is False
     dagger=models["pi05-in-the-pot-dagger"]
     assert dagger["checkpoint"].endswith("checkpoints/step_3000")
     assert dagger["base_checkpoint"].endswith("pi05/checkpoints/step_2000")

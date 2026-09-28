@@ -12,8 +12,13 @@ HARDWARE_SCRIPTS = frozenset((
 def in_directory(root, command):
     return "cd " + shlex.quote(str(root)) + "\n" + command
 
-def script_command(command):
+def script_command(command, *, configured=True):
     name = command.split()[0]
+    if configured and name in {"arms_up.sh", "cameras_up.sh"}:
+        from .site_options import hardware, hardware_terminal
+        entry = hardware().get(name[:-6])
+        if entry:
+            return hardware_terminal(entry)
     root = CONTROL if name in HARDWARE_SCRIPTS else PROJECT
     return in_directory(root, "./scripts/" + command)
 
@@ -80,10 +85,16 @@ def task_terminal_details(row):
     command = ""
     if argv:
         name = Path(argv[0]).name
-        if name == "can_web.sh" and len(argv) == 2:
+        if len(argv) > 2 and Path(argv[1]).name == "site_device.py":
+            from .site_options import hardware_terminal
+            options = argv[:argv.index("--")]
+            entry = {key: options[options.index("--" + key) + 1] for key in ("path", "setup", "cwd")}
+            entry["args"] = argv[len(options) + 1:]
+            command = hardware_terminal(entry)
+        elif name == "can_web.sh" and len(argv) == 2:
             command = can_command(argv[1])
         elif name in HARDWARE_SCRIPTS:
-            command = script_command(name + (" " + " ".join(shlex.quote(x) for x in argv[1:]) if len(argv) > 1 else ""))
+            command = script_command(name + (" " + " ".join(shlex.quote(x) for x in argv[1:]) if len(argv) > 1 else ""), configured=False)
         elif name == "deployment_run.sh" and len(argv) >= 2:
             command = cli_command("model load --id " + shlex.quote(argv[1]))
     return {"terminal_command": command, "implementation": implementation_help(command)}

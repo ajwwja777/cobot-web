@@ -17,6 +17,7 @@ elif [[ "${1:-}" == pi05-in-the-pot ]]; then
 else
   echo '未登记的 π0.5 模型' >&2; exit 2
 fi
+export CHECKPOINT_DIR="${COBOT_CUSTOM_CHECKPOINT:-$CHECKPOINT_DIR}"
 # Use the historical package's own preflight without modifying it.
 PI05_RTC_DRY_RUN=1 "$ROOT/run_checkpoint_rtc_task2.sh" "$STEP" live
 export PI05_RUNTIME_ROOT=/home/agilex/junfeng/workspace/pi05_cobot

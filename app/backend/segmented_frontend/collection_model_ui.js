@@ -1,7 +1,7 @@
 "use strict";
 (function(root){
   const $=selector=>document.querySelector(selector);
-  let state={},capture={},busy=false,polling=false,mounted=false,modelsKey='',pendingAction='',lastLoaded='';
+  let state={},capture={},busy=false,polling=false,mounted=false,modelsKey='',pendingAction='',lastLoaded='',preferredModel='';
   // Estimates from recorded launches, never a timer or a readiness signal.
   root.CobotModelLoading=model=>{
     if(model?.kind==='pi05'||model?.runtime==='normal')return {zh:'正在加载 · 预计约 1–4 分钟',en:'Loading · approximately 1–4 minutes'};
@@ -25,7 +25,7 @@
     $('#capture-use-model').disabled=locked||busy||Boolean(state.operation);
     select.disabled=!use||locked||busy||Boolean(state.operation);
     const loaded=state.model?.id===select.value&&!['offline','error'].includes(state.phase);
-    $('#capture-model-load').disabled=locked||busy||Boolean(state.operation)||loaded||!select.value;
+    $('#capture-model-load').disabled=locked||busy||Boolean(state.operation)||loaded||!select.value||!state.models?.find(m=>m.id===select.value)?.available;
     $('#capture-model-unload').disabled=locked||busy||Boolean(state.operation)||!state.model||state.phase==='offline';
     $('#capture-session-start').disabled=locked||!ready()||Boolean(state.session_active);
     $('#capture-session-stop').disabled=locked||busy||Boolean(state.operation)||!state.session_active;
@@ -38,8 +38,8 @@
     try{
       const response=await fetch('/api/collection/model',{cache:'no-store'});
       state=await root.CobotConsoleUI.parseApiResponse(response);
-      const models=(state.models||[]).filter(m=>m.available),key=JSON.stringify(models.map(m=>[m.id,m.checkpoint])),select=$('#capture-model-select');
-      if(key!==modelsKey||!select.options.length){modelsKey=key;const keep=select.value||localStorage.getItem('cobot-capture-model')||state.model?.id;select.replaceChildren(...models.map(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=root.CobotModelChoiceLabel(m);return o;}));if(models.some(m=>m.id===keep))select.value=keep;}
+      const models=(state.models||[]),key=JSON.stringify(models.map(m=>[m.id,m.checkpoint,m.available])),select=$('#capture-model-select');
+      if(key!==modelsKey||!select.options.length){modelsKey=key;const keep=preferredModel||select.value||localStorage.getItem('cobot-capture-model')||state.selected_model||state.model?.id;select.replaceChildren(...models.map(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=root.CobotModelChoiceLabel(m)+(m.available?'':(english()?' [adapter required]':' [需适配]'));o.disabled=!m.available;return o;}));if(models.some(m=>m.id===keep)){select.value=keep;preferredModel="";}}
       if(!state.status_stale&&['ready','paused','running'].includes(state.phase)&&state.model){
         const key=state.model.id+':'+state.started_at;
         if(lastLoaded!==key){lastLoaded=key;root.CobotWorkspaceUI?.report((english()?'Model loaded: ':'模型加载成功：')+state.model.checkpoint,'success',english()?'Model':'模型');}
@@ -58,6 +58,7 @@
     }catch(error){root.CobotWorkspaceUI?.report(error.message,'error',label);}
     finally{busy=false;pendingAction="";await refresh();}
   }
+  root.addEventListener("cobot:model-default",event=>{preferredModel=event.detail;modelsKey="";refresh();});
   function mount(){
     if(mounted)return;mounted=true;
     $('#capture-use-model').checked=localStorage.getItem('cobot-capture-use-model')==='true';
@@ -66,7 +67,7 @@
     for(const [id,name] of [['model-load','load'],['model-unload','unload'],['session-start','session_start'],['session-stop','session_stop']])$('#capture-'+id).addEventListener('click',()=>action(name));
     refresh();setInterval(refresh,1500);
   }
-  function identity(){const model=(state.models||[]).find(m=>m.id===$('#capture-model-select').value);return model?{task_id:'in_the_pot',model_id:model.id,checkpoint_id:'step_'+model.step,dataset_round:'dagger_collection'}:{};}
+  function identity(){const model=(state.models||[]).find(m=>m.id===$('#capture-model-select').value);return model?{task_id:state.model?.kind==='rlt'?'plug_insertion':'in_the_pot',model_id:model.id,checkpoint_id:'step_'+model.step,dataset_round:'dagger_collection'}:{};}
   const loaded=()=>!state.status_stale&&['ready','paused','running'].includes(state.phase)&&state.model?.id===$('#capture-model-select')?.value;
   root.CobotCollectionModel={mount,render,ready,loaded,identity,action,refresh,get state(){return state;},get busy(){return busy||Boolean(state.operation);},get pendingAction(){return pendingAction||state.operation||"";},updateCapture:value=>{capture=value;}};
 })(window);

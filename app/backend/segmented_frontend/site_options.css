@@ -1,0 +1,24 @@
+dialog.site-options {width:min(760px,calc(100vw - 36px));max-height:85vh;overflow:auto;border:1px solid var(--border,#48484c);border-radius:14px;background:var(--panel,#19191b);color:var(--text,#eee);padding:18px;box-shadow:0 18px 60px #0008;}
+dialog.site-options[open]{animation:site-open .18s ease-out;}
+.site-options::backdrop{background:#0007;}
+.site-options section{display:grid;gap:12px;min-width:0;}
+.site-options section[hidden]{display:none;}
+.site-options p{font-size:12px;line-height:1.6;overflow-wrap:anywhere;}
+.site-options .settings-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.site-options h2{font-size:16px;margin:0;}
+.site-tabs{display:flex;gap:8px;margin-bottom:16px;}
+.site-field{display:grid;gap:6px;min-width:0;}
+.site-field label,.site-options section>label{font-size:12px;}
+.site-field input,.site-field select,.site-field textarea{width:100%;min-width:0;box-sizing:border-box;}
+.site-path{grid-template-columns:minmax(0,1fr) auto;align-items:end;}
+.site-path label{grid-column:1/-1;}
+.site-options input[type=checkbox]{margin-right:8px;}
+.site-options textarea{min-height:64px;resize:vertical;}
+.site-options button{min-height:32px;}
+.site-defaults{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:8px;border-top:1px solid #5555;padding-top:14px;}
+#site-browser{border-top:1px solid #5555;margin-top:16px;padding-top:14px;}
+#site-browser-list{max-height:200px;overflow:auto;display:grid;gap:4px;}
+#site-browser-list button{text-align:left;overflow-wrap:anywhere;}
+.site-options[aria-busy=true] button{pointer-events:none;opacity:.65;}
+@keyframes site-open{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){dialog.site-options[open]{animation:none;}}

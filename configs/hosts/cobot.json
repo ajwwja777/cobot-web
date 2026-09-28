@@ -79,5 +79,6 @@
     "/media/agilex/Getea1/jiaan/data/datasets/in_the_pot/recordings/cobot-dagger/round_001",
     "/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/legacy_record",
     "/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/legacy_test"
-  ]
+  ],
+  "model_root": "/media/agilex/Getea1/jiaan/model"
 }

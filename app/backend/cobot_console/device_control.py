@@ -530,16 +530,22 @@ class DeviceController:
             raise DeviceControlError('unsupported device arguments')
         return result
 
+    def _marker(self, component):
+        from .site_options import device_marker
+        return device_marker(component, _STOP_MARKERS[component])
+
     def _command(self, spec: Dict[str,str]):
         component, action = spec['component'], spec['action']
         if component == 'can':
             return [str(SCRIPTS/'can_web.sh'), action]
         if component == 'roscore':
             return [str(SCRIPTS/'roscore_up.sh')]
-        if component == 'arms':
-            return [str(SCRIPTS/'arms_up.sh')]
-        if component == 'cameras':
-            return [str(SCRIPTS/'cameras_up.sh')]
+        if component in ('arms', 'cameras'):
+            from .site_options import device_command
+            try:
+                return device_command(component) or [str(SCRIPTS / (component + '_up.sh'))]
+            except (OSError, ValueError) as error:
+                raise DeviceControlError(str(error)) from error
         if component == 'home':
             if spec['target'] == 'selection':
                 return [str(SCRIPTS/'home.sh'),'selected','--targets',','.join(spec['arms']),'--pose',spec['pose'],'--yes']
@@ -621,7 +627,7 @@ class DeviceController:
             if component == 'roscore':
                 blockers = []
                 for dependent in ('arms','cameras'):
-                    if self.process_finder(_STOP_MARKERS[dependent]):
+                    if self.process_finder(self._marker(dependent)):
                         blockers.append(dependent)
                 if blockers:
                     raise DeviceControlError(
@@ -630,7 +636,9 @@ class DeviceController:
             return self._stop_managed(component)
 
         if component in ('roscore','arms','cameras') and action == 'start':
-            marker = _STOP_MARKERS[component]
+            marker = self._marker(component)
+            if marker != _STOP_MARKERS[component] and self.process_finder(_STOP_MARKERS[component]):
+                raise DeviceControlError("Built-in launcher is still running; stop it before using the custom launch")
             existing = self.process_finder(marker)
             if existing:
                 health = self.system_probe().get(component, {})
@@ -682,7 +690,7 @@ class DeviceController:
         from .deployment import process_identity
         value['start_ticks'] = process_identity(int(process.pid))
         if component in _STOP_MARKERS:
-            value['stop_marker'] = _STOP_MARKERS[component]
+            value['stop_marker'] = self._marker(component)
         self._processes[component] = process
         self._write(component, value)
         return dict(value)
@@ -702,7 +710,7 @@ class DeviceController:
             marker = value.get('stop_marker') or ((value.get('command') or [''])[0])
             if not marker:
                 raise DeviceControlError('没有可核验的任务命令')
-            if component == 'roscore' and any(self.process_finder(_STOP_MARKERS[k]) for k in ('arms','cameras')):
+            if component == 'roscore' and any(self.process_finder(self._marker(k)) for k in ('arms','cameras')):
                 raise DeviceControlError('请先停止机械臂和相机，再停止 ROS')
             self.stopper(pid, marker)
             value.update(phase='stopping', stopped_at=float(self.clock()), detail='已发送 Ctrl+C，正在等待退出')
@@ -729,7 +737,7 @@ class DeviceController:
         return dict(value)
 
     def _stop_managed(self, component: str) -> Dict[str,Any]:
-        marker = _STOP_MARKERS[component]
+        marker = self._marker(component)
         pids = set(int(pid) for pid in self.process_finder(marker))
         path = self.runtime / (component + '.json')
         try:

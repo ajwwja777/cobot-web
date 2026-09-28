@@ -24,7 +24,7 @@ from .shared_model_env import BETWEEN_EPISODES
 from capture_core.asset_storage import require_storage
 
 from .paths import (PROJECT as PLATFORM, RLT, DATA, PI05 as LEGACY, PI05_DAGGER as DAGGER,
-                    RUNTIME_ROOT, RLT_WARMUP, PI05_CHECKPOINT, PI05_DAGGER_CHECKPOINT, migrated_data_path)
+                    RUNTIME_ROOT, RLT_WARMUP, RLT_MODELS, PI05_CHECKPOINT, PI05_DAGGER_CHECKPOINT, migrated_data_path)
 RUN = RLT / "outputs/rlt/plug_v3_yyshadow"
 RUNTIME = RUNTIME_ROOT / "deployment"
 
@@ -57,6 +57,12 @@ def catalog():
              checkpoint=str(actor), base_checkpoint=base, step=5000, actor_version=2500,
              prompt="Insert the held plug into the socket.", home_pose="plug2", control_hz=20,
              validation="离线验证通过 · 真机待验收", deterministic=True),
+        dict(id="plug-v3-warmup-20k", label="插孔 · 历史 Warmup 20,000 步", kind="rlt", mode="frozen",
+             checkpoint=str(RLT_MODELS / "history/candidates/experts120_20k_20260925/actor_snapshot/actor_snapshot.pkl"),
+             base_checkpoint=base, step=20000, actor_version=10000,
+             adapter_id="plug-v3-warmup-5k", custom=True,
+             prompt="Insert the held plug into the socket.", home_pose="plug2", control_hz=20,
+             validation="Historical 20k comparison checkpoint; not the default", deterministic=True),
         dict(id="plug-v3-reference", label="插孔 · Stage 1 Reference", kind="rlt", mode="reference",
              checkpoint=base, base_checkpoint=base, step=4999, actor_version=-1,
              prompt="Insert the held plug into the socket.", home_pose="plug2", control_hz=20,
@@ -76,6 +82,8 @@ def catalog():
         available = checkpoint is not None and checkpoint.exists()
         if item["kind"] == "rlt":
             available = available and bool(base) and (Path(base) / "params").is_dir()
+            if item.get("custom"):
+                available = available and (checkpoint.parent.parent / "action_norm_stats.json").is_file()
         else:
             entry_root = DAGGER if item["id"].endswith("dagger") else LEGACY
             available = available and (entry_root / "run_checkpoint_rtc_task2.sh").is_file()
@@ -96,6 +104,9 @@ def catalog():
             "deterministic": not online,
             "entry": str(PLATFORM / "scripts/deployment_run.sh"),
         })
+    from .site_options import registered_models, inventory_models
+    definitions.extend(registered_models(definitions))
+    definitions.extend(inventory_models(definitions))
     return definitions
 
 
@@ -165,6 +176,11 @@ class ManagedRuntime:
         atomic_json(self.directory / "session-use.json", {
             "use": "collection" if model.get("training_enabled") else "evaluation"})
         environment = {**os.environ, "COBOT_MODEL_SESSION_USE": str(self.directory / "session-use.json")}
+        environment.pop("COBOT_DEPLOYMENT_ADAPTER", None)
+        environment.pop("COBOT_CUSTOM_CHECKPOINT", None)
+        if model.get("custom"):
+            environment["COBOT_DEPLOYMENT_ADAPTER"] = model["adapter_id"]
+            environment["COBOT_CUSTOM_CHECKPOINT"] = model["checkpoint"]
         with log.open("ab") as stream:
             self.process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stream,
                                             stderr=subprocess.STDOUT, start_new_session=True, env=environment)
@@ -332,6 +348,7 @@ class DeploymentManager:
     EVALUATION_GROUPS = {
         "plug-v3-warmup-5k": "plug_insertion/rl-platform/rlt/warmup_5000",
         "plug-v3-reference": "plug_insertion/rl-platform/rlt/reference_4999",
+        "plug-v3-warmup-20k": "plug_insertion/rl-platform/rlt/warmup_20000",
         "plug_v3-stage1-reference": "plug_insertion/rl-platform/rlt/reference_4999",
         "plug_v3-frozen-latest": "plug_insertion/rl-platform/rlt/frozen_online",
         "pi05-in-the-pot": "in_the_pot/vla-platform/pi05/baseline_2000",
@@ -490,7 +507,7 @@ class DeploymentManager:
                 raise DeploymentError("请先结束当前采集或评估轮次")
             model = next((m for m in self.model_provider() if m["id"] == model_id), None)
             if not model or not model["available"]:
-                raise DeploymentError("所选模型不可用")
+                raise DeploymentError((model or {}).get("unavailable_reason") or "所选模型不可用")
             current = self.runtime.status()
             if (current.get("model", {}).get("id") == model_id
                     and current.get("phase") in {"loading", "ready", "paused"}):
@@ -708,3 +725,5 @@ def install_routes(app, cameras, modes, devices):
 
     from .task_outputs import install_output_routes
     install_output_routes(app, manager, devices)
+    from .site_options import install_routes as install_site_routes
+    install_site_routes(app, manager, devices)

@@ -249,7 +249,7 @@
     '反馈已过期':'Feedback stale','CAN 反馈缺失':'CAN feedback missing','正在示教':'Teaching','示教中':'Teaching','节点正常':'Node ready',
     '退出示教，正常失能':'Teach released, idle disabled','可拖动同级功能框，排序会自动保存。':'Drag peer panels to reorder. The layout is saved automatically.','布局已保存。':'Layout saved.',
     '输出':'Output','命令':'Commands','选择任务':'Select task','任务列表':'Task list','选择命令':'Select command','命令任务分类':'Command category',
-    '实际启动与进程':'Launch and current process','当前命令':'Current command','常用命令':'Common commands','历史':'History','跟随输出':'Follow output','终止任务':'Terminate task','释放模型组':'Release model processes',
+    '实际启动与进程':'Launch and current process','适配状态':'Adapter status','当前命令':'Current command','常用命令':'Common commands','历史':'History','跟随输出':'Follow output','终止任务':'Terminate task','释放模型组':'Release model processes',
     '刷新输出':'Refresh output','隐藏命令':'Hide commands','复制命令':'Copy command','已复制':'Copied','复制失败，请直接选中命令复制':'Copy failed; select the command and copy manually',
     '请手动复制上方路径':'Copy the path above manually','暂无命令':'No command','暂无任务':'No tasks','无任务':'No task','暂无输出':'No output',
     '暂无任务输出':'No task output','等待任务输出':'Waiting for task output','模型日志':'Model log','最近输出':'Latest output','全部任务':'All tasks',
