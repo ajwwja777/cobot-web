@@ -8,19 +8,20 @@
   let state=null, localBusy=false, selectedModel="", modelSignature="", selectedRecord="", records=[], recordKey="", lastNotice="", lastLoaded="", activeBefore=null,loadedSelectionKey="";
   let homePoses={}, outputsBusy=false, statusBusy=false, recordRequest=0;
   let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null;
+  const modelPicker=window.CobotModelPicker.create({container:$("deployment-model-picker"),modelSelect:$("deployment-model"),sceneId:"deployment-scene",onChange:selection=>{selectedModel=selection.modelId;selectedRecord="";describeModel();renderControls();refreshRecords();}});
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
   function notify(text,error=false,tone=null){transportMessage=false;$("deployment-message").textContent=text;$("deployment-message").classList.toggle("error",error);window.CobotWorkspaceUI?.report(text,tone||(error?"error":"success"),"部署");}
   async function request(path, body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});let p;try{p=await r.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error("服务返回异常（HTTP "+r.status+"）");}if(!r.ok)throw new Error(typeof p.detail==="string"?p.detail:JSON.stringify(p.detail||p.error||r.status));return p;}catch(error){if(controller.signal.aborted||error.name==="AbortError"||error instanceof TypeError){const failure=new Error(controller.signal.aborted||error.name==="AbortError"?"请求超时（12 秒），正在重新连接":"连接中断，正在重新连接");failure.transport=true;throw failure;}throw error;}finally{clearTimeout(timer);}}
   function model(){return state?.models?.find(m=>m.id===selectedModel);}
-  function describeModel(){const m=model(),facts=$("deployment-facts");facts.replaceChildren();if(!m)return;
-    const rows=[["模型",m.family],["任务",m.task],["权重路径",m.checkpoint],["终端命令",m.cli_command],["适配状态",window.CobotPreferences?.language==="en"?(m.unavailable_reason_en||m.unavailable_reason):m.unavailable_reason],["基础模型",m.base_checkpoint],["训练来源",m.training_lineage],["训练步数",m.step?.toLocaleString()],["Stage 1 checkpoint",m.stage1_step],["Learner step",m.learner_step],["Actor 版本",m.actor_version],["控制频率",m.control_hz?m.control_hz+" Hz":null],["动作模式",m.deterministic===true?"固定均值 / 无探索":m.kind==="pi05"?"原 RTC 推理":"—"],["验证",m.validation]];
+  function describeModel(){const m=model(),facts=$("deployment-facts");facts.replaceChildren();if(!m){renderControls();return;}
+    const rows=[["模型",m.family],["任务",m.task],["终端命令",m.cli_command],["适配状态",window.CobotPreferences?.language==="en"?(m.unavailable_reason_en||m.unavailable_reason):m.unavailable_reason],["基础模型",m.base_checkpoint],["训练来源",m.training_lineage],["训练步数",m.step?.toLocaleString()],["Stage 1 checkpoint",m.stage1_step],["Learner step",m.learner_step],["Actor 版本",m.actor_version],["控制频率",m.control_hz?m.control_hz+" Hz":null],["动作模式",m.deterministic===true?"固定均值 / 无探索":m.kind==="pi05"?"原 RTC 推理":"—"],["验证",m.validation]];
     for(const [key,value] of rows){if(value==null||value==="")continue;facts.append(el("dt",key),el("dd",value));}
     window.CobotFeaturePaths?.update("deployment",{model:m,state});
     $("deploy-home-pose").dataset.preferred=m.home_pose;renderHomePoses();renderControls();
   }
   function renderHomePoses(){const select=$("deploy-home-pose"),target=$("deploy-home-target").value;const previous=select.value,values=homePoses[target]||[];const preferred=select.dataset.preferred;select.replaceChildren(...values.map(v=>{const o=el("option",v);o.value=v;return o;}));select.value=values.includes(preferred)?preferred:values.includes(previous)?previous:(values[0]||"");if(values.length)delete select.dataset.preferred;}
   function renderControls(){if(!state)return;const uncertain=Boolean(connectionError||state.status_stale),busy=localBusy||Boolean(state.operation),loaded=["ready","paused","running"].includes(state.phase),active=Boolean(state.active),same=state.model?.id===selectedModel;
-    $("deploy-load").disabled=busy||uncertain||state.phase!=="offline"||!model()?.available;
+    $("deploy-load").disabled=busy||uncertain||state.phase!=="offline"||!window.CobotModelPicker.available(model());
     $("deploy-unload").disabled=busy||state.phase==="offline";
     $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running"||model()?.evaluation_allowed===false||model()?.capabilities?.start===false;
     $("deploy-pause").disabled=busy||!active||state.phase!=="running"||model()?.capabilities?.pause===false;
@@ -31,7 +32,7 @@
     recentDirectories?.setDisabled(active);recentDirectories?.update();
     $("deployment-storage").disabled=false;
     $("deploy-home").disabled=busy||uncertain||!$("deploy-home-pose").value;
-    $("deployment-model").disabled=busy||active;
+    modelPicker.setDisabled(busy||active||state.phase==="loading");
     $("deployment-gate").textContent=uncertain?"状态待确认":phaseName[state.phase]||state.phase;
     $("deployment-gate").dataset.tone=uncertain?"amber":state.phase==="error"?"red":loaded?"green":state.phase==="loading"?"amber":"gray";
     $("deployment-trial-state").textContent=uncertain?"重新连接中":active?(state.active.intervened?"人工介入 · ":"")+(phaseName[state.phase]||state.phase):loaded?(model()?.evaluation_allowed===false?"在线更新模型 · 请在采集页开始 Session":"待开始"):"等待加载";
@@ -42,10 +43,15 @@
     $("deployment-load-state").classList.toggle("error",!uncertain&&(state.phase==="error"||Boolean(state.error)));
     $("deploy-load").classList.remove("is-loading");
   }
-  function renderStatus(next){const loadingChanged=!next.status_stale&&next.phase==="loading"&&(state?.phase!=="loading"||state?.model?.id!==next.model?.id||state?.started_at!==next.started_at);connectionError="";state=next;if(loadingChanged)notify(window.CobotModelLoading(next.model||model()).zh,false,"running");if(transportMessage&&!next.status_stale){notify(next.operation?operationName[next.operation]+"中":"连接已恢复");}const signature=JSON.stringify([window.CobotPreferences?.language,next.models]);if(Array.isArray(next.models)&&signature!==modelSignature){modelSignature=signature;const current=(next.phase!=="offline"?next.model?.id:null)||selectedModel||localStorage.getItem("cobot-capture-model")||next.selected_model||next.models[0]?.id;$("deployment-model").replaceChildren(...next.models.map(m=>{const o=el("option",window.CobotModelChoiceLabel(m));o.value=m.id;return o;}));selectedModel=next.models.some(m=>m.id===current)?current:next.models[0]?.id;$("deployment-model").value=selectedModel;describeModel();}
+  function renderStatus(next){const loadingChanged=!next.status_stale&&next.phase==="loading"&&(state?.phase!=="loading"||state?.model?.id!==next.model?.id||state?.started_at!==next.started_at);connectionError="";state=next;if(loadingChanged)notify(window.CobotModelLoading(next.model||model()).zh,false,"running");if(transportMessage&&!next.status_stale){notify(next.operation?operationName[next.operation]+"中":"连接已恢复");}const signature=JSON.stringify([window.CobotPreferences?.language,next.models]);
+    if(Array.isArray(next.models)){
+      const current=selectedModel||localStorage.getItem("cobot-capture-model")||next.selected_model;
+      selectedModel=modelPicker.update(next.models,current);
+      if(signature!==modelSignature){modelSignature=signature;describeModel();}
+    }
     const loadedKey=next.model?.id+":"+next.started_at;
     if(next.model&&next.phase!=="offline"&&loadedKey!==loadedSelectionKey){
-      loadedSelectionKey=loadedKey;selectedModel=next.model.id;$("deployment-model").value=selectedModel;describeModel();
+      loadedSelectionKey=loadedKey;selectedModel=modelPicker.select(next.model.id,{loaded:true});describeModel();
     }
     if(document.activeElement!==$("deployment-storage")&&!$("deployment-storage").dataset.dirty)$("deployment-storage").value=next.data_root;
     if(!next.status_stale&&["ready","paused","running"].includes(next.phase)&&next.model){const key=next.model.id+":"+next.started_at;if(lastLoaded!==key){lastLoaded=key;notify("模型加载成功："+next.model.label);}}
@@ -87,7 +93,6 @@
       for(const job of visible){let card=[...grid.children].find(c=>c.dataset.job===String(job.id));if(!card){card=el("article",null,"panel output-card");card.dataset.job=String(job.id);const header=el("div",null,"panel-head"),title=el("h3",taskNames[job.component]||job.component),phase=el("span",null,"state-badge"),path=el("div",null,"output-path-container"),pre=el("pre");pre.tabIndex=0;header.append(title,phase);card.append(header,path,pre);grid.append(card);}const badge=card.querySelector(".state-badge");badge.textContent=taskPhases[job.phase]||job.phase;badge.dataset.tone=["failed","error"].includes(job.phase)?"red":["running","ready","completed"].includes(job.phase)?"green":"gray";const pathNode=card.querySelector(".output-path-container");if(pathNode.dataset.path!==String(job.log_path||"")){pathNode.dataset.path=job.log_path||"";pathNode.textContent=job.log_path||"";window.CobotFeaturePaths?.decorateValue(pathNode,job.log_path);}const pre=card.querySelector("pre"),text=job.log_tail||job.detail||"暂无输出";if(pre.textContent!==text){const follow=pre.scrollHeight-pre.scrollTop-pre.clientHeight<40,top=pre.scrollTop;pre.textContent=text;pre.scrollTop=follow?pre.scrollHeight:top;}}
       if(!visible.length)grid.append(el("p","暂无任务输出","outputs-empty"));$("outputs-status").textContent=new Date(result.updated_at*1000).toLocaleTimeString();
     }catch(error){$("outputs-status").textContent=error.message;}finally{outputsBusy=false;}}
-  $("deployment-model").addEventListener("change",()=>{selectedModel=$("deployment-model").value;if(model()?.available)localStorage.setItem("cobot-capture-model",selectedModel);selectedRecord="";describeModel();refreshRecords();});
   for(const action of ["load","unload","start","pause","resume"])$("deploy-"+action).addEventListener("click",()=>act(action));
   for(const action of ["success","failure","abort"])$("deploy-"+action).addEventListener("click",()=>terminal(action));
   $("deployment-storage-apply").addEventListener("click",async()=>{storageInitialized=true;try{const result=await request("/api/deployment/storage",{data_root:$("deployment-storage").value.trim()});state.data_root=result.data_root;recentDirectories?.remember(result.data_root);delete $("deployment-storage").dataset.dirty;selectedRecord="";await refreshRecords();notify("保存位置已更新");}catch(error){notify(error.message,true);}});
@@ -96,7 +101,7 @@
   $("deploy-home-target").addEventListener("change",()=>{renderHomePoses();renderControls();});$("deploy-home").addEventListener("click",()=>home());
   for(const id of ["outputs-filter","outputs-history"])$(id).addEventListener("change",refreshOutputs);$("outputs-refresh").addEventListener("click",refreshOutputs);
   document.addEventListener("keydown",event=>{if(!document.querySelector('[data-page="deployment"].active')||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.target.closest("input,select,textarea,[contenteditable=true]")||document.querySelector("dialog[open]"))return;const action=event.key==="ArrowRight"?state?.active?(state.phase==="running"?"pause":"resume"):"start":({ArrowUp:"success",ArrowDown:"failure",ArrowLeft:"abort"}[event.key]);if(!action)return;event.preventDefault();const button=$("deploy-"+action);if(button&&!button.disabled)button.click();});
-  window.addEventListener("cobot:model-default",event=>{selectedModel=event.detail;modelSignature="";poll();});
+  window.addEventListener("cobot:model-default",event=>{selectedModel=modelPicker.select(event.detail);modelSignature="";poll();});
   window.CobotDeploymentUI={get state(){return state;},set state(value){state=value;},poll,refreshOutputs};
   document.querySelector('[data-view="outputs"]').addEventListener("click",refreshOutputs);document.querySelector('[data-view="deployment"]').addEventListener("click",()=>{poll();refreshRecords();});
   async function devices(){try{const d=await request("/api/console/devices");homePoses=d.home_poses||{};renderHomePoses();renderControls();}catch(_){} }

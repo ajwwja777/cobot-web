@@ -328,3 +328,13 @@ A6000 后端全套首次 596 passed/15 skipped，新增日志正则用例暴露�
 本批无可连接浏览器，DOM与HTTP验证不能替代截图/拖拽视觉验收；真实采集、HIL、模型动作、在线更新和成功率仍待现场。
 
 主代码位于 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web；现场副本 /home/agilex/jiaan/project/cobot-web。后续收尾版本以Git main和现场.release.json为准。guide仅更新事实摘要，不提交其Git。
+
+## 2026-09-29：采集与部署共用场景/模型选择
+
+来源：用户反馈模型路径列表太长、场景混杂，以及两页不可用项行为不同。
+
+新增 model_picker.js / model_picker.css，采集与部署共用左右排列的场景、模型选择框。场景过滤模型，模型反向定位场景；空闲时两页同步并记住选择。选项使用简短身份与训练计数，完整权重路径在下方显示一次；两页使用相同的available/capabilities.load规则，不可用项统一禁用。活动/加载时锁定选择。仅筛选或选择不会加载模型或启动Session。
+
+A6000前端42项通过，相关后端28项通过；修正旧模型元数据测试夹具，使其包含已迁移到VLA项目的真实登记读取器。现场两个API的26个条目和可用性一致，11个可加载；用实际目录验证5类场景的过滤与禁用结果。没有更改模型登记、权重、算法或硬件规则。
+
+本批仅发布静态页面和文档，原网页进程无需重启；同步后逐文件SHA和HTTP资源检查另留回执于 outputs/verification/20260929-scene-model/，现场 runtime/migrations/20260929-scene-model.json。刷新网页加载新资源；真实模型加载与机械臂任务未执行。

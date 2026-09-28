@@ -9,8 +9,8 @@ function setup() {
     {url:"http://localhost", runScripts:"outside-only", pretendToBeVisual:true});
   const w = dom.window, requests = [];
   const models = [
-    {id:"plug-v3-warmup-5k", kind:"rlt", mode:"frozen", checkpoint:"/models/actor_snapshot.pkl", available:true},
-    {id:"pi05-in-the-pot-dagger", kind:"pi05", checkpoint:"/models/pi05/step_3000", available:true}
+    {id:"plug-v3-warmup-5k", family:"RLT", task:"plug_insertion", kind:"rlt", mode:"frozen", checkpoint:"/models/actor_snapshot.pkl", available:true},
+    {id:"pi05-in-the-pot-dagger", family:"π0.5", task:"in_the_pot", kind:"pi05", checkpoint:"/models/pi05/step_3000", available:true}
   ];
   let state = {phase:"offline", models, data_root:"/data/evaluations", status_stale:false};
   let mode = "rlt";
@@ -38,7 +38,7 @@ function setup() {
   };
   w.localStorage.setItem("cobot-capture-use-model","true");
   // No saved model and no legacy RLT catalog: the shared catalog must suffice.
-  for(const file of ["console_ui.js","unified_collection.js","collection_model_ui.js"])
+  for(const file of ["console_ui.js","model_picker.js","unified_collection.js","collection_model_ui.js"])
     w.eval(fs.readFileSync("segmented_frontend/"+file,"utf8"));
   w.CobotCollectionModel.mount(); w.CobotUnifiedCollection.mount();
   return {dom,w,requests,models,setState:value=>{state={...state,...value};}};
@@ -49,7 +49,7 @@ test("shared load uses one API, exposes paths, and keeps storage available while
   try {
     await tick();await w.refreshConsole();
     const $=id=>w.document.getElementById(id);
-    assert.match($("collection-model-select").selectedOptions[0].textContent,/\/models\/actor_snapshot.pkl/);
+    assert.match($("collection-model-select-path").textContent,/\/models\/actor_snapshot.pkl/);
     assert.equal($("collection-load").disabled,false);
     $("collection-load").click();await tick();await tick();
     assert.deepEqual(requests.map(r=>r.path),["/api/collection/model"]);
@@ -79,7 +79,7 @@ test("deployment and collection reflect the same loaded model; typed directory s
     const $=id=>w.document.getElementById(id);
     assert.equal($("deployment-model").value,models[0].id);
     assert.equal($("deploy-load").disabled,true);
-    assert.match($("deployment-model").selectedOptions[0].textContent,/\/models\/actor_snapshot.pkl/);
+    assert.match($("deployment-model-path").textContent,/\/models\/actor_snapshot.pkl/);
     $("deployment-storage").value="/data/my-next-evaluation";
     $("deployment-storage").dispatchEvent(new w.Event("input"));
     await w.CobotDeploymentUI.poll();
@@ -97,5 +97,55 @@ test("backend error detail survives HTTP 503",async()=>{
     const response={ok:false,status:503,headers:{get:()=>"application/json"},
       text:async()=>JSON.stringify({error:"Task5 finalization failed: operator_nodes"})};
     await assert.rejects(w.CobotConsoleUI.parseApiResponse(response),/Task5 finalization failed: operator_nodes/);
+  } finally {await tick();dom.window.close();}
+});
+
+test("collection and deployment share scene filtering, disabled options and selection without loading",async()=>{
+  const {dom,w,requests,models,setState}=setup();
+  try {
+    models.push(
+      {id:"missing-plug",kind:"rlt",family:"RLT",task:"plug_insertion",available:false,availability:"missing_files",checkpoint:"/missing/actor.pkl"},
+      {id:"cli-book",kind:"vla",family:"π0.5",task:"lift_book",available:false,availability:"cli_only",checkpoint:"/models/book"},
+      {id:"no-load",kind:"external",family:"External",task:"plug_insertion",available:true,capabilities:{load:false},checkpoint:"/models/no-load"}
+    );
+    await tick();await w.refreshConsole();
+    w.eval(fs.readFileSync("segmented_frontend/deployment_ui.js","utf8"));
+    await tick();
+    const $=id=>w.document.getElementById(id);
+    for(const id of ["collection-model-select","deployment-model"]){
+      assert.equal($(id).querySelector('option[value="missing-plug"]').disabled,true);
+      assert.equal($(id).querySelector('option[value="no-load"]').disabled,true);
+      assert.equal([...$(id).options].some(o=>o.value==="pi05-in-the-pot-dagger"),false);
+      assert(!$(id).selectedOptions[0].textContent.includes("/models/"));
+    }
+    $("deployment-scene").value="in_the_pot";
+    $("deployment-scene").dispatchEvent(new w.Event("change"));
+    assert.equal($("deployment-model").value,"");
+    assert.equal($("deploy-load").disabled,true);
+    assert.equal($("collection-scene-select").value,"in_the_pot");
+    assert.equal([...$("deployment-model").options].some(o=>o.value==="plug-v3-warmup-5k"),false);
+    $("deployment-model").value=models[1].id;
+    $("deployment-model").dispatchEvent(new w.Event("change"));
+    await tick();
+    assert.equal($("collection-model-select").value,models[1].id);
+    assert.equal($("collection-scene-select").value,"in_the_pot");
+    assert.match($("collection-model-select-path").textContent,/step_3000/);
+    assert.equal(requests.length,0); // Filtering/selecting never loads or starts a Session.
+    $("deployment-scene").value="lift_book";
+    $("deployment-scene").dispatchEvent(new w.Event("change"));
+    assert.equal($("deployment-model").value,"");
+    assert.equal($("deployment-model").querySelector('option[value="cli-book"]').disabled,true);
+    assert.equal($("deploy-load").disabled,true);
+    assert.equal($("collection-load").disabled,true);
+    $("deployment-model").value="cli-book";
+    $("deployment-model").dispatchEvent(new w.Event("change"));
+    assert.equal($("deployment-model").value,""); // Defensive rejection of a synthetic disabled selection.
+    assert.equal(requests.length,0);
+    setState({phase:"ready",model:models[0],started_at:5,active:{id:"trial"}});
+    await w.CobotDeploymentUI.poll();
+    assert.equal($("deployment-scene").value,"plug_insertion");
+    assert.equal($("deployment-model").value,models[0].id);
+    assert.equal($("deployment-scene").disabled,true);
+    assert.equal($("deployment-model").disabled,true);
   } finally {await tick();dom.window.close();}
 });

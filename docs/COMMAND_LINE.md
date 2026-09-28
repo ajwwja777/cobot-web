@@ -599,3 +599,11 @@ cd /home/agilex/jiaan/project/cobot-web
 硬件CLI与/api/console/devices使用同一个cobot_control.device_control。CAN configure/reset经can_web.sh→can_config_cobot.sh→modprobe/ip/ethtool/cansend，保留1Mbps/restart-ms100；probe现为只读，不发探测帧或复位。终端直接scripts/can_up.sh会正常提示sudo密码，不需要手写网页密码管道。
 
 网页使用子进程、独立进程组、日志文件，不为任务新开可见终端。前台roslaunch用Ctrl-C；管理CLI通过PID+start_ticks停同一组。不要按htop的一行高亮或旧PID盲目kill，先status核对身份。网页关闭后control仍能管理硬件，models.py也无需HTTP服务在线。RLT录制则依赖登记的recorder HTTP，关闭网页前先结束录制Session。
+
+## 2026-09-29：场景与模型联动选择
+
+采集和部署使用同一个场景/模型选择组件：左侧选择场景，只列对应模型；选择“全部场景”可跨场景挑选模型，选择后自动定位所属场景。两页同步当前选择并记住浏览器偏好，过滤或选中不等于加载，仍需手动点击“加载模型”。
+
+选项显示模型家族、版本/步数及可用状态；完整权重路径位于选择框下方，可直接选取复制。不可用项在两页均置灰禁用，保留缺文件、仅终端或待适配等原因；没有可加载模型的场景显示明确提示。正在加载或执行活动轮次时锁定选择，不改当前任务。
+
+分类来自现有登记的task字段；新增同类模型无需修改网页场景清单。CLI scripts/models.py 的模型ID、命令和底层运行协议保持不变。

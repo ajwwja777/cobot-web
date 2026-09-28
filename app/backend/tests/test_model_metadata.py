@@ -21,10 +21,12 @@ def test_dagger_keeps_parent_and_round_steps():
 
 
 def test_migrated_cli_and_missing_assets_are_separate_statuses(tmp_path, monkeypatch):
+    registry_source = (metadata.VLA / "integrations/cobot/registry.py").read_text()
     monkeypatch.setattr(metadata, "VLA", tmp_path)
     (tmp_path/"configs").mkdir()
     entry=tmp_path/"integrations/cobot/test"
     entry.mkdir(parents=True)
+    (entry.parent / "registry.py").write_text(registry_source)
     (entry/"interface_live.sh").write_text("#!/bin/sh")
     checkpoint=tmp_path/"checkpoint";checkpoint.mkdir()
     row={"id":"legacy","family":"Legacy","task":"in_the_pot","step":4000,

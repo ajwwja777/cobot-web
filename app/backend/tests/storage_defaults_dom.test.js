@@ -22,7 +22,7 @@ function setup(active = false) {
     else if(path==="/api/console/devices")payload={home_poses:{}};
     return {ok:true,json:async()=>payload};
   };
-  for(const name of ["path_picker","deployment_ui"])
+  for(const name of ["path_picker","model_picker","deployment_ui"])
     w.eval(fs.readFileSync("segmented_frontend/"+name+".js","utf8"));
   return {dom,w,calls,getState:()=>state};
 }

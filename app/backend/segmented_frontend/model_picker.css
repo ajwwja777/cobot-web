@@ -1,0 +1,12 @@
+/* One scene/model picker shared by collection and deployment. */
+.model-picker-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:9px 12px;min-width:0}
+.model-picker-pair>label{display:flex!important;flex-direction:column;align-items:stretch!important;gap:7px;min-width:0;margin:0;font-size:12px;color:var(--muted);white-space:normal}
+.model-picker-pair select{width:100%;max-width:100%;min-width:0;height:38px;text-overflow:ellipsis}
+.model-picker-pair option:disabled{color:var(--muted)}
+.model-picker-pair>.model-selection-path,.model-picker-pair>.model-selection-hint{grid-column:1/-1;min-width:0;margin:0;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.model-picker-pair>.model-selection-path{display:block;color:var(--muted);user-select:text}
+.model-picker-pair>.model-selection-hint{color:var(--muted)}
+.model-picker-pair>[hidden]{display:none!important}
+.collection-model-row{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.collection-model-row>label{align-self:flex-start}
+@media(max-width:480px){.model-picker-pair{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:8px}}

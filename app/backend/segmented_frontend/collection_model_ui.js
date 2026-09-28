@@ -9,18 +9,18 @@
     return {zh:'正在加载 · 预计数分钟',en:'Loading · estimated a few minutes'};
   };
   const english=()=>root.CobotPreferences?.language==='en';
-  root.CobotModelChoiceLabel=model=>{
+  root.CobotModelChoiceLabel=(model,{compact=false}={})=>{
     const en=english(),path=model.checkpoint||model.label||model.id;
-    const parts=[path,model.family||model.kind||'',model.task||''];
+    const parts=compact?[model.family||model.kind||model.id]:[path,model.family||model.kind||'',model.task||''];
     const step=model.step??null,unknown=en?'steps unknown':'步数待核验';
-    if(model.family==='RLT'){
-      parts.push('stage1-'+(model.base_step??'?'));
+    if(model.family==='RLT'||model.kind==='rlt'){
+      parts.push('stage1-'+(model.stage1_step??model.base_step??'?'));
       if(model.stage!=='stage1')parts.push((model.stage||'warmup')+'-'+(step??'?'));
       if(model.actor_version!=null&&model.actor_version>=0)parts.push('actor-'+model.actor_version);
     }else if(model.parent_step!=null){
       parts.push('DAgger '+model.parent_step+'+'+(step??'?'));
     }else parts.push(step==null?unknown:('step-'+step));
-    const status=model.available?(en?'loadable':'可加载'):
+    const status=(root.CobotModelPicker?.available(model)??model.available)?(en?'loadable':'可加载'):
       model.availability==='cli_only'?(en?'CLI available · web control pending':'终端可用 · 网页控制待接入'):
       model.availability==='base_model'?(en?'base dependency':'基础模型依赖'):
       model.availability==='missing_files'?(en?'unavailable · missing files':'不可用 · 缺文件'):
@@ -51,7 +51,7 @@
       const response=await fetch('/api/collection/model',{cache:'no-store'});
       state=await root.CobotConsoleUI.parseApiResponse(response);
       const models=(state.models||[]),key=JSON.stringify([english(),models]),select=$('#capture-model-select');
-      if(key!==modelsKey||!select.options.length){modelsKey=key;const keep=preferredModel||select.value||localStorage.getItem('cobot-capture-model')||state.selected_model||state.model?.id;select.replaceChildren(...models.map(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=root.CobotModelChoiceLabel(m);o.disabled=!m.available;return o;}));if(models.some(m=>m.id===keep)){select.value=keep;preferredModel="";}}
+      if(key!==modelsKey||!select.options.length){modelsKey=key;const keep=preferredModel||select.value||localStorage.getItem('cobot-capture-model')||state.selected_model||state.model?.id;select.replaceChildren(...models.map(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=root.CobotModelChoiceLabel(m);o.disabled=!(root.CobotModelPicker?.available(m)??m.available);return o;}));if(models.some(m=>m.id===keep)){select.value=keep;preferredModel="";}}
       if(!state.status_stale&&['ready','paused','running'].includes(state.phase)&&state.model){
         const key=state.model.id+':'+state.started_at;
         if(lastLoaded!==key){lastLoaded=key;root.CobotWorkspaceUI?.report((english()?'Model loaded: ':'模型加载成功：')+state.model.checkpoint,'success',english()?'Model':'模型');}

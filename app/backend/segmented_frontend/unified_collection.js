@@ -1,7 +1,7 @@
 "use strict";
 (function(root){
   const $=s=>document.querySelector(s);
-  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='';
+  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null;
   const english=()=>root.CobotPreferences?.language==='en';
   const text=(zh,en)=>english()?en:zh;
   const useModel=()=>Boolean($('#capture-use-model')?.checked);
@@ -35,7 +35,6 @@
     if(list)rltCatalog=list.models||[];
     if(!mounted)return;
     catalog=(modelState().models||[]).map(m=>({...m,runtime:m.kind==='rlt'?'rlt':'normal'}));
-    const select=$('#collection-model-select');
     if(!initialized&&catalog.length&&context.console){
       const saved=localStorage.getItem('cobot-collection-model-id');
       const fallback=isRlt()?context.console.rlt_model?.id:localStorage.getItem('cobot-capture-model');
@@ -46,19 +45,13 @@
         initialized=true;
       }
     }
-    const signature=JSON.stringify(catalog.map(m=>[m.id,root.CobotModelChoiceLabel(m),m.available]));
-    if(select.dataset.signature!==signature){
-      select.replaceChildren(...catalog.map(m=>{const option=document.createElement('option');option.value=m.id;option.textContent=root.CobotModelChoiceLabel(m);option.disabled=!m.available;return option;}));
-      if(!catalog.length){const option=document.createElement('option');option.value='';label(option,'正在读取模型…','Reading models…');select.append(option);}
-      select.dataset.signature=signature;
-    }
-    select.value=selected;
+    selected=modelPicker.update(catalog,selected);
     const state=modelState(),loadedKey=state.model?.id+':'+state.started_at;
     if(state.model&&state.phase!=='offline'&&catalog.some(m=>m.id===state.model.id)&&loadedKey!==lastLoadedKey){
-      lastLoadedKey=loadedKey;selected=state.model.id;select.value=selected;
+      lastLoadedKey=loadedKey;selected=modelPicker.select(state.model.id,{loaded:true});
     }
     const chosen=selectedModel();
-    if(chosen&&$('#capture-model-select').value!==chosen.id)$('#capture-model-select').value=chosen.id;
+    if($('#capture-model-select').value!==(chosen?.id||''))$('#capture-model-select').value=chosen?.id||'';
   }
   function source(action){
     const rlt={start:'rlt-start',pause:'rlt-pause',resume:'rlt-resume',marker:'rlt-marker',save:'rlt-save',discard:'rlt-abort',success:'rlt-success',failure:'rlt-failure'};
@@ -72,12 +65,12 @@
     const processing=modelBusy||root.CobotCollectionModel?.busy;
     const loading=root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading';
     const locked=active()||changing||context.busy||processing||loading;
-    const routeReady=!changing&&(use?chosen?.runtime===(rlt?'rlt':'normal'):!rlt);
+    const routeReady=!changing&&(use?Boolean(chosen)&&chosen.runtime===(rlt?'rlt':'normal'):!rlt);
     $('#capture-use-model').disabled=Boolean(locked);
-    $('#collection-model-select').disabled=Boolean(!use||locked);
+    modelPicker.setDisabled(!use||locked,{lockSelection:locked});
     $('#collection-label-results').disabled=Boolean(context.busy||changing);
     const backendOnline=state.model&&!['offline'].includes(state.phase);
-    $('#collection-load').disabled=!use||!chosen?.available||locked||modelLoaded()||!routeReady;
+    $('#collection-load').disabled=!use||!root.CobotModelPicker.available(chosen)||locked||modelLoaded()||!routeReady;
     $('#collection-unload').disabled=!use||active()||changing||processing||!backendOnline;
     const ready=modelLoaded();
     const estimate=root.CobotModelLoading(chosen);
@@ -148,7 +141,7 @@
     const model=selectedModel();
     modelBusy=true;modelActionName=name;render();
     try{
-      await root.CobotCollectionModel.action(name.replace('-','_'),model.id);
+      await root.CobotCollectionModel.action(name.replace('-','_'),model?.id||modelState().model?.id);
       await root.refreshConsole();
     }finally{modelBusy=false;modelActionName="";render();}
   }
@@ -163,7 +156,15 @@
     const use=$('#capture-use-model'),card=document.createElement('article');card.className='panel collection-configuration';
     card.innerHTML='<div class="collection-model-row"></div><div class="button-grid collection-model-actions"></div><p id="collection-model-state" class="inline-status" role="status"></p>';
     card.querySelector('.collection-model-row').append(use.closest('label'));
-    const select=document.createElement('select');select.id='collection-model-select';select.setAttribute('aria-label','Model');card.querySelector('.collection-model-row').append(select);
+    const select=document.createElement('select');select.id='collection-model-select';
+    const picker=document.createElement('div');card.querySelector('.collection-model-row').append(picker);
+    modelPicker=root.CobotModelPicker.create({container:picker,modelSelect:select,sceneId:'collection-scene-select',onChange:selection=>{
+      selected=selection.modelId;
+      $('#capture-model-select').value=selected;
+      $('#capture-model-select').dispatchEvent(new Event('change'));
+      if(selection.model&&selection.source==='user')changeRuntime();
+      else {render();root.updateButtons?.();}
+    }});
     for(const [id,zh,en] of [['load','加载模型','Load model'],['unload','释放模型','Release model'],['session-start','开始 Session','Start session'],['session-stop','结束 Session','End session']]){
       const button=document.createElement('button');button.type='button';button.id='collection-'+id;label(button,zh,en);button.addEventListener('click',()=>modelAction(id));card.querySelector('.collection-model-actions').append(button);
     }
@@ -181,7 +182,7 @@
     panel.append(legend);const message=document.createElement('p');message.id='collection-message';message.className='inline-status';message.setAttribute('role','status');panel.append(message);
     $('#collection-label-results').checked=localStorage.getItem('cobot-collection-label-results')==='true';$('#collection-label-results').addEventListener('change',()=>{localStorage.setItem('cobot-collection-label-results',labelResults());render();});
     use.addEventListener('change',changeRuntime);
-    select.addEventListener('change',()=>{selected=select.value;const model=selectedModel();if(model){$('#capture-model-select').value=model.id;$('#capture-model-select').dispatchEvent(new Event('change'));}changeRuntime();});
+    root.addEventListener('cobot:model-default',event=>{if(active())return;selected=modelPicker.select(event.detail);render();});
     storage.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="录制目录" data-en="Recording directory">录制目录</h3></div><label><span data-zh="目录" data-en="Directory">目录</span><input id="collection-data-root" autocomplete="off" aria-controls="collection-directory-options" role="combobox"/></label><div class="directory-browser" hidden id="collection-directory-browser"><p class="muted" id="collection-directory-hint"></p><div class="path-options" id="collection-directory-options" role="listbox"></div></div><div class="button-row"><button id="collection-storage-browse" type="button" data-zh="浏览" data-en="Browse">浏览</button><button id="collection-storage-use" type="button" data-zh="检查并使用" data-en="Check and use">检查并使用</button></div><p class="path-caption"><span data-zh="当前：" data-en="Current: ">当前：</span><code data-localize id="collection-recording-directory">—</code></p>');
     const input=$('#collection-data-root');
     directoryPicker=root.CobotPathPicker.create({input,panel:$('#collection-directory-browser'),list:$('#collection-directory-options'),hint:$('#collection-directory-hint'),fetchDirectories:path=>root.request('/api/segmented-teach/storage/directories?path='+encodeURIComponent(path)),storage:localStorage,storageKey:'cobot-unified-collection-paths',onChange:()=>{input.dataset.dirty='true';const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;target.dispatchEvent(new Event('input'));}});
