@@ -284,3 +284,21 @@ Getea1 权重按实际格式发现，未接入网页暂停／HIL 协议的历史
 验证：A6000 web 相关后端 39 passed/1 skipped；前端 37 passed。新网页手动暂停锁 3 passed，原 G05 generation/资产 preflight 6 passed，原 XR1 HIL/旧动作过期处理 26 passed。Cobot 四个 managed 启动计划 --check 通过；G05 两版本的 checkpoint 大小、归一化/配置/processor 哈希 preflight 通过。本批未加载新 GPU 模型、未启动真实 Episode、未发送机器人动作；真实模型加载和现场动作效果仍待逐个验收。
 
 现场发布验收：web 82ced64、vla-platform fd7ee52 已 push 并同步，分别 217 / 280 个运行文件 SHA 一致。模型 offline、采集 idle 时只重启正式 8015，硬件节点未操作。实际目录为 26 项、11 个网页加载入口、6 个保留终端入口、2 个本机缺权重条目，以及历史 RLT/基础依赖；默认 plug_v3-online-latest 未改变。只读回执：cobot-web/outputs/deployments/20260928-legacy-model-entries.json；Cobot 为 cobot-web/runtime/migrations/20260928-legacy-model-entries.json。此数目表示入口与文件预检，新增 4 个网页入口尚未逐个加载 GPU 或验收现场动作。
+
+
+## 2026-09-29：刷新默认测试目录与最近目录
+
+来源：cobot_rlt 会话，用户要求 datasets/evaluations 各有 test，网页每次刷新默认选择，同时可选最近使用目录。
+
+Cobot 已建立 /media/agilex/Getea1/jiaan/data/datasets/test 和 /media/agilex/Getea1/jiaan/data/evaluations/test。普通／模型辅助／RLT 采集刷新使用前者，部署评测使用后者；正式场景目录、权重、Replay 和算法配置未迁移或改写。刷新选择只初始化一次，之后的状态轮询不覆盖手动选择。采集和部署页均有最近使用目录下拉框，选择后调用原有目录检查／应用接口；目录历史保留，浏览和手工输入继续可用。
+
+服务端对自动刷新选择增加活动任务检查。普通采集状态提供实际 data_root；录制／暂停／收尾或评测活动期间保留本轮目录，模型操作未完成时延后默认初始化。用户主动选择仍沿用原契约，RLT 活动轮次期间的新选择只用于下一轮。只读预览不发送自动目录写请求。test 只是存放位置，不改变在线模型的学习行为；正式在线更新前需要明确选择正式场景目录。
+
+验证与发布：
+- A6000 后端相关测试 50 passed、1 skipped（原有跳过项）；前端全套 39 passed，最后目录初始化调整对应的 3 项再次通过。
+- 源码 b785ed902bd0c95f1a72082ecdeb608a89e016a7 已 push 并核验远端一致，Cobot 217 个运行文件 SHA 一致。
+- 确认模型 offline、采集 idle、无活动评测后，仅重启正式 8015。实际目录准备、RLT 默认选择、部署默认选择、旧路径历史保留及 6 个页面／资源请求通过；测试目录内没有采集 Episode。
+- 相机任务 PID 524014 保持运行，机械臂／模型未启动，没有运动、真实采集或训练更新。本批 DOM 回归不等于现场全流程或浏览器动画验收。
+- A6000 证据：outputs/verification/20260929-test-directories/；现场回执：runtime/migrations/20260929-test-directories.json。
+
+用户安排下一次现场整体验收 Cobot 使用、普通／模型辅助采集、部署评测及终端恢复，再进行 RLT 在线更新；这些现场验收尚未执行。后续长任务收到后按具体条目继续跟踪，不将本批目录功能验收视为整体任务完成。guide Git 仍由框架维护对话处理。
