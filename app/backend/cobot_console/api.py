@@ -36,7 +36,7 @@ from segmented_capture.api import (
 from segmented_capture.capture_service import SegmentedCaptureService
 from segmented_capture.ports import CaptureGate
 
-from .paths import RUNTIME_ROOT, RLT, LEGACY_DATA
+from .paths import RUNTIME_ROOT, RLT, LEGACY_DATA, SETTINGS
 from .mode import ModeConflict, RecorderModeCoordinator
 from .diagnostics import ConsoleDiagnostics
 from .rlt_proxy import RltBackendClient, RltBackendError, RltLifecycleRegistry
@@ -279,6 +279,7 @@ def create_app(
             "read_only": os.environ.get("COBOT_READ_ONLY") == "1",
             "normal_data_root": str(DEFAULT_DATA_ROOT.expanduser().resolve()),
             "data_root_choices": recording_directories(),
+            "data_root_aliases": SETTINGS.get("data_root_aliases", {}),
             "storage_layout": "flat",
             "rlt_data_root": str(selected_rlt_root),
             "dataset_round": os.environ.get("COBOT_DATASET_ROUND", "node_pilot_v1"),
@@ -310,8 +311,8 @@ def create_app(
                       "normal_capture": str(DEFAULT_DATA_ROOT.expanduser()),
                       "rlt_capture": str(selected_rlt_root),
                       "rlt_project": str(RLT),
-                      "training": str(RLT / "runs"),
-                      "deployment": str(RLT / "deployments")},
+                      "training": str(RLT / "outputs/rlt/plug_v3_yyshadow"),
+                      "deployment": str(RLT / "models/rlt/plug_v3_yyshadow")},
             "scripts": {name: str(project / "scripts" / name) for name in
                         ("ui_up.sh", "ui_down.sh", "home.sh", "recover.sh",
                          "rlt_up.sh", "rlt_down.sh", "rlt_demo.sh")

@@ -23,6 +23,35 @@
     try { return cleanPaths(JSON.parse(storage.getItem(key) || "[]")); }
     catch (_error) { return []; }
   }
+  // Only migrate known UI preferences; recorded provenance is never rewritten.
+  function migratedPath(path, aliases) {
+    if (typeof path !== "string") return path;
+    const entries = Object.entries(aliases || {}).filter(([from, to]) =>
+      from.startsWith("/") && typeof to === "string" && to.startsWith("/"));
+    entries.sort((a, b) => b[0].length - a[0].length);
+    for (const [from, to] of entries) {
+      const oldRoot = from.replace(/\/+$/, "");
+      if (oldRoot && (path === oldRoot || path.startsWith(oldRoot + "/")))
+        return to.replace(/\/+$/, "") + path.slice(oldRoot.length);
+    }
+    return path;
+  }
+  function migrateStoredPaths(storage, profile, aliases) {
+    const keys = ["cobot-recording-directories", "cobot-data-console-config:" + profile,
+      "cobot-recent-paths-v2:" + profile, "cobot-recent-rlt-paths-v2:" + profile];
+    for (const key of keys) {
+      try {
+        const raw = storage.getItem(key);
+        if (!raw) continue;
+        const old = JSON.parse(raw);
+        const updated = Array.isArray(old) ? old.map(path => migratedPath(path, aliases))
+          : old && typeof old === "object" && typeof old.data_root === "string"
+            ? { ...old, data_root: migratedPath(old.data_root, aliases) } : old;
+        if (JSON.stringify(updated) !== JSON.stringify(old))
+          storage.setItem(key, JSON.stringify(updated));
+      } catch (_error) { /* Blocked/corrupt storage must not prevent page startup. */ }
+    }
+  }
   function create(options) {
     const { input, panel, list, hint, fetchDirectories } = options;
     const storage = options.storage || root.localStorage;
@@ -143,7 +172,7 @@
     });
     return { refresh, remember, close, setDisabled, recent };
   }
-  const api = { mergeRecent, completeDirectory, pathName, create };
+  const api = { mergeRecent, completeDirectory, pathName, migratedPath, migrateStoredPaths, create };
   root.CobotPathPicker = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

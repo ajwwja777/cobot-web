@@ -1923,6 +1923,7 @@ async function initializeCaptureProfile() {
       document.body.append(banner);
     }
     STORAGE_KEY = `cobot-data-console-config:${config.profile}`;
+    window.CobotPathPicker.migrateStoredPaths(window.localStorage, config.profile, config.data_root_aliases);
     window.CobotRltHome.initialize(config.profile);
     window.CobotCaptureHome.initialize(config.profile);
     refreshCaptureHomePoses();

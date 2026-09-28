@@ -148,3 +148,26 @@ test("keyboard enter chooses the highlighted match and continues browsing", asyn
     console.log("PASS " + name);
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+test("migration preserves selections and only replaces the registered directory boundary", () => {
+  const { migratedPath, migrateStoredPaths } = require("../segmented_frontend/path_picker.js");
+  const aliases = {"/old/data":"/new/data"};
+  assert.equal(migratedPath("/old/data/online", aliases), "/new/data/online");
+  assert.equal(migratedPath("/old/data-other", aliases), "/old/data-other");
+  const values = new Map([
+    ["cobot-recording-directories", '["/old/data/online","/unrelated"]'],
+    ["cobot-data-console-config:p", '{"data_root":"/old/data","other":42}'],
+    ["cobot-recent-paths-v2:p", '["/old/data/warmup"]'],
+    ["cobot-recent-rlt-paths-v2:p", '["/old/data/online"]'],
+    ["unrelated", '["/old/data"]']
+  ]);
+  const storage = { getItem: key => values.get(key), setItem: (key,v) => values.set(key,v) };
+  migrateStoredPaths(storage, "p", aliases);
+  assert.deepEqual(JSON.parse(values.get("cobot-recording-directories")), ["/new/data/online","/unrelated"]);
+  assert.deepEqual(JSON.parse(values.get("cobot-data-console-config:p")), {data_root:"/new/data",other:42});
+  assert.equal(values.get("unrelated"), '["/old/data"]');
+  const once = [...values];
+  migrateStoredPaths(storage, "p", aliases);
+  assert.deepEqual([...values], once);
+  assert.doesNotThrow(() => migrateStoredPaths({getItem(){throw Error("blocked");}}, "p", aliases));
+});
