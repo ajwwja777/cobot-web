@@ -132,7 +132,8 @@ body.workbench-docked{overflow:hidden;background:#101011}
 /* Shared alignment and explicit task-list resizing. */
 .workbench-docked main.workbench-center{padding:14px!important}
 .workbench-docked main .page{margin:0!important;width:100%;min-width:0}
-.workbench-docked main .page>.page-heading{margin-top:0}
+/* Page titles are already in navigation/panel headers; empty heading margins must not offset content. */
+.workbench-docked main .page:is([data-page=system],[data-page=operation],[data-page=training],[data-page=deployment])>.page-heading{display:none}
 .workbench-docked .tool-dock[data-edge=top],.workbench-docked .tool-dock[data-edge=bottom]{margin-inline:14px}
 .workbench-docked #camera-dock .camera-panel{padding:0 0 5px!important}
 .task-output-body,.narrow .task-output-body{grid-template-columns:var(--task-list-width,138px) 5px minmax(0,1fr)}

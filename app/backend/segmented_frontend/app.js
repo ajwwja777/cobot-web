@@ -1724,9 +1724,14 @@ function mountPersistentCameraPanel(name) {
 }
 function selectPage(name) {
   if(name==='learning')name='operation';
+  const previousPage = document.querySelector('.page.active')?.dataset.page;
   for (const button of $$(".nav-item")) button.classList.toggle("active", button.dataset.view === name || (name === "learning" && button.dataset.view === "operation"));
   for (const page of $$("[data-page]")) page.classList.toggle("active", page.dataset.page === name);
   for (const button of $$(".collection-choice")) button.classList.toggle("selected", button.dataset.collection === (name === "learning" ? "rlt" : "normal"));
+  if (previousPage !== name) {
+    const center = document.querySelector('main');
+    if (center) { center.scrollTop = 0; center.scrollLeft = 0; }
+  }
   mountPersistentCameraPanel(name);
   if(window.CobotWorkspaceUI)window.CobotWorkspaceUI.onPage(name);
   if (name === 'system' || name === 'deployment') devicePoller.tick();
