@@ -8,7 +8,6 @@
   "ros_setup": "/home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash",
   "host_disk_path": "/",
   "backend_url": "http://127.0.0.1:8026",
-  "legacy_platform_root": "/media/agilex/Getea1/jiaan/projects/cobot-platform",
   "control_project_root": "/home/agilex/jiaan/project/cobot-control",
   "data_root_aliases": {
     "/media/agilex/Getea1/jiaan/data": "/home/agilex/jiaan/data"

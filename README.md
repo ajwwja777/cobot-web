@@ -23,8 +23,6 @@ Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状�
 | `app/backend/segmented_frontend/` | 当前操作网页，原生 JavaScript／CSS |
 | `app/backend/frontend/` | 保留的独立回放／审核页面 |
 | `app/shared/schemas/` | 持久化数据格式 |
-| `robot/` | 现有硬件适配；当前作为迁移兼容边界保留 |
-| `integrations/legacy_control/` | 现有控制辅助代码快照，等待 cobot-control 后续验收接管 |
 | `scripts/` | 网页启停、同步、现场命令封装与只读诊断 |
 | `configs/hosts/` | 按机器登记依赖位置；`configs/local.json` 是本机选择，不入 Git |
 | `app/backend/tests/` | 不依赖机器人运行的回归测试 |
@@ -75,10 +73,10 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-web/runtime/cache/uv /home/agilex/
 
 ## 依赖与边界
 
-本次保留采集和硬件适配的唯一迁移副本，没有把同一状态机复制到六个项目。后续由 cobot-control 接管硬件、cobot-dagger 接管采集，web 保留 API 编排和展示；切分必须带接口与回归验证。
+硬件实现、位姿和 launch 已由同级 cobot-control 接管，web 仅保留脚本转发、API 编排和展示。采集库仍由本项目提供；后续迁往 cobot-dagger 时单独验证接口。
 
-模型权重和 RLT 算法运行环境尚未整体迁移；已有部署评测数据已逐文件核验复制到新数据根。`configs/hosts/cobot.json` 明确登记其当前真实位置，仍可识别旧模型；不会伪造新路径为已部署。历史数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
+当前 RLT 模型、算法环境、Replay 和约158GB历史数据已迁入新根，原始数据校验后旧副本已删除。`configs/hosts/cobot.json` 明确登记其当前真实位置，两个π0.5入口仍依赖登记的共享部署目录；尚未整体迁入vla-platform。浏览器旧目录偏好按前缀迁到新根，数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
 
 部署和采集共用同一份模型目录、进程与加载状态；模型选择展示实际权重路径。加载与准备 Session 不启动推理。RLT 每轮开始时固定采集／评测用途及目录，结束后才能切换用途；纯评测不写 recorder 或 replay。在线更新入口保留原 online_rl.yaml 和 learner；固定模型评测使用对应冻结入口。目录可以在加载前选择，RLT 录制中的新选择用于下一轮。
 
-日期：2026-09-27。完整进度与未完成项见迁移记录。
+日期：2026-09-28。完整进度与未完成项见迁移记录。

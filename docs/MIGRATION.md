@@ -211,3 +211,11 @@ configs/hosts/cobot.json 是新切换配置；现场 configs/local.json 尚未�
 - 本机配置备份、API、加载释放、媒体读取与删除回执：A6000 outputs/verification/20260928-cutover/cobot/；Cobot同路径去掉末尾cobot/。
 
 没有归位、真实Episode或示教。旧平台/RLT全量历史归档仍在执行，原件保留。被动硬件launch已停止；现场使用按COMMAND_LINE和RL RUNBOOK重新启动。guide只更新摘要，不提交Git。
+
+## 2026-09-28：旧平台、旧数据与输出日志清理
+
+- 五个旧数据根 rlt/evaluations/cobot-platform/record/test 在11,123文件SHA、2链接以及最终无活动引用复核后删除；新历史列表、episode171视频和六张首尾图可读。删除回执在rl-platform/outputs/migrations/20260927-rlt/data-cleanup-receipt.json。
+- 旧 task3 runtime/cobot-console-jobs-v1 的859文件/141,706,560字节归档，850日志迁入本项目runtime/console-jobs，6个当前任务登记改用新日志路径。历史命令、PID和provenance原样保存；A6000逐文件核验原件后删除旧目录。证据 outputs/migrations/20260928-legacy-task-output/。
+- 旧cobot-platform已完整归档到A6000 vla-platform，9,629条目验证通过；最终无变化/活动引用复核后，先改名使旧路径不可用，再冷启动正式8015，核验模型目录、历史、受管理相机启停和home --help，最后删除旧目录。模型/Session未启动，未归位。删除回执 outputs/migrations/20260928-platform-retirement/cobot/retirement.json（现场去掉cobot/）。
+- 本次冷启动网页PID153484，预览8018已停止；PID仅记录本次实例，不是永久服务标识。相机任务已停止，无残留；ROS master仍运行。删除host中的legacy_platform_root，不再登记已退休硬件根。
+- 旧RLT历史归档仍在传输、校验，原RLT目录尚未删除；Piper/ROS/Astra/aloha和两个π0.5共享部署目录另批处理。
