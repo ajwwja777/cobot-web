@@ -437,6 +437,15 @@ def create_app(
                     writer_coordinator.release_writer(lease)
                     active_lease["value"] = None
 
+    @application.get("/api/segmented-teach/history")
+    def unified_history(data_root: str, limit: int = 50, offset: int = 0):
+        """Choose each episode reader from files, independently of a loaded model."""
+        if offset < 0 or not 1 <= limit <= 200:
+            raise HTTPException(status_code=422, detail="invalid_history_page")
+        root = selected_root(data_root)
+        from capture_core.history import combined_history
+        return combined_history(root, service, limit=limit, offset=offset)
+
     @application.get("/api/segmented-teach/episodes")
     def episodes(
         data_root: Optional[str] = None,

@@ -6,7 +6,7 @@
   const text=(zh,en)=>english()?en:zh;
   const useModel=()=>Boolean($('#capture-use-model')?.checked);
   const selectedModel=()=>catalog.find(m=>m.id===selected);
-  const isRlt=()=>Boolean(root.historyIsRlt?.());
+  const isRlt=()=>Boolean(root.collectionIsRlt?.());
   const active=()=>Boolean(context.console?.active_mode)||['recording','paused','finalizing'].includes(context.capture?.capture_state)||['recording_starting','rollout','hil','paused','terminal_pending','finalizing','replay_committing'].includes(context.session?.phase);
   const labelResults=()=>Boolean($('#collection-label-results')?.checked);
   const modelState=()=>root.CobotCollectionModel?.state||{};
@@ -116,7 +116,7 @@
     value($('#collection-recording-directory'),$(rlt?'#rlt-recording-directory':'#episode-directory').textContent);
     const msg=$(rlt?'#rlt-message':'#message');value($('#collection-message'),msg.textContent);$('#collection-message').classList.toggle('error',msg.classList.contains('error'));
     label($('#episode-browser-title'),'数据','Data');
-    $('#episode-live-strip').classList.remove('hidden');
+    $('#episode-live-strip').classList.add('hidden');
     if(!rlt){
       value($('#episode-live-badge'),root.CobotPreferences?.text(phase)||phase);
       value($('#episode-live-frames'),text(`${context.capture?.training_frame_count||0} 帧`,`${context.capture?.training_frame_count||0} frames`));
@@ -127,10 +127,16 @@
   }
   async function changeRuntime(){
     if(changing||active())return;
+    const chosenRoot=$('#collection-data-root').value;
     const mode=useModel()&&selectedModel()?.runtime==='rlt'?'rlt':'normal';
     changing=true;render();
     try{
       await root.chooseCollection(mode);
+      if(chosenRoot){
+        const target=mode==='rlt'?$('#rlt-data-root'):$('#capture-form input[name=data_root]');
+        target.value=chosenRoot;
+        if(mode==='rlt')await root.saveRltStorage();else await root.prepareStorage(true);
+      }
       if(isRlt()!==(mode==='rlt'))throw Error(text('采集模式切换失败','Collection mode switch failed'));
       localStorage.setItem('cobot-collection-model-id',selected);localStorage.setItem('cobot-capture-use-model',useModel());localStorage.setItem('cobot-collection-runtime',mode==='rlt'?'rlt':'pi05');
       delete $('#collection-data-root').dataset.dirty;

@@ -13,7 +13,7 @@
   function node(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;}
   function button(label,fn,ico){const b=node("button","dock-button",ico?null:label);b.type="button";b.title=label;b.setAttribute("aria-label",label);if(ico){b.innerHTML=icon(ico);if(["close","expand","copy","refresh"].includes(ico))b.classList.add("panel-tool-button");}b.addEventListener("click",fn);return b;}
   function save(){try{localStorage.setItem(key,JSON.stringify(layout));}catch(_){}}
-  function restore(){try{const s=JSON.parse(localStorage.getItem(key)||"{}");const result={...defaults,...s,navOpen:s.navOpen??s.open?.left??true,commands:{visible:true,width:350,height:220,...s.commands},modules:{...defaults.modules,...s.modules},open:{...defaults.open,...s.open},active:{...defaults.active,...s.active},sizes:{...defaults.sizes,...s.sizes}};if(s.navOpen==null&&Object.values(result.modules).includes('left'))result.open.left=true;return result;}catch(_){return {...JSON.parse(JSON.stringify(defaults)),navOpen:true,commands:{visible:true,width:350,height:220}};}}
+  function restore(){try{const s=JSON.parse(localStorage.getItem(key)||"{}");const result={...defaults,...s,navOpen:s.navOpen??s.open?.left??true,taskList:{collapsed:false,width:138,...s.taskList},commands:{visible:true,width:350,height:220,...s.commands},modules:{...defaults.modules,...s.modules},open:{...defaults.open,...s.open},active:{...defaults.active,...s.active},sizes:{...defaults.sizes,...s.sizes}};if(s.navOpen==null&&Object.values(result.modules).includes('left'))result.open.left=true;return result;}catch(_){return {...JSON.parse(JSON.stringify(defaults)),navOpen:true,taskList:{collapsed:false,width:138},commands:{visible:true,width:350,height:220}};}}
   function report(text,error=false){window.CobotWorkspaceUI?.report(text,error?"error":"success","输出");$("#output-feedback").textContent=text;}
   async function json(url,body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const r=await fetch(url,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});const value=await r.json();if(!r.ok)throw Error(value.detail||value.error||r.status);return value;}catch(e){if(controller.signal.aborted)throw Error("请求超时，正在核对任务状态");throw e;}finally{clearTimeout(timer);}}
   async function copy(text){if(!text)return;try{if(navigator.clipboard&&isSecureContext)await navigator.clipboard.writeText(text);else{const area=node("textarea");area.value=text;area.style.cssText="position:fixed;opacity:0;top:0;left:0";document.body.append(area);area.select();if(!document.execCommand("copy"))throw Error();area.remove();}report("已复制");}catch(_){report("复制失败，请直接选中命令复制",true);}}
@@ -133,8 +133,9 @@
   }
   function applyCommands(){
     const output=modules.outputs;if(!output||!layout)return;
+    applyTaskList();
     const side=['left','right'].includes(layout.modules.outputs)||output.clientWidth<660;
-    output.classList.toggle('commands-stacked',side);output.classList.toggle('commands-hidden',!layout.commands.visible||output.clientHeight<180);
+    output.classList.toggle('commands-stacked',side);output.classList.toggle('commands-hidden',!layout.commands.visible);
     output.style.setProperty('--command-size',Math.min(side?Math.max(65,output.clientHeight-154):Math.max(200,output.clientWidth*.6),side?layout.commands.height:layout.commands.width)+'px');
     const toggle=$('#output-command-toggle');if(toggle){toggle.classList.toggle('selected',layout.commands.visible);toggle.setAttribute('aria-expanded',String(layout.commands.visible));}
     const grip=$('#command-resizer');if(grip)grip.setAttribute('aria-orientation',side?'horizontal':'vertical');
@@ -147,6 +148,28 @@
     grip.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();set(parseFloat(modules.outputs.style.getPropertyValue('--command-size'))+(['ArrowLeft','ArrowUp'].includes(event.key)?20:-20));save();});
     grip.addEventListener('dblclick',()=>{set(stacked()?220:350);save();});
   }
+  function applyTaskList(){
+    const output=modules.outputs;if(!output||!layout)return;
+    layout.taskList ||= {collapsed:false,width:138};
+    output.classList.toggle('tasks-collapsed',layout.taskList.collapsed);
+    output.style.setProperty('--task-list-width',Math.max(90,Math.min(layout.taskList.width,Math.max(90,output.clientWidth*.6)))+'px');
+    const toggle=$('#output-task-toggle');
+    if(toggle){toggle.classList.toggle('selected',!layout.taskList.collapsed);toggle.setAttribute('aria-expanded',String(!layout.taskList.collapsed));}
+  }
+  function taskListResize(grip){
+    grip.tabIndex=0;grip.setAttribute('role','separator');grip.setAttribute('aria-orientation','vertical');grip.setAttribute('aria-label',window.CobotPreferences?.language==='en'?'Resize task list':'调整任务列表宽度');
+    function set(width){layout.taskList.width=Math.max(90,Math.min(360,width));applyTaskList();}
+    grip.addEventListener('pointerdown',event=>{
+      if(event.button!==0)return;event.preventDefault();
+      const start=layout.taskList.width,at=event.clientX;
+      document.body.classList.add('dock-resizing');
+      const move=e=>set(start+e.clientX-at);
+      const end=()=>{document.removeEventListener('pointermove',move,true);document.removeEventListener('pointerup',end,true);document.removeEventListener('pointercancel',end,true);document.body.classList.remove('dock-resizing');save();};
+      document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',end,true);
+    });
+    grip.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();set(layout.taskList.width+(event.key==='ArrowRight'?10:-10));save();});
+    grip.addEventListener('dblclick',()=>{set(138);save();});
+  }
   function buildOutput(){const output=node("section","task-output");output.id="task-output";
     const toolbar=node("div","task-output-toolbar"),select=node("select","output-task-select");select.id="output-task-select";select.setAttribute("aria-label","选择任务");select.addEventListener("change",()=>selectTask(select.value));
     const meta=node("span","output-task-meta");meta.id="output-task-meta";const history=node("label","output-history");const check=node("input");check.type="checkbox";check.id="output-history-check";check.addEventListener("change",refreshOutputs);history.append(check,document.createTextNode("历史"));
@@ -154,8 +177,9 @@
     const stop=button("终止任务",stopTask);stop.id="output-stop";stop.classList.add("danger");stop.disabled=true;
     const commandToggle=button('命令',()=>{layout.commands.visible=!layout.commands.visible;save();applyCommands();});commandToggle.id='output-command-toggle';
     const rawLabel=node("label","output-history"),rawCheck=node("input");rawCheck.type="checkbox";rawCheck.id="output-raw-check";rawCheck.addEventListener("change",()=>{lastOutput="";renderOutput();});rawLabel.append(rawCheck,document.createTextNode(window.CobotPreferences?.language==="en"?"Raw log":"原始日志"));
-    toolbar.append(select,meta,history,rawLabel,auto,button("刷新输出",refreshOutputs,"refresh"),commandToggle,stop);
-    const body=node("div","task-output-body"),tasks=node("nav","output-task-list"),log=node("pre","task-log");tasks.id="output-task-list";tasks.setAttribute("aria-label","任务列表");log.id="task-log";log.tabIndex=0;log.textContent=window.CobotPreferences.text("等待任务输出");body.append(tasks,log);
+    const taskToggle=button(window.CobotPreferences?.language==='en'?'Task list':'任务列表',()=>{layout.taskList.collapsed=!layout.taskList.collapsed;save();applyTaskList();},'left');taskToggle.id='output-task-toggle';
+    toolbar.append(taskToggle,select,meta,history,rawLabel,auto,button("刷新输出",refreshOutputs,"refresh"),commandToggle,stop);
+    const body=node("div","task-output-body"),tasks=node("nav","output-task-list"),log=node("pre","task-log");tasks.id="output-task-list";tasks.setAttribute("aria-label","任务列表");log.id="task-log";log.tabIndex=0;log.textContent=window.CobotPreferences.text("等待任务输出");const taskGrip=node('div','task-list-resizer');taskListResize(taskGrip);body.append(tasks,taskGrip,log);
     const commands=node("section","output-commands"),bar=node("div","command-bar"),groups=node('select','command-group-select');groups.id='command-group-select';groups.setAttribute('aria-label','命令任务分类');groups.addEventListener('change',()=>{commandGroup=groups.value;commandChoice='current';renderCommands();});
     const options=node("select","common-command-select");options.id="common-command-select";options.setAttribute("aria-label","选择命令");options.addEventListener("change",()=>{commandChoice=options.value;renderCommands();});
     const close=button('隐藏命令',()=>{layout.commands.visible=false;save();applyCommands();},'close');

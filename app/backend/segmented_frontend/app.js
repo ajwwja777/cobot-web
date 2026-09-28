@@ -120,16 +120,30 @@ function rltMessage(text, failed = false) {
   $("#rlt-message").classList.toggle("error", failed);
   window.CobotUnifiedCollection?.render();
 }
-function historyIsRlt() {
+let historySelectedRoot = "", historyTotal = 0;
+function collectionIsRlt() {
   return (pendingCollectionMode || consoleStatus?.selected_mode) === "rlt";
 }
+function historyIsRlt(uuid = historyUuid) {
+  const episode = historyEpisodes.find(item => item.episode_uuid === uuid);
+  return episode ? episode.history_format === "rollout" : false;
+}
+document.addEventListener("cobot:storage-used", event => {
+  if (event.detail.kind !== "collection") return;
+  const changed = historySelectedRoot !== event.detail.path;
+  historySelectedRoot = event.detail.path;
+  if (changed) { historyUuid = null; historyEpisodes = []; resetReplay(); }
+  refreshHistory({loadSelected: true}).catch(error => historyMessage(error.message, true));
+});
 function historyDataRoot() {
-  if (!historyIsRlt()) return selectedDataRoot();
+  if (historySelectedRoot) return historySelectedRoot;
+  if (!collectionIsRlt()) return selectedDataRoot();
   const sessionRoot = rltSession && rltSession.data_root;
   return String(sessionRoot || $("#rlt-recording-directory").textContent || "").trim();
 }
 function historyEndpoint(path) {
-  const prefix = historyIsRlt() ? "/api/rlt-recorder/api" : "/api/segmented-teach";
+  const uuid = path.match(/^\/episodes\/([^/?]+)/)?.[1];
+  const prefix = historyIsRlt(uuid || historyUuid) ? "/api/rlt-recorder/api" : "/api/segmented-teach";
   const separator = path.includes("?") ? "&" : "?";
   return `${prefix}${path}${separator}${dataRootQuery(historyDataRoot())}`;
 }
@@ -173,7 +187,7 @@ function mountEpisodeBrowser(isRlt) {
   refreshHistory({loadSelected: true}).catch(error => historyMessage(error.message, true));
 }
 function updateEpisodeBrowserControls() {
-  const isRlt = historyIsRlt();
+  const isRlt = collectionIsRlt();
   const active = isRlt
     ? Boolean(rltSession && ["finalizing", "replay_committing"].includes(String(rltSession.phase || "")))
     : ["recording", "paused", "finalizing"].includes(current.capture_state);
@@ -209,8 +223,8 @@ function renderConsole() {
   if (!consoleStatus) return;
   const counts = consoleStatus.recording_counts || {};
   $("#recording-counts").textContent = "已录制：" + [["demonstrations", "专家"], ["warmup", "warmup"], ["online", "在线"]].map(([key, name]) => name + " " + String((counts[key] || {}).total || 0)).join(" · ");
-  const isRlt = historyIsRlt();
-  mountEpisodeBrowser(isRlt);
+  const isRlt = collectionIsRlt();
+  mountEpisodeBrowser(false);
   $("#selected-mode").textContent = isRlt ? "RLT rollout" : "普通采集";
   $("#active-mode").textContent = consoleStatus.active_mode || "idle";
   const readiness = consoleStatus.ros_readiness || {};
@@ -449,7 +463,7 @@ async function refreshRltHistory() {
   }
 }
 async function refreshRltRecorderBrowser() {
-  if (rltRecorderRefreshBusy || !historyIsRlt() || activePageName() !== "operation") return;
+  if (rltRecorderRefreshBusy || !collectionIsRlt() || activePageName() !== "operation") return;
   rltRecorderRefreshBusy = true;
   try {
     const status = await request("/api/rlt-recorder/api/status");
@@ -938,9 +952,8 @@ async function refresh() {
 }
 
 function historyPageUrl(limit, offset) {
-  if (historyIsRlt()) return historyEndpoint("/episodes");
-  return historyEndpoint("/episodes")
-    + `&limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}`;
+  return "/api/segmented-teach/history?" + dataRootQuery(historyDataRoot())
+    + "&limit=" + encodeURIComponent(limit) + "&offset=" + encodeURIComponent(offset);
 }
 
 function historyEpisodeOutcome(episode) {
@@ -949,7 +962,6 @@ function historyEpisodeOutcome(episode) {
 }
 
 function visibleHistory(episodes) {
-  if (!historyIsRlt()) return episodes;
   return episodes.filter(episode => historyEpisodeOutcome(episode) !== "aborted");
 }
 
@@ -977,7 +989,7 @@ function appendHistoryOptions(episodes, replace = false) {
     const frames = episode.training_frame_count == null ? Number(episode.frame_count || 0) : Number(episode.training_frame_count || 0);
     const summary = rltEpisodeSummaryByUuid.get(episode.episode_uuid) || {};
     const outcome = episode.episode_outcome || summary.outcome;
-    const kind = (summary.hil || episode.has_hil) ? "HIL" : (historyIsRlt() ? "自主" : `${Number(episode.node_count || 0)} nodes`);
+    const kind = (summary.hil || episode.has_hil) ? "HIL" : (episode.history_format === "rollout" ? "自主" : `${Number(episode.node_count || 0)} nodes`);
     const state = episode.commit_state || episode.completion_state || "complete";
     option.textContent = `episode ${index} · ${!outcome||outcome==='unknown'?"未标注":outcome} · ${kind} · ${frames} frames · ${state}`;
     select.append(option);
@@ -988,11 +1000,10 @@ function appendHistoryOptions(episodes, replace = false) {
 }
 
 async function loadRemainingHistory(token, offset) {
-  if (historyIsRlt()) return;
   let loaded = offset;
   try {
     while (token === historyRefreshToken) {
-      const page = await request(historyPageUrl(HISTORY_BACKGROUND_PAGE, loaded));
+      const page = (await request(historyPageUrl(HISTORY_BACKGROUND_PAGE, loaded))).episodes;
       if (token !== historyRefreshToken) return;
       historyEpisodes.push(...page);
       appendHistoryOptions(page, false);
@@ -1020,7 +1031,9 @@ async function refreshHistory(options = {}) {
   const state = $("#history-load-state");
   state.textContent = "正在加载最近记录";
   state.classList.add("is-loading");
-  let episodes = await request(historyPageUrl(HISTORY_INITIAL_PAGE, 0));
+  const listing = await request(historyPageUrl(HISTORY_INITIAL_PAGE, 0));
+  let episodes = listing.episodes;
+  historyTotal = listing.total;
   const hiddenAborted = historyIsRlt()
     ? episodes.filter(episode => historyEpisodeOutcome(episode) === "aborted").length : 0;
   episodes = visibleHistory(episodes);
@@ -1037,7 +1050,7 @@ async function refreshHistory(options = {}) {
   }
   if (loadSelected && episodes.length) await loadHistory();
   if (episodes.length) preloadEpisodeMedia(++mediaPreloadToken, episodes, historyIsRlt());
-  if (!historyIsRlt() && episodes.length === HISTORY_INITIAL_PAGE) {
+  if (episodes.length < historyTotal) {
     setTimeout(() => loadRemainingHistory(token, episodes.length), 0);
   } else {
     state.textContent = `${episodes.length} 条可用记录${hiddenText} · 已完成`;
@@ -1048,12 +1061,13 @@ async function refreshHistory(options = {}) {
 
 async function preloadEpisodeMedia(token, episodes, isRlt) {
   const state = $("#history-load-state");
-  const active = () => token === mediaPreloadToken && historyIsRlt()===isRlt;
+  const active = () => token === mediaPreloadToken;
   let framesReady = 0;
   let nextFrame = 0;
   const loadFrame = async () => {
     while (active() && nextFrame < episodes.length) {
       const episode = episodes[nextFrame++];
+      const isRlt = episode.history_format === "rollout";
       try {
         let bases=[];
         if(isRlt){
@@ -1078,7 +1092,7 @@ async function preloadEpisodeMedia(token, episodes, isRlt) {
         }
         framesReady++;
       } catch (_error) { /* The selected episode can retry a missing frame. */ }
-      if (active()) state.textContent = `节点帧 ${framesReady}/${episodes.length} · 视频待加载`;
+      if (active()) state.textContent = historyTotal + (window.CobotPreferences?.language === "en" ? " episodes in this directory" : " 条记录");
     }
   };
   await Promise.all(Array.from({length:Math.min(4,episodes.length)}, loadFrame));
@@ -1087,6 +1101,7 @@ async function preloadEpisodeMedia(token, episodes, isRlt) {
   const loadVideo = async () => {
     while (active() && nextVideo < episodes.length) {
       const episode = episodes[nextVideo++];
+      const isRlt = episode.history_format === "rollout";
       const uuid = episode.episode_uuid;
       if (preloadedVideos.has(uuid)) { videosReady++; continue; }
       try {
@@ -1104,13 +1119,12 @@ async function preloadEpisodeMedia(token, episodes, isRlt) {
           }
         }
       } catch (_error) { /* A failed preview remains available for explicit retry. */ }
-      if (active()) state.textContent = `节点帧 ${framesReady}/${episodes.length} · 视频 ${videosReady}/${episodes.length}`;
+      if (active()) state.textContent = historyTotal + (window.CobotPreferences?.language === "en" ? " episodes in this directory" : " 条记录");
     }
   };
   if (active()) await Promise.all(Array.from({length:Math.min(2,episodes.length)}, loadVideo));
-  if (active()) state.textContent = `节点帧 ${framesReady}/${episodes.length} · 视频 ${videosReady}/${episodes.length} · 已完成`;
+  if (active()) state.textContent = historyTotal + (window.CobotPreferences?.language === "en" ? " episodes in this directory" : " 条记录");
 }
-
 function resetReplay(preserveHistoryLayout=false) {
   clearTimeout(replayTimer);
   const endpoints=$('#episode-endpoints');if(endpoints&&!preserveHistoryLayout)endpoints.remove();
@@ -1341,7 +1355,7 @@ async function deleteHistory() {
 
 function historyShortcutSafe() {
   if (!$("#episode-history").options.length) return false;
-  if (!historyIsRlt()) return !["recording", "paused", "finalizing"].includes(current.capture_state);
+  if (!collectionIsRlt()) return !["recording", "paused", "finalizing"].includes(current.capture_state);
   const phase = String((rltSession && rltSession.phase) || "offline");
   return !["recording_starting", "rollout", "hil", "paused", "terminal_pending", "finalizing", "replay_committing"].includes(phase);
 }
@@ -1895,7 +1909,7 @@ for (const name of ["pause", "resume", "marker", "stop", "discard"]) {
 }
 $("#stop-home").addEventListener("click", event => withButtonBusy(event.currentTarget, finalizeAndHome, "保存并复位"));
 $("#capture-home-enabled").addEventListener("change", () => setTimeout(updateButtons,0));
-$("#capture-home-now").addEventListener("click",event=>withButtonBusy(event.currentTarget,()=>homeCollection(historyIsRlt()?'rlt':'normal')));
+$("#capture-home-now").addEventListener("click",event=>withButtonBusy(event.currentTarget,()=>homeCollection(collectionIsRlt()?'rlt':'normal')));
 $("#rlt-home-now").addEventListener("click",event=>withButtonBusy(event.currentTarget,()=>homeCollection('rlt')));
 window.addEventListener("keydown", event => handleEpisodeHistoryShortcut(event).catch(error => historyMessage(error.message, true)));
 window.addEventListener("keydown", handleCaptureShortcut);
@@ -1989,12 +2003,12 @@ document.addEventListener("cobot:language", () => {
   if (["learning", "training"].includes(activePageName())) diagnosticsPoller.tick();
   if (activePageName() === "system") devicePoller.tick();
 });
-window.setInterval(() => { if (pagePollingEnabled('operation') && !historyIsRlt() && !textSelectionActive()) refresh(); }, 750);
+window.setInterval(() => { if (pagePollingEnabled('operation') && !collectionIsRlt() && !textSelectionActive()) refresh(); }, 750);
 window.setInterval(() => { if (!document.hidden && !textSelectionActive()) refreshConsole(); }, 1000);
-window.setInterval(() => { if (pagePollingEnabled('operation') && historyIsRlt() && !textSelectionActive()) refreshRltRecorderBrowser(); }, 750);
-window.setInterval(() => { if (!document.hidden && !textSelectionActive() && (activePageName() === 'operation' && historyIsRlt())) refreshReleases(); }, 10000);
+window.setInterval(() => { if (pagePollingEnabled('operation') && collectionIsRlt() && !textSelectionActive()) refreshRltRecorderBrowser(); }, 750);
+window.setInterval(() => { if (!document.hidden && !textSelectionActive() && (activePageName() === 'operation' && collectionIsRlt())) refreshReleases(); }, 10000);
 refreshReleases();
-window.setInterval(() => { if (!document.hidden && !textSelectionActive() && (activePageName() === 'operation' && historyIsRlt())) refreshModels(); }, 5000);
+window.setInterval(() => { if (!document.hidden && !textSelectionActive() && (activePageName() === 'operation' && collectionIsRlt())) refreshModels(); }, 5000);
 refreshModels();
 window.setInterval(() => {
   if (!document.hidden && !textSelectionActive() && ['learning','training'].includes(activePageName())) diagnosticsPoller.tick();

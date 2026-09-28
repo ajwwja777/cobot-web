@@ -34,3 +34,12 @@ test('late selection response cannot replace newer selection',async()=>{
  assert.equal(get('#episode-endpoints').dataset.episodeUuid,'B');
  assert.ok([...get('#episode-endpoints').querySelectorAll('img')].some(img=>img.src.includes('/episodes/B/')));
 });
+test('history reader follows episode format with no model and after model selection',async()=>{
+ const {ctx,get}=setup();
+ vm.runInContext('historyEpisodes=[{episode_uuid:"R",history_format:"rollout"},{episode_uuid:"N",history_format:"segmented"}];consoleStatus={selected_mode:"normal"}',ctx);
+ assert.match(vm.runInContext('historyEndpoint("/episodes/R/frames/0/camera_high.jpg")',ctx),/^\/api\/rlt-recorder\/api/);
+ assert.match(vm.runInContext('historyEndpoint("/episodes/N/nodes/1/camera_high.jpg")',ctx),/^\/api\/segmented-teach/);
+ vm.runInContext('consoleStatus={selected_mode:"rlt"}',ctx);
+ assert.match(vm.runInContext('historyEndpoint("/episodes/N/nodes/1/camera_high.jpg")',ctx),/^\/api\/segmented-teach/);
+ assert.match(vm.runInContext('historyEndpoint("/episodes/R/frames/0/camera_high.jpg")',ctx),/^\/api\/rlt-recorder\/api/);
+});

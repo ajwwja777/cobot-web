@@ -18,7 +18,7 @@ function setup() {
   w.CobotPreferences = {language:"en", text:value=>value};
   w.CobotPathPicker = {create:()=>({setDisabled(){}, refresh(){}, remember(){}})};
   w.CobotWorkspaceUI = {report(){}, sessionStatus(){}};
-  w.historyIsRlt = () => mode === "rlt";
+  w.collectionIsRlt = () => mode === "rlt";
   w.updateButtons = () => {};
   w.chooseCollection = async value => {mode=value;};
   w.refreshConsole = async () => w.CobotUnifiedCollection.render({

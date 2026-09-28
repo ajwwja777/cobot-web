@@ -126,3 +126,12 @@ def test_terminal_home_recipe_quotes_arguments_and_all_recipes_are_valid_bash():
     assert "'literal $(false)'" in details['terminal_command']
     for row in common_commands():
         subprocess.run(['bash', '-n'], input=row['command'], text=True, check=True)
+
+def test_camera_summary_removes_colour_noise_but_preserves_real_failures():
+    from cobot_console.task_outputs import important_output, clean_log
+    raw = "\x1b[33m[ WARN] [1790604194.1]: Camera calibration file /runtime/rgb_camera.yaml not found.[0m\n[33m[ERROR] [1790604195.1]: Input/output error[0m"
+    assert "[0m" not in clean_log(raw) and "[33m" not in clean_log(raw)
+    result = important_output("cameras", "running", raw, {"cameras": {"phase": "ready"}})
+    assert "calibration files are absent" in result["en"]
+    assert "Input/output error" in result["en"]
+    assert "[0m" not in result["en"]

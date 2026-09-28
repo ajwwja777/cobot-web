@@ -116,6 +116,13 @@ def common_commands():
     ]]
 
 
+def clean_log(raw):
+    """Remove terminal control bytes, including truncated ROS colour sequences."""
+    raw = re.sub(r"\x1b\][^\x07]*(?:\x07|\x1b\\)", "", raw)
+    raw = re.sub(r"(?:\x1b)?\[[0-9;]*[mK]", "", raw)
+    return raw.replace("\r", "").replace("\x00", "")
+
+
 def important_output(component, phase, raw, systems):
     """Keep faults and transitions visible; full raw output remains selectable."""
     if component not in ("arms", "cameras", "roscore"):
@@ -127,8 +134,18 @@ def important_output(component, phase, raw, systems):
     status_en = "nodes ready" if ready else "nodes not ready; inspect output"
     relevant = []
     repeated = {}
-    for line in raw.splitlines():
+    notices = set()
+    for line in clean_log(raw).splitlines():
         line = line.strip()
+        if component == "cameras" and ready:
+            if "Camera calibration file" in line and "not found" in line:
+                notices.add("calibration")
+                continue
+            if "failed to create stream ir" in line and "disabled or sensor not found" in line:
+                notices.add("ir")
+                continue
+        # Keep severity/message, group repeated ROS warnings regardless of timestamp.
+        line = re.sub(r"\[\s*(WARN|ERROR|INFO|FATAL)\s*\]\s*\[[0-9.]+\]:?\s*", r"\1: ", line)
         if not line:
             continue
         # ROS Noetic's non-atomic latest symlink race is fixed in our launcher.
@@ -145,8 +162,15 @@ def important_output(component, phase, raw, systems):
                 repeated[line] = 1
                 relevant.append(line)
     lines = [line + (" [x%d]" % repeated[line] if repeated[line] > 1 else "") for line in relevant[-40:]]
-    return {"zh": zh + "：" + status_zh + "\n" + "\n".join(lines),
-            "en": en + ": " + status_en + "\n" + "\n".join(lines)}
+    notes_zh, notes_en = [], []
+    if "calibration" in notices:
+        notes_zh.append("提示：未安装 RGB/IR 标定文件；需要标定参数的功能尚未就绪。详情见原始日志。")
+        notes_en.append("Notice: RGB/IR calibration files are absent; calibrated geometry is unavailable. See raw log.")
+    if "ir" in notices:
+        notes_zh.append("提示：IR 流未启用或传感器不可用；需使用 IR 时检查相机配置。")
+        notes_en.append("Notice: IR stream is disabled or unavailable; check camera configuration if IR is required.")
+    return {"zh": zh + "：" + status_zh + "\n" + "\n".join(notes_zh + lines),
+            "en": en + ": " + status_en + "\n" + "\n".join(notes_en + lines)}
 
 
 class TaskOutputs:
