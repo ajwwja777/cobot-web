@@ -241,6 +241,9 @@ def mock_assets(monkeypatch, tmp_path):
     manifest.write_text(json.dumps({"checkpoint":str(base)}))
     monkeypatch.setattr(deployment,"RLT",root);monkeypatch.setattr(deployment,"RUN",run)
     monkeypatch.setattr(paths,"RLT",root)
+    from integrations.cobot_runtime import paths as rl_paths
+    monkeypatch.setattr(rl_paths, "RLT", root)
+    monkeypatch.setattr(rl_paths, "RLT_WARMUP", actor.parent.parent)
     monkeypatch.setattr(deployment,"RLT_WARMUP",actor.parent.parent)
     model_root = actor.parent.parent.parent
     monkeypatch.setattr(deployment,"RLT_MODELS",model_root)

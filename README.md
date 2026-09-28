@@ -1,5 +1,20 @@
 # Cobot Web
 
+```text
+cobot-web/
+├── app/backend/cobot_console/       # HTTP、任务、模型运行与结果记录
+├── app/backend/segmented_frontend/  # 交互、翻译、布局、输出
+├── app/backend/capture_core/api.py  # 录制HTTP适配
+├── app/backend/segmented_capture/api.py
+├── configs/                        # 示例与现场local.json
+├── scripts/                        # 网页/CLI、兼容转发与发布
+└── docs/
+```
+
+本地框架与部署：[说明](docs/ARCHITECTURE.md)。
+
+项目结构：[ARCHITECTURE](docs/ARCHITECTURE.md)。换机部署：[DEPLOYMENT](docs/DEPLOYMENT.md)。
+
 Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状态、部署评测、相机与任务输出。
 
 **A6000 是代码与 Git 的主工作区。Cobot 运行同步副本。** 正式 8015 已于 2026-09-27 切换到新目录，当前运行与同步记录见 `docs/MIGRATION.md` 和现场 `.release.json`。2026-09-28又完成新RLT／硬件／数据路径切换与共享加载验证；被动硬件验收后已停止，现场使用前按手册启动。网页接口验收不等于真机运动或模型成功率验收。

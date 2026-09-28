@@ -23,7 +23,7 @@ from .rlt_proxy import RltBackendClient, RltBackendError
 from .shared_model_env import BETWEEN_EPISODES
 from capture_core.asset_storage import require_storage
 
-from .paths import (PROJECT as PLATFORM, RLT, DATA, PI05 as LEGACY, PI05_DAGGER as DAGGER,
+from .paths import (SETTINGS as HOST_SETTINGS, PROJECT as PLATFORM, RLT, DATA, PI05 as LEGACY, PI05_DAGGER as DAGGER,
                     RUNTIME_ROOT, RLT_WARMUP, RLT_MODELS, PI05_CHECKPOINT, PI05_DAGGER_CHECKPOINT, migrated_data_path)
 RUN = RLT / "outputs/rlt/plug_v3_yyshadow"
 RUNTIME = RUNTIME_ROOT / "deployment"
@@ -52,31 +52,12 @@ def catalog():
     manifest = read_json(RLT / "configs/rlt/plug_v3_yyshadow/manifest.json")
     base = str(manifest.get("checkpoint") or "")
     actor = RLT_WARMUP / "actor_snapshot/actor_snapshot.pkl"
-    definitions = [
-        dict(id="plug-v3-warmup-5k", label="插孔 · Warmup 5,000 步", kind="rlt", mode="frozen",
-             checkpoint=str(actor), base_checkpoint=base, step=5000, actor_version=2500,
-             prompt="Insert the held plug into the socket.", home_pose="plug2", control_hz=20,
-             validation="离线验证通过 · 真机待验收", deterministic=True),
-        dict(id="plug-v3-warmup-20k", label="插孔 · 历史 Warmup 20,000 步", kind="rlt", mode="frozen",
-             checkpoint=str(RLT_MODELS / "history/candidates/experts120_20k_20260925/actor_snapshot/actor_snapshot.pkl"),
-             base_checkpoint=base, step=20000, actor_version=10000,
-             adapter_id="plug-v3-warmup-5k", custom=True,
-             prompt="Insert the held plug into the socket.", home_pose="plug2", control_hz=20,
-             validation="Historical 20k comparison checkpoint; not the default", deterministic=True),
-        dict(id="plug-v3-reference", label="插孔 · Stage 1 Reference", kind="rlt", mode="reference",
-             checkpoint=base, base_checkpoint=base, step=4999, actor_version=-1,
-             prompt="Insert the held plug into the socket.", home_pose="plug2", control_hz=20,
-             validation="Stage 1 基线", deterministic=True),
-        dict(id="pi05-in-the-pot-dagger", label="π0.5 · in_the_pot · DAgger 2000 + 3000", kind="pi05", mode="evaluation",
-             checkpoint=str(PI05_DAGGER_CHECKPOINT), base_checkpoint=str(PI05_CHECKPOINT), step=3000,
-             training_lineage="step 2000 参数初始化，再训练 3000 步；新 AdamW",
-             prompt="Open the pot lid, put the object into the pot, then close the lid.",
-             home_pose="origin", control_hz=20, validation="历史 DAgger 部署模型", deterministic=None),
-        dict(id="pi05-in-the-pot", label="π0.5 · in_the_pot · 原始 step 2000", kind="pi05", mode="evaluation",
-             checkpoint=str(PI05_CHECKPOINT), base_checkpoint=None, step=2000,
-             prompt="Open the pot lid, put the object into the pot, then close the lid.",
-             home_pose="origin", control_hz=20, validation="历史部署模型", deterministic=None),
-    ]
+    from .registry import configured_models
+    definitions = configured_models({
+        "RLT_WARMUP": str(RLT_WARMUP), "RLT_MODELS": str(RLT_MODELS),
+        "BASE_CHECKPOINT": base, "PI05_CHECKPOINT": str(PI05_CHECKPOINT),
+        "PI05_DAGGER_CHECKPOINT": str(PI05_DAGGER_CHECKPOINT),
+    })
     for item in definitions:
         checkpoint = Path(item["checkpoint"]) if item["checkpoint"] else None
         available = checkpoint is not None and checkpoint.exists()
@@ -106,6 +87,8 @@ def catalog():
         })
     from .model_metadata import vla_models, describe
     definitions.extend(vla_models())
+    from .registry import external_models
+    definitions.extend(external_models())
     from .site_options import registered_models, inventory_models
     definitions.extend(registered_models(definitions))
     definitions.extend(inventory_models(definitions))
@@ -130,6 +113,8 @@ def tail(path):
     except OSError:
         return ""
 
+
+from .runtime_lock import serialized
 
 class ManagedRuntime:
     def __init__(self, directory=RUNTIME):
@@ -160,8 +145,11 @@ class ManagedRuntime:
                 pass
         return members
 
+    @serialized
     def load(self, model):
         from .device_control import _default_process_finder
+        if model.get("capabilities", {}).get("load") is False:
+            raise DeploymentError("Adapter does not support load")
         if self._owned_members(read_json(self.registry)):
             raise DeploymentError("请先释放当前部署模型")
         for marker in ("methods.openpi_rlt.scripts.online_role", "inference_pi05_rtc_task2.py", "deployment_pi05_client.py", "g05_task2_client.py", "inference_xr1_async.py", "adapters.fluxvla_cobot.task2_client", "methods.openpi_rlt.plug_v2.runtime"):
@@ -173,11 +161,18 @@ class ManagedRuntime:
         self.directory.mkdir(parents=True, exist_ok=True)
         log = self.directory / ("model-" + time.strftime("%Y%m%dT%H%M%S") + ".log")
         command = [str(PLATFORM / "scripts/deployment_run.sh"), model["id"]]
+        cwd = None
+        if model["kind"] == "external":
+            command = model["command"]
+            cwd = model["cwd"]
         if model["kind"] == "rlt":
             command.extend([model["checkpoint"], str(self.directory / "evaluation.yaml")])
         atomic_json(self.directory / "session-use.json", {
             "use": "collection" if model.get("training_enabled") else "evaluation"})
         environment = {**os.environ, "COBOT_MODEL_SESSION_USE": str(self.directory / "session-use.json")}
+        import runpy
+        vla_config = PLATFORM.parent / "vla-platform/integrations/cobot/registry.py"
+        environment.update(runpy.run_path(str(vla_config))["runtime_environment"]())
         environment.pop("COBOT_DEPLOYMENT_ADAPTER", None)
         environment.pop("COBOT_CUSTOM_CHECKPOINT", None)
         if model["kind"] == "vla":
@@ -188,7 +183,7 @@ class ManagedRuntime:
             environment["COBOT_CUSTOM_CHECKPOINT"] = model["checkpoint"]
         with log.open("ab") as stream:
             self.process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=stream,
-                                            stderr=subprocess.STDOUT, start_new_session=True, env=environment)
+                                            stderr=subprocess.STDOUT, start_new_session=True, env=environment, cwd=cwd)
         state = {"model": model, "pid": self.process.pid, "start_ticks": process_identity(self.process.pid),
                  "log_path": str(log), "phase": "loading", "started_at": time.time()}
         atomic_json(self.registry, state)
@@ -204,9 +199,14 @@ class ManagedRuntime:
         if not self._alive(saved):
             return {**saved, "phase": "offline" if saved.get("phase") == "offline" else "error",
                     "detail": saved.get("detail") or output[-1200:] or "模型进程已退出", "log_tail": output}
+        saved.update(process_started=True, model_ready=bool(saved.get("ready_confirmed")), inference_verified=False)
         model = saved["model"]
         if time.time() - saved["started_at"] > 1800 and not saved.get("ready_confirmed"):
             return {**saved, "phase": "error", "detail": "加载超过 30 分钟，请查看模型输出并释放后重试", "log_tail": output}
+        if model["kind"] == "external":
+            return {**saved, "phase":"process_running", "process_started":True,
+                "model_ready":False, "inference_verified":False, "log_tail":output,
+                "detail":"Process started; this shell entry has no model readiness protocol"}
         session = None
         if model["kind"] == "rlt":
             try:
@@ -217,8 +217,9 @@ class ManagedRuntime:
                 pass
             phase = session.get("phase") if session else "loading"
             mapped = "ready" if phase in ("disarmed", "armed", "ready", "waiting_scene", "stopped") else "running" if phase == "rollout" else "paused" if phase in ("paused", "hil", "terminal_pending") else "finalizing" if phase in ("recording_starting", "finalizing", "replay_committing") else "error" if phase == "fault" else "loading"
-            if session and not saved.get("ready_confirmed"):
+            if session and mapped in {"ready","paused","running"} and not saved.get("ready_confirmed"):
                 saved["ready_confirmed"] = True
+                saved["model_ready"] = True
                 atomic_json(self.registry, saved)
             return {**saved, "phase": mapped, "session": session, "intervention_count": (session or {}).get("intervention_count", 0), "detail": (session or {}).get("fault_reason"), "log_tail": output}
         if model["kind"] == "vla":
@@ -227,12 +228,14 @@ class ManagedRuntime:
             phase = "paused" if ready and gate.get("paused", True) else "running" if ready else "loading"
             if ready and not saved.get("ready_confirmed"):
                 saved["ready_confirmed"] = True
+                saved["model_ready"] = True
                 atomic_json(self.registry, saved)
             return {**saved, "phase": phase, "log_tail": output,
                     "intervention_count": gate.get("intervention_count", 0)}
         ready = "ready and PAUSED" in output or saved.get("ready_confirmed")
         if ready and not saved.get("ready_confirmed"):
             saved["ready_confirmed"] = True
+            saved["model_ready"] = True
             atomic_json(self.registry, saved)
         gate = read_json(self.directory / "pi05-gate.json")
         phase = "paused" if ready and gate.get("paused", True) else "running" if ready else "loading"
@@ -249,6 +252,7 @@ class ManagedRuntime:
             raise DeploymentError(str(response.payload.get("error") or response.payload.get("detail") or response.payload))
         return response.payload
 
+    @serialized
     def select_use(self, use):
         state = self.status()
         if state.get("model", {}).get("kind") != "rlt":
@@ -262,6 +266,7 @@ class ManagedRuntime:
             raise DeploymentError("在线更新已启用；评测请选择同路径的冻结模型")
         atomic_json(self.directory / "session-use.json", {"use": use})
 
+    @serialized
     def collection_action(self, path, body=None):
         state = self.status()
         session = state.get("session") or {}
@@ -273,9 +278,13 @@ class ManagedRuntime:
             raise DeploymentError("当前为评测轮次，请使用部署控制")
         return self.backend.request("POST", path, body)
 
+    @serialized
     def action(self, operation):
         state = self.status()
-        if state["phase"] in ("offline", "loading", "error"):
+        capability = "stop" if operation in {"success","failure","abort"} else operation
+        if state.get("model", {}).get("capabilities", {}).get(capability) is False:
+            raise DeploymentError("Adapter does not support " + capability)
+        if state["phase"] in ("offline", "loading", "error", "process_running"):
             raise DeploymentError("模型尚未就绪：" + str(state.get("detail") or state["phase"]))
         if state["model"]["kind"] == "rlt":
             phase = state["session"]["phase"]
@@ -289,7 +298,9 @@ class ManagedRuntime:
                 return state
             return self._session_action("/api/session/" + operation)
         paused = operation != "start" and operation != "resume"
-        command = ["bash", "-c", "source /home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash && exec /usr/bin/python3 \"$@\"", "deployment",
+        import shlex
+        setup = HOST_SETTINGS.get("ros_setup", "/opt/ros/noetic/setup.bash")
+        command = ["bash", "-c", "source " + shlex.quote(setup) + " && exec /usr/bin/python3 \"$@\"", "deployment",
                    str(PLATFORM / "app/backend/cobot_console/deployment_ros.py"), "pause" if paused else "resume"]
         if state["model"]["kind"] == "vla" and not paused:
             command.append("--arm")
@@ -298,11 +309,12 @@ class ManagedRuntime:
             raise DeploymentError((result.stderr or result.stdout).strip()[-900:])
         return {"phase": "paused" if paused else "running"}
 
+    @serialized
     def unload(self):
         saved = read_json(self.registry)
         if self._owned_members(saved):
             state = self.status()
-            if state["phase"] not in ("loading", "error"):
+            if state["phase"] not in ("loading", "error", "process_running") and saved["model"].get("capabilities", {}).get("pause", True):
                 self.action("pause")
             if saved["model"]["kind"] == "rlt" and state.get("session"):
                 try:

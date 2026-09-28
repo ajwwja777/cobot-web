@@ -26,8 +26,7 @@ case "$MODEL_ENTRY" in
     export MAX_PUBLISH_STEP=100000000
     exec "$PLATFORM/scripts/deployment_pi05.sh" "$MODEL_ENTRY"
     ;;
-  fluxvla-pi05-*|galaxea-g05-*|xr1-*|xr1_dagger-*)
-    exec /usr/bin/python3 "${COBOT_PLATFORM_ROOT%/*}/vla-platform/integrations/cobot/managed_model.py" "$MODEL_ENTRY"
+  *)
+    exec /usr/bin/python3 "$COBOT_PLATFORM_ROOT/../vla-platform/integrations/cobot/managed_model.py" "$MODEL_ENTRY"
     ;;
-  *) echo '未登记的部署模型' >&2; exit 2;;
 esac

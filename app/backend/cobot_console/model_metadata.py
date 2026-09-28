@@ -2,6 +2,7 @@
 import json
 import re
 import shlex
+import runpy
 from pathlib import Path
 from .paths import PROJECT
 
@@ -15,7 +16,7 @@ def read(path):
 
 def vla_models():
     result = []
-    for row in read(VLA / "configs/cobot_models.json").get("models", []):
+    for row in runpy.run_path(str(VLA / "integrations/cobot/registry.py"))["load_models"]():
         entry = VLA / row["root"]
         missing = [p for p in [row["checkpoint"], *row["required"], *row["runtime_dependencies"],
                     str(entry / row["args"][0])] if not Path(p).exists()]
@@ -27,13 +28,13 @@ def vla_models():
             "" if managed else "终端入口已迁入；原脚本启动即运动，尚未接入网页暂停控制")
         reason_en = ("Missing files: " + ", ".join(missing)) if missing else (
             "" if managed else "CLI migrated; direct-motion entry requires web pause control")
-        result.append(dict(id=row["id"], family=row["family"], task=row["task"], step=row["step"],
+        result.append(dict(**{k:row.get(k) for k in ("capabilities","checkpoint_type","resumable_training","normalization","base_model","io_contract","runtime_python","code_revision","integration_level","verification")}, id=row["id"], family=row["family"], task=row["task"], step=row["step"],
             parent_step=row.get("parent_step"), checkpoint=row["checkpoint"],
             label=row["family"] + " · " + row["task"] + " · " + str(row["step"]),
             kind="vla", mode="evaluation", home_pose=row["home_pose"], control_hz=row["control_hz"],
             available=managed and not missing, cli_available=not missing, cli_command=cli,
             unavailable_reason=reason, unavailable_reason_en=reason_en,
-            availability="missing_files" if missing else "ready" if managed else "cli_only",
+            availability="missing_files" if missing else "files_present" if managed else "cli_only",
             entry=str(VLA / "integrations/cobot/managed_model.py"),
             validation="Preserved deployment entry; hardware evaluation pending",
             training_enabled=False))
@@ -86,5 +87,18 @@ def describe(model):
         result.update(availability="base_model", available=False,
             unavailable_reason="基础模型依赖，不是场景部署权重",
             unavailable_reason_en="Base model dependency; not a trained task policy")
-    result.setdefault("availability", "ready" if model.get("available") else "unregistered")
+    result.setdefault("availability", "files_present" if model.get("available") else "unregistered")
+    supported = bool(model.get("available"))
+    result.setdefault("capabilities", {key:supported for key in ("load","ready","start","pause","resume","stop","unload","logs","pid","capture","hil","evaluate")})
+    result["capabilities"].setdefault("train", bool(model.get("training_enabled")))
+    result.setdefault("checkpoint_type", "inference_weights")
+    result.setdefault("resumable_training", False)
+    result.setdefault("verification", {"files":"present" if supported else "unavailable",
+        "process_ready":"not_checked", "inference":"not_checked", "robot":"pending"})
+    if family == "RLT":
+        result.setdefault("stage1_step", result.get("base_step"))
+        result.setdefault("learner_step", None if model.get("mode") == "reference" else result.get("step"))
+        result.setdefault("normalization", str(path.parent.parent / "action_norm_stats.json") if path.suffix == ".pkl" else "Stage1 checkpoint assets")
+        result.setdefault("io_contract", "rlt-right-arm-v3")
+        result["capabilities"]["train"] = bool(model.get("training_enabled"))
     return result

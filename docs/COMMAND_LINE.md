@@ -577,3 +577,25 @@ python3 scripts/console.py recovery interrupt model
 网页的“加载”通过 deployment_run.sh → vla-platform/integrations/cobot/managed_model.py → 对应旧 run_checkpoint*.sh 加载服务和暂停客户端。点击“开始/继续”才调用原 /task2/policy/arm 与 /task2/policy/set_paused。一个受管理的进程组包含客户端和它启动的服务，输出栏仍可看 PID 并释放整个模型；不自动启动独立终端窗口。启动计划可用 managed_model.py <模型ID> --check 做只读文件/命令检查。
 
 完整版本、checkpoint、依赖和具体缺失文件以 configs/cobot_models.json 与网页模型详情为准。DM0.5 和 XR1 DAgger 在本机缺权重；已有 Python/ROS 安装仍是现场依赖，不能仅复制 .sh 就认为新机器已具备环境。本批是入口迁入、控制接入和无动作验证，不代表重新完成真机成功率测试。
+
+## 2026-09-29：统一CLI与网页下层调用
+
+结构见ARCHITECTURE.md，安装见DEPLOYMENT.md。
+
+```bash
+cd /home/agilex/jiaan/project/cobot-control
+/usr/bin/python3 scripts/control.py status
+/usr/bin/python3 scripts/control.py diagnose --seconds 2
+# 现场确认后，和网页相同管理规则：
+/usr/bin/python3 scripts/control.py start cameras
+/usr/bin/python3 scripts/control.py stop cameras
+cd /home/agilex/jiaan/project/cobot-web
+.venv/bin/python scripts/models.py list
+.venv/bin/python scripts/models.py check plug-v3-warmup-5k
+.venv/bin/python scripts/models.py status
+.venv/bin/python scripts/models.py logs
+```
+
+硬件CLI与/api/console/devices使用同一个cobot_control.device_control。CAN configure/reset经can_web.sh→can_config_cobot.sh→modprobe/ip/ethtool/cansend，保留1Mbps/restart-ms100；probe现为只读，不发探测帧或复位。终端直接scripts/can_up.sh会正常提示sudo密码，不需要手写网页密码管道。
+
+网页使用子进程、独立进程组、日志文件，不为任务新开可见终端。前台roslaunch用Ctrl-C；管理CLI通过PID+start_ticks停同一组。不要按htop的一行高亮或旧PID盲目kill，先status核对身份。网页关闭后control仍能管理硬件，models.py也无需HTTP服务在线。RLT录制则依赖登记的recorder HTTP，关闭网页前先结束录制Session。

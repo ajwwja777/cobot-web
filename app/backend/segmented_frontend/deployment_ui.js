@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const el = (tag, text, className) => { const n=document.createElement(tag); if(text!=null)n.textContent=text; if(className)n.className=className; return n; };
-  const phaseName = {checking:"核对中",offline:"未加载",loading:"加载中",ready:"加载成功",paused:"已暂停",running:"部署中",error:"异常"};
+  const phaseName = {process_running:"进程已启动（模型未验证）",checking:"核对中",offline:"未加载",loading:"加载中",ready:"加载成功",paused:"已暂停",running:"部署中",error:"异常"};
   const operationName={load:"加载模型",unload:"释放模型",start:"开始部署",pause:"暂停",resume:"继续",success:"记录成功",failure:"记录失败",abort:"放弃本轮"};
   const outcomes={success:"成功",failure:"失败",abort:"放弃",start_failed:"启动失败"};
   let state=null, localBusy=false, selectedModel="", modelSignature="", selectedRecord="", records=[], recordKey="", lastNotice="", lastLoaded="", activeBefore=null,loadedSelectionKey="";
@@ -13,7 +13,7 @@
   async function request(path, body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});let p;try{p=await r.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error("服务返回异常（HTTP "+r.status+"）");}if(!r.ok)throw new Error(typeof p.detail==="string"?p.detail:JSON.stringify(p.detail||p.error||r.status));return p;}catch(error){if(controller.signal.aborted||error.name==="AbortError"||error instanceof TypeError){const failure=new Error(controller.signal.aborted||error.name==="AbortError"?"请求超时（12 秒），正在重新连接":"连接中断，正在重新连接");failure.transport=true;throw failure;}throw error;}finally{clearTimeout(timer);}}
   function model(){return state?.models?.find(m=>m.id===selectedModel);}
   function describeModel(){const m=model(),facts=$("deployment-facts");facts.replaceChildren();if(!m)return;
-    const rows=[["模型",m.family],["任务",m.task],["权重路径",m.checkpoint],["终端命令",m.cli_command],["适配状态",window.CobotPreferences?.language==="en"?(m.unavailable_reason_en||m.unavailable_reason):m.unavailable_reason],["基础模型",m.base_checkpoint],["训练来源",m.training_lineage],["训练步数",m.step?.toLocaleString()],["Actor 版本",m.actor_version],["控制频率",m.control_hz?m.control_hz+" Hz":null],["动作模式",m.deterministic===true?"固定均值 / 无探索":m.kind==="pi05"?"原 RTC 推理":"—"],["验证",m.validation]];
+    const rows=[["模型",m.family],["任务",m.task],["权重路径",m.checkpoint],["终端命令",m.cli_command],["适配状态",window.CobotPreferences?.language==="en"?(m.unavailable_reason_en||m.unavailable_reason):m.unavailable_reason],["基础模型",m.base_checkpoint],["训练来源",m.training_lineage],["训练步数",m.step?.toLocaleString()],["Stage 1 checkpoint",m.stage1_step],["Learner step",m.learner_step],["Actor 版本",m.actor_version],["控制频率",m.control_hz?m.control_hz+" Hz":null],["动作模式",m.deterministic===true?"固定均值 / 无探索":m.kind==="pi05"?"原 RTC 推理":"—"],["验证",m.validation]];
     for(const [key,value] of rows){if(value==null||value==="")continue;facts.append(el("dt",key),el("dd",value));}
     window.CobotFeaturePaths?.update("deployment",{model:m,state});
     $("deploy-home-pose").dataset.preferred=m.home_pose;renderHomePoses();renderControls();
@@ -22,9 +22,9 @@
   function renderControls(){if(!state)return;const uncertain=Boolean(connectionError||state.status_stale),busy=localBusy||Boolean(state.operation),loaded=["ready","paused","running"].includes(state.phase),active=Boolean(state.active),same=state.model?.id===selectedModel;
     $("deploy-load").disabled=busy||uncertain||state.phase!=="offline"||!model()?.available;
     $("deploy-unload").disabled=busy||state.phase==="offline";
-    $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running"||model()?.evaluation_allowed===false;
-    $("deploy-pause").disabled=busy||!active||state.phase!=="running";
-    $("deploy-resume").disabled=busy||uncertain||!active||state.phase!=="paused";
+    $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running"||model()?.evaluation_allowed===false||model()?.capabilities?.start===false;
+    $("deploy-pause").disabled=busy||!active||state.phase!=="running"||model()?.capabilities?.pause===false;
+    $("deploy-resume").disabled=busy||uncertain||!active||state.phase!=="paused"||model()?.capabilities?.resume===false;
     for(const name of ["success","failure"]){$("deploy-"+name).disabled=busy||uncertain||!active||!loaded;}
     $("deploy-abort").disabled=busy||!active;
     $("deployment-storage-apply").disabled=active;
