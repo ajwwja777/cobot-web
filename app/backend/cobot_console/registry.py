@@ -29,6 +29,8 @@ def external_models():
         command = row.get("command") or []
         valid = isinstance(command, list) and all(isinstance(p, str) for p in command)
         required = row.get("required", []) + ([command[0]] if valid and command else [])
+        if row.get("cwd"): required.append(row["cwd"])
+        else: valid = False
         missing = [p for p in required if not Path(p).exists()]
         safe = row.get("load_behavior") in {"paused", "server_only"} and row.get("process_group") == "foreground"
         reason = ("Missing files: " + ", ".join(missing)) if missing else "" if safe and valid and command else "Declare paused/server-only foreground execution before managed loading"

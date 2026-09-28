@@ -11,7 +11,7 @@ cobot-web/
 └── docs/
 ```
 
-本地框架与部署：[说明](docs/ARCHITECTURE.md)。
+本批交付与验收：[HANDOFF_20260929](docs/HANDOFF_20260929.md)。
 
 项目结构：[ARCHITECTURE](docs/ARCHITECTURE.md)。换机部署：[DEPLOYMENT](docs/DEPLOYMENT.md)。
 
@@ -32,9 +32,9 @@ Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状�
 
 | 位置 | 负责内容 |
 |---|---|
-| `app/backend/cobot_console/` | 网页 API、设备健康、任务输出、共享模型生命周期／RLT 适配 |
-| `app/backend/capture_core/` | 反馈缓存、采样、HDF5 录制、标签、预览 |
-| `app/backend/segmented_capture/` | 分段采集、节点、暂停／继续与 HIL 协调 |
+| `app/backend/cobot_console/` | 网页 API、健康展示、任务输出、共享模型生命周期 |
+| `app/backend/capture_core/` | HTTP 适配和兼容入口；领域库位于同级 cobot-dagger/src/capture_core |
+| `app/backend/segmented_capture/` | HTTP 适配和兼容入口；领域库位于同级 cobot-dagger/src/segmented_capture |
 | `app/backend/segmented_frontend/` | 当前操作网页，原生 JavaScript／CSS |
 | `app/backend/frontend/` | 保留的独立回放／审核页面 |
 | `app/shared/schemas/` | 持久化数据格式 |
@@ -88,9 +88,9 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-web/runtime/cache/uv /home/agilex/
 
 ## 依赖与边界
 
-硬件实现、位姿和 launch 已由同级 cobot-control 接管，web 仅保留脚本转发、API 编排和展示。采集库仍由本项目提供；后续迁往 cobot-dagger 时单独验证接口。
+硬件实现、位姿和 launch 已由同级 cobot-control 接管，web 仅保留脚本转发、API 编排和展示。采集领域库已迁入同级 cobot-dagger，web 保留同一个录制 HTTP 提供者。
 
-当前数据、Replay 与部署权重使用 Getea1 的 data/model 分类目录；算法环境和代码留在系统盘。`configs/hosts/cobot.json` 明确登记其当前真实位置，两个 π0.5 入口已由 vla-platform/integrations/cobot/pi05 接管，继续引用登记的既有 Python/ROS 环境。浏览器旧目录偏好按前缀迁到新根，数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动仍使用现场已安装工作区，后续归 cobot-control。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
+当前数据、Replay 与部署权重使用 Getea1 的 data/model 分类目录；算法环境和代码留在系统盘。`configs/hosts/cobot.json` 明确登记其当前真实位置，两个 π0.5 入口已由 vla-platform/integrations/cobot/pi05 接管，继续引用登记的既有 Python/ROS 环境。浏览器旧目录偏好按前缀迁到新根，数据根显式加入允许列表，其他目录及符号链接逃逸仍被拒绝。ROS/Piper/Astra 驱动继续共用登记的现场安装；来源快照、机器配置及换机安装入口由 cobot-control 管理。对应问题先保留命令、版本、日志与复现条件，交所属项目处理。
 
 部署和采集共用同一份模型目录、进程与加载状态；模型选择展示实际权重路径。加载与准备 Session 不启动推理。RLT 每轮开始时固定采集／评测用途及目录，结束后才能切换用途；纯评测不写 recorder 或 replay。在线更新入口保留原 online_rl.yaml 和 learner；固定模型评测使用对应冻结入口。目录可以在加载前选择，RLT 录制中的新选择用于下一轮。
 

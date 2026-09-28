@@ -31,3 +31,5 @@ ui_down仅关闭API，不关闭独立硬件任务。HTTP超时先看状态和日
 数据与权重不移动：/media/agilex/Getea1/jiaan/{data,model}。主代码先测试、commit/push，再scripts/sync_cobot.py核验同步，脚本不重启设备。
 
 验证：后端与DOM回归、无模型历史HTTP与JPEG读取；本批没有可连接的浏览器，未完成截图验收；真实HIL、成功率及新一轮在线更新待现场验收。
+
+本批交付与明日验收顺序见 [交付记录](HANDOFF_20260929.md)。各项目先从README的结构树开始，再按DEPLOYMENT准备材料；不要只复制web仓库就假定硬件和模型环境齐全。

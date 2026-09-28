@@ -316,3 +316,15 @@ A6000 后端全套首次 596 passed/15 skipped，新增日志正则用例暴露�
 ## 2026-09-29：职责边界与部署材料
 
 按实际源码、只读现场状态整理，代码先在A6000开发。结构、安装、依赖来源及验证界限见docs/DEPLOYMENT.md；跨项目关系见cobot-web/docs/ARCHITECTURE.md。数据/模型实体未迁移或删除；公共厂商工作区未删除、硬件未重启。guide只写事实、不提交其Git。现场切换与版本见后续发布回执。
+
+## 2026-09-29：正式切换、清理及交付验收
+
+统一模型/任务入口、采集领域迁移和网页修复首次发布63e5839；五项目运行文件逐一SHA核对后切换正式8015。现场模型offline、采集idle时仅重启网页，硬件未重启，相机PID524014保持。网页关闭时control独立状态检查通过。
+
+后端607 passed/6 skipped，DOM39 passed；后续camera路径/外部cwd修正相关44项通过。模型未加载时，指定warmup目录返回111条记录，JPEG23924字节。目录历史不再依赖选择模型；状态去掉重复计数；输出任务列表手动折叠/调宽；日志清理ANSI、归并重复提示并保留原始错误/日志。
+
+清理仅限SHA确认的33个旧采集领域文件和6个已由control接管的旧设备任务登记。现场回执runtime/migrations/20260929-domain-cutover.json及20260929-cleanup.json，A6000证据outputs/verification/20260929-boundaries/site-final.json。没有删除外部共享工作区或数据/模型。
+
+本批无可连接浏览器，DOM与HTTP验证不能替代截图/拖拽视觉验收；真实采集、HIL、模型动作、在线更新和成功率仍待现场。
+
+主代码位于 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web；现场副本 /home/agilex/jiaan/project/cobot-web。后续收尾版本以Git main和现场.release.json为准。guide仅更新事实摘要，不提交其Git。
