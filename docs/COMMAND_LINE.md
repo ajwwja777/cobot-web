@@ -21,7 +21,7 @@ python3 scripts/console.py --help
 | 统一操作 | python3 scripts/console.py；复用网页后端的状态机，不再手写大部分 curl 请求 |
 | 网页日志／PID／任务回执 | 本项目 runtime/，已是实体目录；旧 cobot-ops 已删除 |
 | Python 环境与 uv | 本项目 .venv/；tools/uv，依赖在 pyproject.toml 与 uv.lock |
-| 原始 RLT／模型位置 | 本批不变，仍按 configs/local.json 读取；不要把尚未迁移的路径手工改成目标目录 |
+| RLT／模型位置 | /home/agilex/jiaan/project/rl-platform：models/rlt/plug_v3_yyshadow放模型，outputs/rlt/plug_v3_yyshadow放Replay／日志；local.json已切换 |
 
 ui_down／ui_up 只重启网页，不会自动清理机械臂、相机、模型或 ROS 子进程。前端异常但后端可用时可以用 console.py；8015 不可用时先用 recovery status／snapshot 排查。采集和共享模型 CLI 仍需后端正常，独立硬件脚本和 recovery 的适用范围见下文。
 
@@ -387,4 +387,4 @@ python3 scripts/console.py recovery interrupt model
 
 输出栏常用命令也已更新为上述共享 CLI，暂停会读取当前身份，释放会调用完整模型卸载。
 
-命令按现有 API/schema 和原生脚本核对，测试验证参数、身份、失败不重试及恢复进程边界；Cobot 只做只读接口、帮助和预览验证。本批没有真实开始采集、加载模型、发运动命令或演练实机停止；常用命令后端更新仅在核实 idle/offline 后重启 8015，硬件节点不重启。更改公共控制逻辑时仍需对应领域的现场验收。
+命令按现有 API/schema 和原生脚本核对，测试验证参数、身份、失败不重试及恢复进程边界；2026-09-28已追加共享模型加载／释放、独立在线更新、媒体读取和硬件被动启动／停止验证。未进行真实采集、归位或动作，上电运动仍需现场验收。更改公共控制逻辑时仍需对应领域的现场验收。

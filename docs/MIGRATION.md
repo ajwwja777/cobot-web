@@ -198,3 +198,16 @@ configs/hosts/cobot.json 是新切换配置；现场 configs/local.json 尚未�
 完整后端测试 576 passed / 11 skipped，路径与输出后续回归 63 passed / 1 skipped；已有原生 RLT 成功／失败／未标注／评测隔离合同均通过。用户已确认断电、允许重启节点，但现场 SSH 随后超时，尚未进行本次网页同步或服务重启。最后可读的正式版本仍为 d5fe477，不能把本次新路径记为已上线。
 
 当前继续点：先恢复 Cobot 连接、核查数据校验和 Stage 1 --validate-only 结果，再做节点与网页切换、API／模型路径／数据历史验收及旧目录清理。Guide Git 由另一 agent 管理。本轮未删除旧 RLT、cobot-platform 或旧数据。
+
+## 2026-09-28：正式网页切换至新 RLT／硬件／数据根
+
+正式8015于14:32从新web项目启动，PID95649，代码556751e；local.json及runtime目录设置先备份后切换。运行实现分别归web/control/rl-platform。
+
+- 四个RLT模型入口指向新models；两个π0.5入口保留登记的共享旧部署目录，另批归vla-platform，不属于旧cobot-platform。
+- 固定Warmup5k与最新在线模型从共享入口到ready、disarmed/paused，Session未开始；加载释放成功。恢复5000/2500/2567，正式权重与Replay未变。
+- 11,123数据文件SHA通过。浏览器四个已知目录偏好键按host的data_root_aliases仅匹配目录边界迁移；原始数据不改写。目录前端回归通过，17项后端相关测试通过。
+- 全后端572 passed/15 skipped，指定新RL合同根后4个原生合同通过。新目录历史标签、视频和首尾图可读；config/identity/host/deployment/storage接口正常，host查询内置系统盘 /。
+- 主Git删除89个跟踪硬件重复文件；现场78个已部署文件核对新旧SHA后删除，网页脚本转发control。
+- 本机配置备份、API、加载释放、媒体读取与删除回执：A6000 outputs/verification/20260928-cutover/cobot/；Cobot同路径去掉末尾cobot/。
+
+没有归位、真实Episode或示教。旧平台/RLT全量历史归档仍在执行，原件保留。被动硬件launch已停止；现场使用按COMMAND_LINE和RL RUNBOOK重新启动。guide只更新摘要，不提交Git。
