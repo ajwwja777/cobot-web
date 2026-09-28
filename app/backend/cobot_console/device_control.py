@@ -26,7 +26,7 @@ _TARGETS = {
     'rlt': {'online','frozen','reference','warmup'},
     'rlt_model': {'plug_v3-stage1-reference','plug_v3-frozen-latest','plug_v3-online-latest'},
 }
-POSE_CONFIG = CONTROL / 'configs' / 'home_poses.yaml'
+from .paths import POSE_CONFIG
 POSE_NAME_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$')
 SELECTABLE_ARMS = ('front-left','front-right','mid','rear-left','rear-right')
 

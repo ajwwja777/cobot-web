@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 from uuid import UUID
 
+from .asset_storage import migrated_path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -231,7 +233,7 @@ def create_app(
     def selected_labels(data_root: Optional[str]) -> LabelStore:
         if data_root is None:
             return labels
-        return LabelStore(Path(data_root).expanduser())
+        return LabelStore(Path(migrated_path(data_root)).expanduser())
 
     def selected_artifacts(data_root: Optional[str], episode_uuid: UUID):
         """Resolve one finalized episode once, then reuse its immutable paths."""

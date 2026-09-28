@@ -5,11 +5,13 @@ PLATFORM="$COBOT_PLATFORM_ROOT"
 if [[ "${1:-}" == pi05-in-the-pot-dagger ]]; then
   ROOT="$COBOT_PI05_DAGGER_ROOT"
   STEP=3000
+  export CHECKPOINT_DIR="$COBOT_PI05_DAGGER_CHECKPOINT"
   export POLICY_CONFIG=pi05_jiaan_task5_in_the_pot_dagger_round001
   export POLICY_ASSET_ID=task5_cobot_in_the_pot_round_001
 elif [[ "${1:-}" == pi05-in-the-pot ]]; then
   ROOT="$COBOT_PI05_ROOT"
   STEP=2000
+  export CHECKPOINT_DIR="$COBOT_PI05_CHECKPOINT"
   export POLICY_CONFIG=pi05_wja_cobot_in_the_pot
   export POLICY_ASSET_ID=wja/cobot_in_the_pot_40episodes
 else
@@ -23,7 +25,7 @@ if [[ "${COBOT_DEPLOY_DRY_RUN:-0}" == 1 ]]; then
 else
   "$PI05_RUNTIME_ROOT/.venv-server/bin/python" "$ROOT/common/runtime/install_openpi_task_config.py" "$PI05_RUNTIME_ROOT/openpi/src/openpi/training/config.py"
 fi
-export CHECKPOINT_DIR="$ROOT/checkpoints/step_$STEP"
+export CHECKPOINT_DIR
 export PROMPT='Open the pot lid, put the object into the pot, then close the lid.'
 export RIGHT_GRIPPER_THRESHOLD=0.02 RIGHT_GRIPPER_MODE=continuous MIN_EXECUTION_HORIZON=25
 export PUPPET_ARM_LEFT_CMD_TOPIC=/task2/policy/joint_left

@@ -168,3 +168,25 @@ def test_prepare_series_rejects_relative_unsafe_and_non_directory_roots(
 def test_series_identity_rejects_path_components():
     with pytest.raises(ValueError, match="task_id"):
         SeriesIdentity("../escape", "pi05", "round_001")
+
+def test_unmounted_asset_disk_cannot_create_episode_tree(tmp_path, monkeypatch):
+    from capture_core import storage, validation
+    def unavailable(*args, **kwargs):
+        raise OSError("Getea1 is not mounted correctly")
+    monkeypatch.setattr(storage, "require_storage", unavailable)
+    monkeypatch.setattr(validation, "require_storage", unavailable)
+    root = tmp_path / "absent-disk" / "data"
+    with pytest.raises(StoragePathError, match="not mounted"):
+        prepare_series(root, SeriesIdentity("scene", "model", "round"))
+    with pytest.raises(validation.PreflightError, match="not mounted"):
+        validation.validate_preflight(root, None)
+    assert not root.parent.exists()
+
+def test_old_recording_selection_resolves_to_one_new_dataset(tmp_path, monkeypatch):
+    import json
+    old = tmp_path / "retired"
+    new = tmp_path / "disk" / "dataset"
+    monkeypatch.setenv("COBOT_DATA_ROOT_ALIASES", json.dumps({str(old): str(new)}))
+    prepared = prepare_series(old / "batch", SeriesIdentity("scene", "model", "round", "flat"))
+    assert prepared.episode_directory == new / "batch"
+    assert not old.exists()

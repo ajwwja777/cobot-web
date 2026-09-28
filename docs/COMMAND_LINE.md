@@ -21,7 +21,7 @@ python3 scripts/console.py --help
 | 统一操作 | python3 scripts/console.py；复用网页后端的状态机，不再手写大部分 curl 请求 |
 | 网页日志／PID／任务回执 | 本项目 runtime/，已是实体目录；旧 cobot-ops 已删除 |
 | Python 环境与 uv | 本项目 .venv/；tools/uv，依赖在 pyproject.toml 与 uv.lock |
-| RLT／模型位置 | /home/agilex/jiaan/project/rl-platform：models/rlt/plug_v3_yyshadow放模型，outputs/rlt/plug_v3_yyshadow放Replay／日志；local.json已切换 |
+| RLT／模型位置 | /media/agilex/Getea1/jiaan/model/rl-platform/rlt/plug_insertion 放权重；/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/derived/rl-platform/rlt 放 Replay；项目 outputs 只放运行日志 |
 
 ui_down／ui_up 只重启网页，不会自动清理机械臂、相机、模型或 ROS 子进程。前端异常但后端可用时可以用 console.py；8015 不可用时先用 recovery status／snapshot 排查。采集和共享模型 CLI 仍需后端正常，独立硬件脚本和 recovery 的适用范围见下文。
 
@@ -116,11 +116,11 @@ done
 
 ## 2. 选择路径与普通采集
 
-路径可以先于模型选择。当前允许数据根由主机配置决定；新数据建议在 `/home/agilex/jiaan/data` 下，历史根只有明确登记的路径可用。
+路径可以先于模型选择。当前允许数据根由主机配置决定；新数据建议在 `/media/agilex/Getea1/jiaan/data` 下，历史根只有明确登记的路径可用。
 
 ```bash
-python3 scripts/console.py storage normal /home/agilex/jiaan/data/raw/demo
-python3 scripts/console.py capture start --data-root /home/agilex/jiaan/data/raw/demo
+python3 scripts/console.py storage normal /media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/manual
+python3 scripts/console.py capture start --data-root /media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/manual
 python3 scripts/console.py capture pause
 python3 scripts/console.py capture resume
 python3 scripts/console.py capture marker
@@ -145,7 +145,7 @@ python3 scripts/console.py capture save
 
 ```bash
 python3 scripts/console.py state capture
-python3 scripts/console.py api GET '/api/segmented-teach/episodes?data_root=/home/agilex/jiaan/data/raw/demo&limit=20'
+python3 scripts/console.py api GET '/api/segmented-teach/episodes?data_root=/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/manual&limit=20'
 ```
 
 命令示例之间应按需要选择；不要在一轮已保存后继续执行 discard。停止失败先看记录和 writer 状态，不重复开始。
@@ -171,7 +171,7 @@ load 只提交加载；wait 等待就绪或报告错误／超时，超时不会�
 python3 scripts/console.py model load --id pi05-in-the-pot-dagger
 python3 scripts/console.py model wait --seconds 600
 python3 scripts/console.py model session-start
-python3 scripts/console.py capture start --model pi05-in-the-pot-dagger --data-root /home/agilex/jiaan/data/raw/dagger
+python3 scripts/console.py capture start --model pi05-in-the-pot-dagger --data-root /media/agilex/Getea1/jiaan/data/datasets/in_the_pot/recordings/cobot-dagger/round_002
 python3 scripts/console.py capture pause
 python3 scripts/console.py capture resume
 python3 scripts/console.py capture save
@@ -182,7 +182,7 @@ python3 scripts/console.py capture save
 ### RLT 采集例子
 
 ```bash
-python3 scripts/console.py storage rlt /home/agilex/jiaan/data/raw/rlt-session
+python3 scripts/console.py storage rlt /media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/rl-platform/rlt/online/three_camera_v3
 python3 scripts/console.py model load --id plug-v3-warmup-5k
 python3 scripts/console.py model wait --seconds 600
 python3 scripts/console.py model session-start
@@ -264,7 +264,7 @@ ip -details -statistics link show type can
 部署和采集共用已加载模型，但每一轮用途独立；开始评测前先结束采集轮次／Session。
 
 ```bash
-python3 scripts/console.py storage evaluation /home/agilex/jiaan/data/evaluations/demo
+python3 scripts/console.py storage evaluation /media/agilex/Getea1/jiaan/data/evaluations
 python3 scripts/console.py model load --id plug-v3-warmup-5k
 python3 scripts/console.py model wait --seconds 600
 python3 scripts/console.py evaluate start

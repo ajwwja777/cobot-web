@@ -105,7 +105,8 @@ def test_duplicate_rlt_start_is_rejected_before_port_owners_multiply(tmp_path):
  ({'component':'rlt','action':'down'},['rlt_down.sh']),
  ({'component':'console','action':'stop'},['ui_shutdown_after_response.sh']),
 ])
-def test_fixed_registry_builds_only_expected_commands(tmp_path,spec,tail):
+def test_fixed_registry_builds_only_expected_commands(tmp_path,spec,tail,monkeypatch):
+    fixed_home_poses(tmp_path, monkeypatch)
     launched=[]
     fake=lambda command,log:launched.append(command) or Process()
     secret_fake=lambda command,log,secret:launched.append(command) or Process()

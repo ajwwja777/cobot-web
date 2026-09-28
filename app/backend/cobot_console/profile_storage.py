@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from .paths import DATA as ALLOWED, LEGACY_DATA, RLT, RUNTIME_ROOT
+from .paths import DATA as ALLOWED, LEGACY_DATA, RLT, RUNTIME_ROOT, SETTINGS as HOST_SETTINGS, migrated_data_path
 BASE = ALLOWED / "rlt/plug_v3_yyshadow"
 LEGACY_BASE = LEGACY_DATA / "rlt/plug_v3_yyshadow"
 RUN = RLT / "outputs/rlt/plug_v3_yyshadow"
@@ -19,10 +19,11 @@ def settings():
         return {}
 
 def default_root(phase):
-    return BASE / ("online" if phase=="online" else "warmup")
+    phase = "online" if phase == "online" else "warmup"
+    return Path(HOST_SETTINGS.get("rlt_data_roots", {}).get(phase, BASE / phase))
 
 def validate_root(value):
-    path=Path(value).expanduser()
+    path=Path(migrated_data_path(value)).expanduser()
     if not path.is_absolute(): raise ValueError("RLT data root must be absolute")
     resolved=path.resolve(strict=False)
     allowed_roots = (ALLOWED.resolve(strict=False), LEGACY_BASE.resolve(strict=False))
@@ -66,7 +67,7 @@ def history(root):
                 "outcome":outcome,
                 "hil_frames":int(bool(value.get("interventions"))),
                 "cohort":"plug_v3_yyshadow",
-                "data_phase":Path(root).name,
+                "data_phase":next((p for p in reversed(Path(root).parts) if p in {"warmup", "online"}), Path(root).name),
             })
         except (OSError,ValueError,TypeError):
             continue

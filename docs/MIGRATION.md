@@ -229,3 +229,10 @@ configs/hosts/cobot.json 是新切换配置；现场 configs/local.json 尚未�
 后续网页任务已启动机械臂PID148006及相机PID158179，均是新control路径；设备读数为5臂、5CAN、3相机可用。早先相机停止回执对应PID130873，不能据旧回执断言现在硬件全停；保留这些后续任务，没有为收尾中断它们。没有开展真实Episode或浏览器目视动画验收。
 
 两个π0.5共享部署保留原登记位置。删除旧cobot-platform后，两者COBOT_DEPLOY_DRY_RUN入口返回成功，证明路径/命令预检可用，不等同于重新验收π0.5真实推理。证据outputs/verification/20260928-cutover/cobot/pi05-after-platform-retirement-dry-run.json。完整命令及HTTP故障处理继续见COMMAND_LINE.md、WEB_RECOVERY.md；RLT在线手册在相邻rl-platform/docs/RUNBOOK.md。
+
+
+## 2026-09-28：Getea1 统一存储迁移（进行中）
+
+Cobot 数据与模型统一在 /media/agilex/Getea1/jiaan/data/ 和 /media/agilex/Getea1/jiaan/model/。数据按场景分、模型按项目/模型分；本轮不新增 A6000 权重备份。代码、安装环境、运行日志与 PID 留在 /home/agilex/jiaan/project/<项目>/。完整路径与批次状态见相邻 cobot-web/docs/STORAGE.md。
+
+已在 A6000 接入新存储配置及旧路径映射；逐文件复制/校验正在进行，正式网页已在空闲状态正常停止，机械臂/ROS 进程保留。本段不代表旧源目录已经删除。位姿、回放、示范、RLT rollout/Replay、评测和部署权重按 STORAGE.md 归类。最终运行验证及删除回执待本批完成后追加。

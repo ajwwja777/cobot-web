@@ -36,7 +36,7 @@ from segmented_capture.api import (
 from segmented_capture.capture_service import SegmentedCaptureService
 from segmented_capture.ports import CaptureGate
 
-from .paths import RUNTIME_ROOT, RLT, LEGACY_DATA, SETTINGS
+from .paths import RUNTIME_ROOT, RLT, RLT_MODELS, LEGACY_DATA, SETTINGS
 from .mode import ModeConflict, RecorderModeCoordinator
 from .diagnostics import ConsoleDiagnostics
 from .rlt_proxy import RltBackendClient, RltBackendError, RltLifecycleRegistry
@@ -258,7 +258,7 @@ def create_app(
 
     def recording_directories():
         base = DEFAULT_ALLOWED_DATA_ROOT.expanduser().resolve()
-        choices = [DEFAULT_DATA_ROOT.expanduser(), base / "raw", LEGACY_DATA / "test"]
+        choices = [Path(p) for p in SETTINGS["recording_roots"]] if SETTINGS.get("recording_roots") else [DEFAULT_DATA_ROOT.expanduser(), base / "raw", LEGACY_DATA / "test"]
         tasks = base / "rlt"
         if tasks.is_dir():
             for task in sorted(tasks.iterdir()):
@@ -312,7 +312,7 @@ def create_app(
                       "rlt_capture": str(selected_rlt_root),
                       "rlt_project": str(RLT),
                       "training": str(RLT / "outputs/rlt/plug_v3_yyshadow"),
-                      "deployment": str(RLT / "models/rlt/plug_v3_yyshadow")},
+                      "deployment": str(RLT_MODELS)},
             "scripts": {name: str(project / "scripts" / name) for name in
                         ("ui_up.sh", "ui_down.sh", "home.sh", "recover.sh",
                          "rlt_up.sh", "rlt_down.sh", "rlt_demo.sh")
@@ -369,7 +369,7 @@ def create_app(
         return {"data_root": str(storage.selected_root(phase)), "data_phase": phase,
                 "editable": True, "applies_to": "next_episode",
                 "recording_data_root": status.get("recording_data_root"),
-                "data_root_choices": list(dict.fromkeys([str(storage.ALLOWED / "test")] +
+                "data_root_choices": list(dict.fromkeys(([str(storage.ALLOWED / "test")] if not SETTINGS.get("recording_roots") else []) +
                     [str(p) for kind in ("warmup", "online") for p in storage.roots_for_phase(kind)]))}
 
     @application.post("/api/rlt/storage")
@@ -389,6 +389,8 @@ def create_app(
                 raise HTTPException(status_code=409, detail="先结束本轮再修改RLT录制目录")
             try:
                 root = storage.validate_root(request.data_root)
+                from capture_core.asset_storage import require_storage
+                require_storage(root, write=True)
                 root.mkdir(parents=True, exist_ok=True)
             except (ValueError, OSError) as error:
                 raise HTTPException(status_code=422, detail=str(error)) from error

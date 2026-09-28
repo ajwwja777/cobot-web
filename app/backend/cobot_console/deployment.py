@@ -21,8 +21,10 @@ from pydantic import BaseModel, ConfigDict
 
 from .rlt_proxy import RltBackendClient, RltBackendError
 from .shared_model_env import BETWEEN_EPISODES
+from capture_core.asset_storage import require_storage
 
-from .paths import PROJECT as PLATFORM, RLT, DATA, PI05 as LEGACY, PI05_DAGGER as DAGGER, RUNTIME_ROOT
+from .paths import (PROJECT as PLATFORM, RLT, DATA, PI05 as LEGACY, PI05_DAGGER as DAGGER,
+                    RUNTIME_ROOT, RLT_WARMUP, PI05_CHECKPOINT, PI05_DAGGER_CHECKPOINT, migrated_data_path)
 RUN = RLT / "outputs/rlt/plug_v3_yyshadow"
 RUNTIME = RUNTIME_ROOT / "deployment"
 
@@ -49,7 +51,7 @@ def atomic_json(path, payload):
 def catalog():
     manifest = read_json(RLT / "configs/rlt/plug_v3_yyshadow/manifest.json")
     base = str(manifest.get("checkpoint") or "")
-    actor = RLT / "models/rlt/plug_v3_yyshadow/warmup-5000/actor_snapshot/actor_snapshot.pkl"
+    actor = RLT_WARMUP / "actor_snapshot/actor_snapshot.pkl"
     definitions = [
         dict(id="plug-v3-warmup-5k", label="插孔 · Warmup 5,000 步", kind="rlt", mode="frozen",
              checkpoint=str(actor), base_checkpoint=base, step=5000, actor_version=2500,
@@ -60,12 +62,12 @@ def catalog():
              prompt="Insert the held plug into the socket.", home_pose="plug2", control_hz=20,
              validation="Stage 1 基线", deterministic=True),
         dict(id="pi05-in-the-pot-dagger", label="π0.5 · in_the_pot · DAgger 2000 + 3000", kind="pi05", mode="evaluation",
-             checkpoint=str(DAGGER / "checkpoints/step_3000"), base_checkpoint=str(LEGACY / "checkpoints/step_2000"), step=3000,
+             checkpoint=str(PI05_DAGGER_CHECKPOINT), base_checkpoint=str(PI05_CHECKPOINT), step=3000,
              training_lineage="step 2000 参数初始化，再训练 3000 步；新 AdamW",
              prompt="Open the pot lid, put the object into the pot, then close the lid.",
              home_pose="origin", control_hz=20, validation="历史 DAgger 部署模型", deterministic=None),
         dict(id="pi05-in-the-pot", label="π0.5 · in_the_pot · 原始 step 2000", kind="pi05", mode="evaluation",
-             checkpoint=str(LEGACY / "checkpoints/step_2000"), base_checkpoint=None, step=2000,
+             checkpoint=str(PI05_CHECKPOINT), base_checkpoint=None, step=2000,
              prompt="Open the pot lid, put the object into the pot, then close the lid.",
              home_pose="origin", control_hz=20, validation="历史部署模型", deterministic=None),
     ]
@@ -319,7 +321,7 @@ class DeploymentManager:
         self.collection_session = False
 
     def root(self, path=None):
-        path = Path(path or self.settings.get("data_root") or self.allowed_root / "evaluations").expanduser()
+        path = Path(migrated_data_path(path or self.settings.get("data_root") or self.allowed_root / "evaluations")).expanduser()
         if not path.is_absolute():
             raise DeploymentError("请选择绝对保存路径")
         resolved = path.resolve()
@@ -327,11 +329,35 @@ class DeploymentManager:
             raise DeploymentError("保存位置必须位于 " + str(self.allowed_root))
         return resolved
 
+    EVALUATION_GROUPS = {
+        "plug-v3-warmup-5k": "plug_insertion/rl-platform/rlt/warmup_5000",
+        "plug-v3-reference": "plug_insertion/rl-platform/rlt/reference_4999",
+        "plug_v3-stage1-reference": "plug_insertion/rl-platform/rlt/reference_4999",
+        "plug_v3-frozen-latest": "plug_insertion/rl-platform/rlt/frozen_online",
+        "pi05-in-the-pot": "in_the_pot/vla-platform/pi05/baseline_2000",
+        "pi05-in-the-pot-dagger": "in_the_pot/vla-platform/pi05/dagger_2000plus3000",
+    }
+
+    def evaluation_root(self):
+        root = self.root()
+        base = self.allowed_root / "evaluations"
+        for group in self.EVALUATION_GROUPS.values():
+            standard = base / group
+            if root == standard or standard in root.parents:
+                return base
+        return root
+
+    def trial_root(self, model):
+        root = self.evaluation_root()
+        group = self.EVALUATION_GROUPS.get(model.get("id"))
+        return root / group / time.strftime("%Y-%m-%d") if group else root
+
     def save_settings(self, data_root):
         with self.lock:
             if self.active:
                 raise DeploymentError("本轮结束后再更换保存位置")
             root = self.root(data_root)
+            require_storage(root, write=True)
             root.mkdir(parents=True, exist_ok=True)
             self.settings["data_root"] = str(root)
             atomic_json(self.directory / "settings.json", self.settings)
@@ -439,6 +465,11 @@ class DeploymentManager:
             self.active = None
 
     def perform(self, operation, model_id=None):
+        if operation in {'load', 'start', 'collection_session_start'}:
+            try:
+                require_storage(self.allowed_root, write=True)
+            except OSError as error:
+                raise DeploymentError(str(error)) from error
         if operation in {"collection_session_start", "collection_session_stop"}:
             if self.busy() or self.active:
                 raise DeploymentError("请先结束当前 Episode")
@@ -495,8 +526,8 @@ class DeploymentManager:
             if select_use:
                 select_use("evaluation")
             self.collection_session = False
-            folder = self.root() / ("eval-" + time.strftime("%Y%m%dT%H%M%S") + "-" + uuid4().hex[:8])
-            record = {"id": folder.name, "data_root": str(self.root()), "model": state["model"],
+            folder = self.trial_root(state["model"]) / ("eval-" + time.strftime("%Y%m%dT%H%M%S") + "-" + uuid4().hex[:8])
+            record = {"id": folder.name, "data_root": str(folder.parent), "model": state["model"],
                       "started_at": time.time(), "outcome": None, "intervened": False, "intervention_baseline": state.get("intervention_count", 0),
                       "start": self.frames(folder, "start")}
             atomic_json(folder / "result.json", record)
@@ -568,16 +599,20 @@ class DeploymentManager:
 
     def records(self, model_id=None):
         rows = []
-        for path in sorted(self.root().glob("eval-*/result.json"), reverse=True):
-            if self.root() not in path.resolve().parents:
+        root = self.evaluation_root()
+        for path in root.rglob("eval-*/result.json"):
+            if root not in path.resolve().parents:
                 continue
             item = read_json(path)
+            if item:
+                item["data_root"] = str(path.parent.parent)
             if item.get("outcome") == "abort":
                 continue
             if item and (not model_id or item.get("model", {}).get("id") == model_id):
                 for endpoint in ("start", "end"):
-                    item.setdefault(endpoint, {})["urls"] = ["/api/deployment/frame?" + urlencode({"record_id": item["id"], "name": name, "data_root": str(self.root())}) for name in item.get(endpoint, {}).get("files", [])]
+                    item.setdefault(endpoint, {})["urls"] = ["/api/deployment/frame?" + urlencode({"record_id": item["id"], "name": name, "data_root": str(path.parent.parent)}) for name in item.get(endpoint, {}).get("files", [])]
                 rows.append(item)
+        rows.sort(key=lambda item: (float(item.get("started_at") or 0), item.get("id", "")), reverse=True)
         decided = [r for r in rows if r.get("outcome") in ("success", "failure")]
         success = sum(r["outcome"] == "success" for r in decided)
         autonomous = [r for r in decided if not r.get("intervened")]

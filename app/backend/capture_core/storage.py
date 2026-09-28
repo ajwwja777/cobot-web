@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Tuple
 
 from .deletion import DeletionError, read_deletion_records
+from .asset_storage import require_storage, migrated_path
 from .schema import IDENTIFIER_RE
 
 _EPISODE_FILE_RE = re.compile(
@@ -52,7 +53,7 @@ class PreparedSeries:
 
 def _absolute_expanded_path(value: Path | str) -> Path:
     try:
-        path = Path(value).expanduser()
+        path = Path(migrated_path(value)).expanduser()
     except (TypeError, ValueError, RuntimeError) as error:
         raise StoragePathError("data_root is invalid") from error
     if not path.is_absolute():
@@ -86,6 +87,10 @@ def prepare_series(
     if not isinstance(series, SeriesIdentity):
         raise TypeError("series must be SeriesIdentity")
     root = _absolute_expanded_path(data_root)
+    try:
+        require_storage(root, write=create)
+    except OSError as error:
+        raise StoragePathError(str(error)) from error
     parent = root if series.storage_layout == "flat" else root / series.task_id / series.model_id / series.dataset_round
     _reject_symlink_components(parent)
     try:

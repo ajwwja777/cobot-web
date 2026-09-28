@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 
 from .ros_cache import CacheSnapshot
+from .asset_storage import require_storage, migrated_path
 
 PREFLIGHT_STREAMS = (
     "camera_high",
@@ -62,8 +63,9 @@ def _verify_payload(snapshot: CacheSnapshot, key: str) -> bool:
 
 
 def _prepare_writable_directory(data_root: Path | str) -> Path:
-    path = Path(data_root).expanduser()
+    path = Path(migrated_path(data_root)).expanduser()
     try:
+        require_storage(path, write=True)
         path.mkdir(parents=True, exist_ok=True)
         if not path.is_dir():
             raise NotADirectoryError(path)
@@ -74,7 +76,7 @@ def _prepare_writable_directory(data_root: Path | str) -> Path:
             probe.flush()
             os.fsync(probe.fileno())
     except OSError as error:
-        raise PreflightError("not_writable", str(path)) from error
+        raise PreflightError("not_writable", str(path) + ": " + str(error)) from error
     return path.resolve()
 
 

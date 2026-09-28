@@ -1,115 +1,108 @@
-# 数据与 checkpoint 存放清单
+# Cobot 数据与模型存储
 
-2026-09-28实测快照。范围：Cobot新根、旧task3/task5/jiaan、旧外置盘jiaan；A6000的/data/LFT-W02_data/jiaan。未访问HPC，不把其他使用者的共享数据算作本项目资产。本轮完成盘点和路径登记，尚未执行新的去重删除或场景目录改名；上次迁移验收不等于已满足最新的单份存放要求。
+2026-09-28 用户确认：Cobot 的数据与 checkpoint 全部放 Getea1；代码、环境、日志和 PID 留在系统盘项目目录。A6000 维护主代码、Git、文档；本轮不新增数据或权重备份。此前已存在的 A6000 历史资产仍保留，不能把本轮迁移说成全机器已经去重。
 
-## 用户确认的归属
+**迁移状态：新布局配置已完成，文件复制与现场切换正在进行；最终验收见本页末尾。**
 
-- 原始采集数据、现场评测记录、当前部署checkpoint：长期单份放Cobot。
-- 训练中间checkpoint、停止部署的历史模型：长期单份放A6000，同一资产不跨机器重复长期保存。
-- 同一场景的数据可以供多个模型训练；数据集顶层按场景命名，模型、预处理版本和数据子集关系由配置/manifest记录。
-- 固定warmup对照与可继续学习的online状态用途不同；原始HDF5与格式转换产物内容/格式也不同，不仅凭共同来源将其判为重复。迁移副本及归档内相同部署权重仍需收尾。
-- 代码/Git、文档及路径索引按既有跨机同步约定维护；本规则针对数据和模型实体。项目MD注明机器、绝对路径、用途与版本。
+## 两个入口
 
-## 磁盘空间
+- 数据：/media/agilex/Getea1/jiaan/data/
+- 模型：/media/agilex/Getea1/jiaan/model/
+- 现场代码与环境：/home/agilex/jiaan/project/<项目>/
+- A6000 主代码：/data/LFT-W02_data/jiaan/jiaan/projects/<项目>/
 
-这是整个文件系统，不是本项目单独占用。avail取df可用空间，排除系统保留块。1 GiB=2^30字节，1 TiB=2^40字节。
+Getea1/jiaan 顶层只保留 data、model。模型不混进 data，环境不混进 model。datasets 表示“按场景管理的数据集”，既包含自采数据，也可包含以后下载的数据；不是“下载数据专用目录”。
 
-| 机器 | 挂载点 | 总量 TiB | 已用 TiB | 可用 GiB | 使用率 |
-|---|---|---:|---:|---:|---|
-| A6000 | `/data` | 57.976 | 53.781 | 1315.47 | 98% |
-| A6000 | `/` | 1.627 | 1.232 | 319.57 | 80% |
-| Cobot | `/` | 1.804 | 1.637 | 77.62 | 96% |
-| Cobot | `/media/agilex/Getea1` | 12.733 | 3.249 | 9712.29 | 26% |
+## 数据：场景 → 用途 → 项目或方法 → 批次
 
-## Cobot 数据
+    data/
+      datasets/
+        plug_insertion/
+          recordings/
+            demonstrations/three_camera_v3/
+            demonstrations/manual/
+            demonstrations/legacy_v1/
+            demonstrations/legacy_v2/
+            demonstrations/legacy_record/
+            demonstrations/legacy_test/
+            rl-platform/rlt/warmup/three_camera_v3/
+            rl-platform/rlt/online/three_camera_v3/
+          lerobot/
+          derived/rl-platform/rlt/
+            replay_clean_v1/
+            traces/
+        in_the_pot/
+          recordings/
+            demonstrations/legacy/
+            cobot-dagger/round_001/
+            rl-platform/rlt/legacy/
+          lerobot/
+          derived/vla-platform/fluxvla/fixtures/
+      evaluations/
+        plug_insertion/rl-platform/rlt/<reference_4999或warmup_5000等>/<日期>/<eval-id>/
+        in_the_pot/vla-platform/pi05/<模型版本>/<日期>/<eval-id>/
+      motion/
+        poses/home_poses.yaml
+        replays/
 
-按du实际分配块统计，不跟随链接；父目录合计包含子行，不能重复相加。
+共享 demonstrations 不按模型复制。RLT 专用 rollout 放 rl-platform/rlt；后续其他算法放自己的方法目录。LeRobot 是格式转换产物，derived 是 Replay、诊断输入等派生产物，均不能因为源数据相同就当作重复删掉。旧相机或动作定义不同的批次不拼在一起。
 
-| 内容 | 实际路径 | 占用 GiB | 说明 |
-|---|---|---:|---|
-| 插孔 v3 示范 | `/home/agilex/jiaan/data/rlt/plug_v3_yyshadow/demonstrations` | 52.822 | 实际路径，场景目录尚未改名 |
-| 插孔 v3 warmup rollout | `/home/agilex/jiaan/data/rlt/plug_v3_yyshadow/warmup` | 81.492 | 实际路径，场景目录尚未改名 |
-| 插孔 v3 online rollout | `/home/agilex/jiaan/data/rlt/plug_v3_yyshadow/online` | 0.312 | 实际路径，场景目录尚未改名 |
-| 插孔 v2 历史数据 | `/home/agilex/jiaan/data/rlt/plug_v2` | 8.951 | 实际路径，场景目录尚未改名 |
-| 插孔早期数据 | `/home/agilex/jiaan/data/rlt/plug` | 0.757 | 实际路径，场景目录尚未改名 |
-| 旧 test 录制 | `/home/agilex/jiaan/data/test` | 1.944 | 实际路径，场景目录尚未改名 |
-| 旧 record 录制 | `/home/agilex/jiaan/data/record` | 0.916 | 实际路径，场景目录尚未改名 |
-| 旧平台录制 | `/home/agilex/jiaan/data/cobot-platform` | 0.021 | 实际路径，场景目录尚未改名 |
-| 评测记录 | `/home/agilex/jiaan/data/evaluations` | 0.013 | 实际路径，场景目录尚未改名 |
-| 新数据根合计 | `/home/agilex/jiaan/data` | 147.229 | 包含上面各项，不重复相加 |
-| in_the_pot 数据及 LeRobot | `/home/agilex/cobot_magic/task3/jiaan/datasets/in_the_pot` | 0.404 | 旧位置，尚未归入新场景根 |
-| in_the_pot 旧 RL 数据 | `/home/agilex/cobot_magic/task3/jiaan/realworld_rl/data/task5-rlt-r1/in_the_pot` | 1.162 | 旧位置，尚未归入新场景根 |
-| in_the_pot DAgger 原始 rollout | `/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/data/raw_rollouts/in_the_pot` | 6.070 | 旧位置，尚未归入新场景根 |
-| in_the_pot DAgger LeRobot | `/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/data/lerobot/in_the_pot` | 0.466 | 旧位置，尚未归入新场景根 |
-| 旧失败录制排障材料 | `/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/v1/runtime/failed_recordings` | 0.461 | 不可直接当作可训练数据 |
+motion/replays 是可回放的机械臂动作；derived/.../replay_clean_v1 是 RL 训练经验池，两者不是同一功能。位姿唯一现场读写源是 motion/poses/home_poses.yaml；cobot-control/configs/home_poses.example.yaml 仅是 Git 中的初始参考。
 
-## Cobot checkpoint 与基础模型
+历史 trial 的 result.json、HDF5、标签和训练 provenance 保留原内容；读取端按实际所在目录生成媒体链接。新增已登记模型的评测会自动按场景、项目、版本和日期落盘，网页仍可查看汇总。
 
-| 内容 | 实际路径 | 占用 GiB | 说明 |
-|---|---|---:|---|
-| RLT Stage 1 Reference | `/home/agilex/jiaan/project/rl-platform/models/rlt/plug_v3_yyshadow/stage1/4999` | 14.369 | 当前现场部署；冻结对照与在线工作状态是不同资产 |
-| RLT 固定 warmup 5000 | `/home/agilex/jiaan/project/rl-platform/models/rlt/plug_v3_yyshadow/warmup-5000` | 0.037 | 当前现场部署；冻结对照与在线工作状态是不同资产 |
-| RLT 可更新在线权重 | `/home/agilex/jiaan/project/rl-platform/models/rlt/plug_v3_yyshadow/online` | 0.040 | 当前现场部署；冻结对照与在线工作状态是不同资产 |
-| deployments/in_the_pot/galaxea_g0_5/checkpoints/step_4000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/galaxea_g0_5/checkpoints/step_4000` | 11.149 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| deployments/in_the_pot/galaxea_g0_5_dagger_round001/checkpoints/step_4000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/galaxea_g0_5_dagger_round001/checkpoints/step_4000` | 10.655 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| deployments/in_the_pot/lingbot_v2/checkpoints/step_2000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/lingbot_v2/checkpoints/step_2000` | 23.767 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| deployments/in_the_pot/pi05/checkpoints/step_2000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/pi05/checkpoints/step_2000` | 11.587 | 当前网页使用 |
-| deployments/in_the_pot/xiaomi_robotics_0/checkpoints/step_4000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/xiaomi_robotics_0/checkpoints/step_4000` | 10.234 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| deployments/in_the_pot/xiaomi_robotics_1/checkpoints/step_4000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/in_the_pot/xiaomi_robotics_1/checkpoints/step_4000` | 10.249 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| deployments/lift_book/pi05/checkpoints/step_2000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/lift_book/pi05/checkpoints/step_2000` | 11.587 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| deployments/put_two_fruits/pi05/checkpoints/step_2000 | `/home/agilex/cobot_magic/task3/jiaan/deployments/put_two_fruits/pi05/checkpoints/step_2000` | 11.587 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| task3/jiaan/lingbot_v2/checkpoints/global_step_4000 | `/home/agilex/cobot_magic/task3/jiaan/lingbot_v2/checkpoints/global_step_4000` | 23.767 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| task3/jiaan/pi05/checkpoints/step_4999 | `/home/agilex/cobot_magic/task3/jiaan/pi05/checkpoints/step_4999` | 11.587 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| deployments/in_the_pot/pi05_dagger_round001/checkpoints/step_3000 | `/home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/deployments/in_the_pot/pi05_dagger_round001/checkpoints/step_3000` | 11.587 | 当前网页使用 |
-| projects/fluxvla-cobot-platform/pi05/checkpoints/step_5000 | `/media/agilex/Getea1/jiaan/projects/fluxvla-cobot-platform/pi05/checkpoints/step_5000` | 13.474 | 旧模型；待核定是否仍需现场常驻，不按大小直接判重 |
-| Lingbot 依赖 Qwen3-VL-4B | `/home/agilex/cobot_magic/task3/jiaan/lingbot_v2/runtime/pretrained/Qwen3-VL-4B-Instruct` | 8.277 | 独立于微调checkpoint |
+## 模型：项目 → 模型或算法 → 场景 → 版本
 
-put_two_fruits/pi05/checkpoints/step_4999是到旧jiaan/pi05/checkpoints/step_4999的软链接，不另算一份。空step占位目录未当作有效checkpoint列入。
+    model/
+      rl-platform/rlt/
+        base/openpi/
+        plug_insertion/
+          reference_4999/
+          warmup_5000/
+          online/
+          history/
+      vla-platform/
+        pi05/
+          in_the_pot/baseline_2000/
+          in_the_pot/dagger_2000plus3000/
+          put_two_fruits/
+          lift_book/
+        fluxvla_pi05/
+          base/pi05_base/
+          in_the_pot/step_5000/
+        galaxea_g0_5/
+        lingbot_v2/
+        xiaomi_robotics_0/
+        xiaomi_robotics_1/
 
-旧Cobot Xiaomi DAgger step_4000/last.ckpt仍指向已退休平台路径，是失效的历史入口；权重实体已保全于下面A6000 vla-platform/models/history，索引configs/assets/legacy_cobot_models.json。它不属于当前网页六模型入口，再次现场使用前需要按新位置接入。
+π0.5 DAgger 为原 step 2000 初始化、再训练 3000 步。固定 warmup_5000 与持续更新的 online 分开；不能用后续在线结果冒充固定 warmup 的成绩。一个基础模型只保留一份实体，通过配置引用。
 
-## A6000 checkpoint、数据与实验历史
+## 配置与命令
 
-| 内容 | 实际路径 | 占用 GiB | 说明 |
-|---|---|---:|---|
-| 当前Stage1异机副本 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/rlt/plug_v3_yyshadow/stage1/4999` | 14.369 | 当前仍存在，部署副本待按单份规则收尾 |
-| warmup部署迁移副本 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/rlt/plug_v3_yyshadow/warmup-5000` | 0.071 | 当前仍存在，部署副本待按单份规则收尾 |
-| 历史legacy40 Stage1 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-legacy40/4999` | 14.369 | 当前仍存在，部署副本待按单份规则收尾 |
-| 历史e78 Stage1 2000 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-plug-e78/step_2000` | 14.369 | 当前仍存在，部署副本待按单份规则收尾 |
-| 历史e78 Stage1 4000 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-plug-e78/step_4000` | 14.369 | 当前仍存在，部署副本待按单份规则收尾 |
-| 历史plug v2 Stage1 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/models/history/stage1-plug-v2/3999` | 6.062 | 当前仍存在，部署副本待按单份规则收尾 |
-| 历史DM0-5 step4000 | `/data/LFT-W02_data/jiaan/jiaan/projects/vla-platform/models/history/dm0-5/step_4000` | 10.889 | 已归入所属项目 |
-| 历史Xiaomi DAgger step4000 | `/data/LFT-W02_data/jiaan/jiaan/projects/vla-platform/models/history/xiaomi-robotics-1-dagger-round001/step_4000` | 10.249 | 已归入所属项目 |
-| RLT历史转换数据 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/data/history/legacy-rlt` | 0.568 | 重复关系需按内容/格式核验 |
-| 旧RLT示范转换数据 | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/data` | 1.126 | 重复关系需按内容/格式核验 |
-| 旧RLT样例数据 | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/fixtures` | 0.393 | 重复关系需按内容/格式核验 |
-| 旧插孔原始数据副本 | `/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/plug-stage1-prep-20260909/cobot-raw` | 34.588 | 重复关系需按内容/格式核验 |
-| 旧A6000 Stage1工作副本 | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/checkpoints/plug_v3_yyshadow/stage1-faithful-s42/4999` | 14.369 | 待去重；不按同名/大小单独判定 |
-| 旧插孔Stage1 2000转移副本 | `/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/plug-rlt-stage1-deployment-20260909/step_2000` | 14.369 | 待去重；不按同名/大小单独判定 |
-| 旧插孔Stage1 4000转移副本 | `/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/plug-rlt-stage1-deployment-20260909/step_4000` | 14.369 | 待去重；不按同名/大小单独判定 |
-| 旧XR1 DAgger转移副本 | `/data/LFT-W02_data/jiaan/projects/proj-20260829-cobot-realworld-vla/scratch/xr1-dagger-hpc-587328/final-transfer` | 10.249 | 待去重；不按同名/大小单独判定 |
-| 完整历史RLT实验runs | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/migrations/20260927-rlt/legacy-rlt-source/runs` | 45.690 | 包含checkpoint/Replay/指标，不是纯权重大小 |
-| 新位置warmup对比历史 | `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/rlt/plug_v3_yyshadow/history` | 1.957 | 包含checkpoint/Replay/指标，不是纯权重大小 |
-| 旧warmup对比历史 | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/plug_v3_yyshadow` | 1.957 | 包含checkpoint/Replay/指标，不是纯权重大小 |
-| 旧real-batch smoke | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/real-batch-smoke` | 11.725 | 包含checkpoint/Replay/指标，不是纯权重大小 |
-| 旧Stage1 production preflight | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/stage1-production-preflight` | 20.773 | 包含checkpoint/Replay/指标，不是纯权重大小 |
-| 旧Stage1调试实验 | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/runs/stage1` | 4.184 | 包含checkpoint/Replay/指标，不是纯权重大小 |
-| π0.5 基础模型 | `/data/LFT-W02_data/jiaan/scratch/cobot-realworld-rl/assets/pi05_base` | 11.587 | 旧训练依赖，归A6000 |
+现场主机配置：/home/agilex/jiaan/project/cobot-web/configs/local.json；其版本化模板为 configs/hosts/cobot.json。RLT 的配置和发布 manifest 位于 rl-platform/configs/rlt/plug_v3_yyshadow/。路径变更不改变 warmup、奖励、动作、归一化或更新比例。
 
-## 重复与待核验项
+普通采集示例目录：/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/manual。
+在线 RLT：/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/rl-platform/rlt/online/three_camera_v3。
+评测保存入口：/media/agilex/Getea1/jiaan/data/evaluations。
 
-- 新A6000 RL Stage1/4999与Cobot同模型已有跨机SHA一致证据，约14.37GiB异机副本待收尾；旧A6000 scratch另有同名同体积Stage1，需确认具体版本和引用。
-- 新RL outputs/rlt/plug_v3_yyshadow/history承接旧warmup对比历史，此前1,731文件已核验；旧scratch仍有约1.96GiB对应实验树。
-- 旧XR1 DAgger final-transfer的大权重与新VLA历史模型已有一致SHA证据，旧转移副本约10.25GiB待收尾。
-- 历史Stage1 2000/4000、Lingbot两份权重及原始采集副本仍需按内容和用途比对；同名或同大小不单独证明相同。
-- 历史RLT runs约45.69GiB，包含checkpoint/Actor、Replay和指标，不能整棵当作缓存。归档里的相同部署快照按资产来源和哈希索引逐项归并。
+完整命令见 [COMMAND_LINE.md](COMMAND_LINE.md)，网页故障恢复见 [WEB_RECOVERY.md](WEB_RECOVERY.md)，RLT 操作见相邻 rl-platform/docs/RUNBOOK.md。旧网页保存的已登记路径通过配置映射到新位置，不创建第二份数据。
 
-## 场景命名目标（尚未切换）
+## 硬盘不可用时
 
-场景根建议为Cobot /home/agilex/jiaan/data/in_the_pot/、/home/agilex/jiaan/data/plug_insertion/。场景下按原始采集批次、转换格式/版本及评测分开；相机/动作定义不兼容的批次保留版本边界，不混并。
+挂载点 /media/agilex/Getea1，登记 UUID 为 3A0A7A0E0A79C801。采集、模型加载、归位配置写入和回放录制会检查实际挂载；缺盘、错盘或只读时停止该操作，不退回系统盘创建同名目录。
 
-当前实际路径仍以上表为准，rlt/plug_v3_yyshadow、rlt/plug_v2及旧task3/task5目录尚未改名。模型通过manifest选择episode、标签与比例，不为每个模型复制同场景数据。
+只读检查：
 
-## 来源
+    findmnt -T /media/agilex/Getea1 -o TARGET,SOURCE,UUID,OPTIONS
+    df -h / /media/agilex/Getea1
+    python3 /home/agilex/jiaan/project/cobot-control/robot/asset_storage.py /media/agilex/Getea1/jiaan/data --write
 
-[路径与字节CSV](storage-inventory-20260928.csv)包含本清单及建议归属。完整du/链接盘点在A6000 rl-platform/outputs/storage/20260928-inventory/。迁移校验证据沿rl-platform/docs/MIGRATION.md、vla-platform/docs/MIGRATION.md和outputs/migrations查阅。
+网页 UI 重启不能修复磁盘 I/O 故障。先停止受影响的采集/推理任务，保留终端报错，再处理连接与挂载；不要在任务仍写盘时直接拔盘。
+
+## 迁移证据
+
+Cobot：/home/agilex/jiaan/project/rl-platform/outputs/migrations/20260928-getea-storage/。
+A6000：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/migrations/20260928-getea-storage/。
+plan.json 是旧根到新根的映射，copied-files.jsonl 保存逐文件 SHA-256；extras 保存 FluxVLA 和 tokenizer 等补充迁移。
+
+本批之前的两机路径、体积和历史重复项保留在 [storage-inventory-20260928.csv](storage-inventory-20260928.csv)，它是迁移前快照，不是当前路径表。A6000 原有历史权重和训练资料未因本轮自动删除；没有新增权重备份。

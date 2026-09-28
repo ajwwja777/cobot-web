@@ -241,10 +241,13 @@ def mock_assets(monkeypatch, tmp_path):
     manifest.write_text(json.dumps({"checkpoint":str(base)}))
     monkeypatch.setattr(deployment,"RLT",root);monkeypatch.setattr(deployment,"RUN",run)
     monkeypatch.setattr(paths,"RLT",root)
+    monkeypatch.setattr(deployment,"RLT_WARMUP",actor.parent.parent)
     for attr,name,step in [("LEGACY","pi05",2000),("DAGGER","pi05-dagger",3000)]:
         entry=tmp_path/name;(entry/("checkpoints/step_"+str(step))).mkdir(parents=True)
         (entry/"run_checkpoint_rtc_task2.sh").write_text("# fixture only")
         monkeypatch.setattr(deployment,attr,entry)
+        checkpoint_attr = "PI05_DAGGER_CHECKPOINT" if attr == "DAGGER" else "PI05_CHECKPOINT"
+        monkeypatch.setattr(deployment,checkpoint_attr,entry/("checkpoints/step_"+str(step)))
     config=root/"configs/rlt/plug_v3_yyshadow/online_rl_frozen.yaml";config.parent.mkdir(parents=True,exist_ok=True)
     import yaml
     config.write_text(yaml.safe_dump({"experiment":{"rl":{"warmup_q_weight":.1,"warmup_bc_weight":10}},
@@ -343,3 +346,39 @@ def test_legacy_manual_pause_survives_hil(monkeypatch,tmp_path):
     assert send(True,"/coordinator") is True
     assert send(False,"/coordinator") is True
     assert json.loads((tmp_path/"gate.json").read_text())["intervention_count"]==2
+
+
+def test_registered_evaluations_are_grouped_and_media_uses_actual_parent(manager, monkeypatch):
+    from urllib.parse import parse_qs, urlparse
+    monkeypatch.setitem(MODEL, "id", "plug-v3-warmup-5k")
+    manager.perform("load", MODEL["id"])
+    manager.perform("start")
+    first = dict(manager.active)
+    folder = Path(first["data_root"]) / first["id"]
+    expected = manager.allowed_root / "evaluations/plug_insertion/rl-platform/rlt/warmup_5000"
+    assert expected in folder.parents
+    manager.perform("success")
+    # Preserve historical provenance in a migrated file; the reader must use its new location.
+    record = json.loads((folder / "result.json").read_text())
+    record["data_root"] = "/retired/data/evaluations"
+    (folder / "result.json").write_text(json.dumps(record))
+    result = manager.records()
+    assert result["total"] == 1 and result["success"] == 1
+    item = result["records"][0]
+    assert item["data_root"] == str(folder.parent)
+    url = item["start"]["urls"][0]
+    assert parse_qs(urlparse(url).query)["data_root"] == [str(folder.parent)]
+    # A different model always gets its own group even after selecting an older model folder.
+    manager.save_settings(str(folder.parent))
+    other = manager.trial_root({"id": "plug-v3-reference"})
+    assert manager.allowed_root / "evaluations/plug_insertion/rl-platform/rlt/reference_4999" in other.parents
+    assert "warmup_5000" not in other.parts
+
+def test_grouped_abort_removes_trial_without_leaving_result(manager, monkeypatch):
+    monkeypatch.setitem(MODEL, "id", "plug-v3-warmup-5k")
+    manager.perform("load", MODEL["id"])
+    manager.perform("start")
+    folder = Path(manager.active["data_root"]) / manager.active["id"]
+    manager.perform("abort")
+    assert not folder.exists()
+    assert manager.records()["total"] == 0

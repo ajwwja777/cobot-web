@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Literal
 from uuid import UUID
 
+from capture_core.asset_storage import migrated_path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -181,7 +183,7 @@ def create_app(
     def selected_root(value: Optional[str]) -> Optional[Path]:
         if value is None and allowed_data_root is None:
             return None
-        candidate = DEFAULT_DATA_ROOT if value is None else Path(value).expanduser()
+        candidate = DEFAULT_DATA_ROOT if value is None else Path(migrated_path(value)).expanduser()
         if not candidate.is_absolute():
             raise HTTPException(status_code=422, detail="data_root_must_be_absolute")
         resolved = candidate.resolve()
@@ -220,7 +222,7 @@ def create_app(
     def directories(path: str = "") -> Dict[str, object]:
         allowed = (allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve()
         value = path.strip() or str(allowed) + "/"
-        candidate = Path(value).expanduser()
+        candidate = Path(migrated_path(value)).expanduser()
         if not candidate.is_absolute():
             raise HTTPException(status_code=422, detail="data_root_must_be_absolute")
         allowed = containing_root(candidate)

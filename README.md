@@ -37,7 +37,7 @@ Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状�
 | A6000 主工作区 | `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web` |
 | Cobot 运行副本 | `/home/agilex/jiaan/project/cobot-web` |
 | Cobot 日志／PID／任务状态 | `/home/agilex/jiaan/project/cobot-web/runtime` |
-| 新的采集／评测数据根 | `/home/agilex/jiaan/data` |
+| 新的采集／评测数据根 | `/media/agilex/Getea1/jiaan/data` |
 
 仓库：[ajwwja777/cobot-web](https://github.com/ajwwja777/cobot-web)，`main`。笔记本只保留对话入口。
 
