@@ -1,0 +1,46 @@
+/* Shared collection/deployment geometry; task-specific controls remain in their own modules. */
+.page:is([data-page=operation],[data-page=deployment]){
+  container:session-page / inline-size;
+}
+.page .session-workspace{
+  --session-settings-height:360px;
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-rows:minmax(var(--session-settings-height),auto) auto;
+  gap:16px;
+  align-items:stretch;
+  margin:0!important;
+}
+/* DOM order is the editable, persisted order; clear legacy fixed capture cells. */
+.page .session-workspace>[data-workspace-panel]{grid-area:auto!important}
+.page .session-workspace>[data-workspace-panel]{
+  min-width:0;min-height:0;margin:0!important;height:100%;box-sizing:border-box;
+}
+.page .session-workspace>[data-workspace-panel]:is([data-workspace-panel=storage],[data-workspace-panel=model]){
+  display:flex;flex-direction:column;padding:0;gap:0;overflow:hidden;
+}
+.page .session-workspace>[data-workspace-panel]:is([data-workspace-panel=storage],[data-workspace-panel=model])>.panel-head{
+  flex:none;min-height:56px;margin:0;padding:14px 18px;display:flex;align-items:center;
+}
+.session-settings-body{
+  flex:1;min-height:0;min-width:0;max-height:calc(var(--session-settings-height) - 58px);overflow:auto;overscroll-behavior:contain;
+  scrollbar-gutter:stable;display:flex;flex-direction:column;gap:12px;padding:16px 18px;
+}
+.session-settings-body>*{flex-shrink:0}
+.session-settings-body>.storage-recent,.session-settings-body>.path-caption,
+.session-settings-body>.button-row{margin:0}
+.page .session-workspace .session-settings-body>.collection-model-actions{
+  grid-template-columns:repeat(2,minmax(0,1fr));margin:0;
+}
+.page .session-workspace #collection-model-state{margin:0}
+.page .session-workspace .deployment-frame-grid{grid-template-columns:minmax(0,1fr)}
+.page .session-workspace>[data-workspace-panel=data]>.history-panel{
+  height:100%;min-width:0;margin:0;
+}
+@container session-page (max-width:780px){
+  .page .session-workspace{
+    grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto;
+  }
+  .page .session-workspace>[data-workspace-panel]{height:auto}
+  .session-settings-body{flex:auto;max-height:420px}
+}

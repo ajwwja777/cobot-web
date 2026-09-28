@@ -244,7 +244,8 @@
       const id=event.dataTransfer.getData("text/plain"),source=[...container.children].find(node=>node.dataset.cardId===id),target=event.target.closest("[data-card-id]");
       if(!source||!target||source===target||target.parentElement!==container)return;
       const before=new Map([...container.children].map(node=>[node,node.getBoundingClientRect()]));
-      const bounds=target.getBoundingClientRect(),after=event.clientX>bounds.left+bounds.width/2;
+      const bounds=target.getBoundingClientRect(),singleColumn=getComputedStyle(container).gridTemplateColumns.split(/\s+/).length===1;
+      const after=singleColumn?event.clientY>bounds.top+bounds.height/2:event.clientX>bounds.left+bounds.width/2;
       container.insertBefore(source,after?target.nextSibling:target);animateOrder(container,before);
       layout.orders[group]=[...container.children].map(node=>node.dataset.cardId);saveLayout();
     });
@@ -262,11 +263,20 @@
     edit.addEventListener("click",()=>setEditMode(!document.body.classList.contains("editing-layout")));
     const reset=element("button","ghost","恢复默认位置");reset.type="button";reset.addEventListener("click",()=>{layout={...initial,orders:{}};saveLayout();root.location.reload();});
     section.append(edit,reset);settings.append(section);
-    for(const [group,selector] of [["normal-capture",".capture-layout"],["rl-capture",".rl-layout"],["training","[data-page=training] .workbench-grid"],["deployment","[data-page=deployment] .workbench-grid"]]){
+    for(const [group,selector] of [["rl-capture",".rl-layout"],["training","[data-page=training] .workbench-grid"]]){
       const container=$(selector);if(!container)continue;container.dataset.layoutGroup=group;
       [...container.children].forEach((node,index)=>{node.classList.add("layout-card");node.dataset.cardId=group+"-"+index;});
       enableDragGrid(container);
     }
+  }
+  function registerWorkspaceGrid(container,group) {
+    if(!container)return;
+    container.dataset.layoutGroup=group;
+    for(const card of container.querySelectorAll(':scope > [data-workspace-panel]')){
+      card.classList.add('layout-card');card.dataset.cardId=group+'-'+card.dataset.workspacePanel;
+      card.draggable=document.body.classList.contains('editing-layout');
+    }
+    enableDragGrid(container);
   }
   function createCollectionSelector() {
     for(const existing of $$('.collection-switch'))existing.classList.add('hidden');
@@ -352,6 +362,7 @@
   function mount() {
     if(mounted)return;mounted=true;layout=readLayout();
     createCameraDock();buildSystem();createLogDock();createCollectionSelector();createRltModeSelector();createSettings();
+    registerWorkspaceGrid($("[data-page=deployment] .session-workspace"),"deployment-workspace");
     const captureGrid=$("[data-page=operation] .capture-layout"),historyMount=$("#episode-browser-operation");
     if(captureGrid&&historyMount)captureGrid.append(historyMount);
     const rlGrid=$("[data-page=learning] .rl-layout"),rlHistory=$("#episode-browser-learning");
@@ -372,7 +383,7 @@
     root.setInterval(refreshHost,5000);
     root.CobotUnifiedCollection?.mount();
   }
-  const api={mount,report,renderDeviceJobs,modelStatus,sessionStatus,onPage,cameraVisible,cameraChanged:null};
+  const api={mount,registerWorkspaceGrid,report,renderDeviceJobs,modelStatus,sessionStatus,onPage,cameraVisible,cameraChanged:null};
   root.CobotWorkspaceUI=api;
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
   if(typeof document!=="undefined"){

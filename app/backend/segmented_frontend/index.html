@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="/troubleshooting.css?v=20260927-recovery"/>
 <script src="/troubleshooting.js?v=20260927-recovery"></script>
 <link rel="stylesheet" href="/site_options.css?v=20260928-site-options"/>
+<link rel="stylesheet" href="/session_workspace.css?v=20260929-four-panels"/>
 </head>
 <body>
 <div class="app-shell">
@@ -177,18 +178,32 @@
 <div class="training-figures" id="training-figures"><figure class="panel"><figcaption>离线 warmup 训练 loss</figcaption><img alt="20k warmup loss curves" src="/assets/plug_v3_warmup_20260924/loss_curves.png" loading="lazy"/></figure><figure class="panel"><figcaption>训练与留出集 Q 排序</figcaption><img alt="Train versus heldout Q AUC" src="/assets/plug_v3_warmup_20260924/train_vs_holdout_q_auc.png" loading="lazy"/></figure><figure class="panel"><figcaption>留出集 Q 排序 AUC</figcaption><img alt="Heldout Q AUC" src="/assets/plug_v3_warmup_20260924/holdout_auc_by_stage.png" loading="lazy"/></figure><figure class="panel"><figcaption>Q 随 Episode 位置</figcaption><img alt="Heldout Q by progress" src="/assets/plug_v3_warmup_20260924/holdout_q_by_progress.png" loading="lazy"/></figure><figure class="panel"><figcaption>Actor 对 HIL 动作误差</figcaption><img alt="HIL action error" src="/assets/plug_v3_warmup_20260924/holdout_hil_action_error.png" loading="lazy"/></figure></div>
 </section>
 <section class="page" data-page="deployment">
-<div class="deployment-grid workbench-grid">
-<article class="panel deployment-model-panel">
+<div class="deployment-grid workbench-grid session-workspace">
+<article class="panel deployment-storage-panel" data-workspace-panel="storage">
+<div class="panel-head"><h3 data-zh="保存位置" data-en="Save location">保存位置</h3></div>
+<div class="session-settings-body">
+<label><span data-zh="目录" data-en="Directory">目录</span><input id="deployment-storage" spellcheck="false" autocomplete="off"/></label>
+<button id="deployment-storage-apply" class="secondary" type="button">使用目录</button>
+</div>
+</article>
+<article class="panel deployment-model-panel" data-workspace-panel="model">
 <div class="panel-head"><h3>模型</h3><span class="state-badge" id="deployment-gate" role="status">未加载</span></div>
+<div class="session-settings-body">
 <div id="deployment-model-picker"><select id="deployment-model"></select></div>
 <dl class="workbench-facts" id="deployment-facts"></dl>
 <div class="deployment-load-state" id="deployment-load-state" role="status"></div>
 <div class="deploy-buttons"><button id="deploy-load" type="button">加载模型</button><button id="deploy-unload" class="danger" type="button">释放模型</button></div>
+</div>
 </article>
-<article class="panel deployment-control-panel">
+<article class="panel deployment-results-panel" data-workspace-panel="data">
+<div class="panel-head"><h3>评估记录</h3><span id="deployment-result-scope" class="muted"></span></div>
+<div class="mini-stats four"><span><small>有效轮次</small><strong id="deploy-total">0</strong></span><span><small>成功</small><strong id="deploy-success-count">0</strong></span><span><small>失败</small><strong id="deploy-failure-count">0</strong></span><span><small>成功率</small><strong id="deploy-rate">—</strong></span></div>
+<div class="deployment-result-meta"><span id="deploy-autonomous"></span><span id="deploy-aborted" hidden></span></div>
+<select id="deployment-records" aria-label="评估记录"></select>
+<div id="deployment-frames" class="deployment-frame-grid"></div>
+</article>
+<article class="panel deployment-control-panel" data-workspace-panel="controls">
 <div class="panel-head"><h3>部署控制</h3><span id="deployment-trial-state" class="state-badge">等待加载</span></div>
-<label>保存位置<input id="deployment-storage" spellcheck="false" autocomplete="off"/></label>
-<button id="deployment-storage-apply" class="secondary" type="button">使用目录</button>
 <div class="deploy-buttons deployment-controls">
 <button id="deploy-start" type="button">开始部署</button><button id="deploy-pause" class="secondary" type="button">暂停</button>
 <button id="deploy-resume" class="secondary" type="button">继续</button><button id="deploy-abort" class="secondary" type="button">结束并放弃</button>
@@ -198,13 +213,6 @@
 <label class="checkbox-row"><input type="checkbox" id="deploy-auto-home"/>结束后自动归位</label>
 <div class="deployment-keys"><kbd>→</kbd> 开始 / 暂停 / 继续 <kbd>↑</kbd> 成功 <kbd>↓</kbd> 失败 <kbd>←</kbd> 放弃</div>
 <p id="deployment-message" class="inline-status" role="status"></p>
-</article>
-<article class="panel deployment-results-panel">
-<div class="panel-head"><h3>评估记录</h3><span id="deployment-result-scope" class="muted"></span></div>
-<div class="mini-stats four"><span><small>有效轮次</small><strong id="deploy-total">0</strong></span><span><small>成功</small><strong id="deploy-success-count">0</strong></span><span><small>失败</small><strong id="deploy-failure-count">0</strong></span><span><small>成功率</small><strong id="deploy-rate">—</strong></span></div>
-<div class="deployment-result-meta"><span id="deploy-autonomous"></span><span id="deploy-aborted" hidden></span></div>
-<select id="deployment-records" aria-label="评估记录"></select>
-<div id="deployment-frames" class="deployment-frame-grid"></div>
 </article>
 </div></section>
 <section class="page" data-page="outputs">
@@ -224,7 +232,7 @@
 </div>
 <aside class="settings-drawer" hidden="" id="settings-drawer"><div class="settings-head"><h2 data-en="Settings" data-zh="设置">设置</h2><button aria-label="关闭" data-zh-aria="关闭" data-en-aria="Close" title="关闭" data-zh-title="关闭" data-en-title="Close" class="icon-button panel-tool-button" id="settings-close" type="button"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><section><h3 data-en="Language" data-zh="语言">语言</h3><div class="setting-options"><button data-language-choice="zh" type="button">中文</button><button data-language-choice="en" type="button">English</button></div></section><section><h3 data-en="Appearance" data-zh="外观">外观</h3><div class="setting-options"><button data-en="Light" data-theme-choice="light" data-zh="浅色" type="button">浅色</button><button data-en="Dark" data-theme-choice="dark" data-zh="深色" type="button">深色</button></div></section></aside>
 <div aria-hidden="true" class="compatibility-nodes"><span id="selected-mode"></span><span id="active-mode"></span><span id="ros-readiness"></span><span id="rlt-backend-phase"></span><span id="rlt-model-release"></span><span id="top-actor"></span><span id="sys-console"></span><span id="sys-ros"></span><span id="sys-rlt"></span><span id="sys-recorder"></span><span id="sys-actor"></span><span id="sys-onsite"></span><span id="sys-improvement"></span><span id="sys-latency"></span><pre id="diag-system-json"></pre><span id="camera-sync-status"></span></div>
-<script src="/locale_catalog.js?v=20260928-site-options"></script><script src="/preferences.js?v=20260926-complete-locale"></script><script src="/ui.js?v=20260920-console-observability"></script><script src="/path_picker.js?v=20260929-test-directories"></script><script src="/replay_timeline.js?v=20260923-htmlcollection-v2"></script><script src="/diagnostics_ui.js?v=20260925-workspace-v2"></script><script src="/camera_sync_ui.js?v=20260924-console-motion-v2"></script><script src="/device_control_ui.js?v=20260926-complete-locale"></script><script src="/console_ui.js?v=20260927-shared-model"></script><script src="/post_save_home.js?v=20260923-capture-finish-v3"></script><script src="/workbench_ui.js?v=20260926-paths-v1"></script><script src="/model_picker.js?v=20260929-scene-model"></script><script src="/unified_collection.js?v=20260929-scene-model"></script><script src="/collection_model_ui.js?v=20260929-scene-model"></script><script src="/workspace_ui.js?v=20260926-panel-buttons"></script><script src="/rlt_home.js?v=20260926-manual-home-v3"></script><script src="/app.js?v=20260929-page-alignment"></script><script src="/spatial_ui.js?v=20260926-command-v1"></script><script src="/dashboard_locale.js?v=20260926-complete-locale"></script>
+<script src="/locale_catalog.js?v=20260928-site-options"></script><script src="/preferences.js?v=20260926-complete-locale"></script><script src="/ui.js?v=20260920-console-observability"></script><script src="/path_picker.js?v=20260929-test-directories"></script><script src="/replay_timeline.js?v=20260923-htmlcollection-v2"></script><script src="/diagnostics_ui.js?v=20260925-workspace-v2"></script><script src="/camera_sync_ui.js?v=20260924-console-motion-v2"></script><script src="/device_control_ui.js?v=20260926-complete-locale"></script><script src="/console_ui.js?v=20260927-shared-model"></script><script src="/post_save_home.js?v=20260923-capture-finish-v3"></script><script src="/workbench_ui.js?v=20260926-paths-v1"></script><script src="/model_picker.js?v=20260929-scene-model"></script><script src="/unified_collection.js?v=20260929-four-panels"></script><script src="/collection_model_ui.js?v=20260929-scene-model"></script><script src="/workspace_ui.js?v=20260929-four-panels"></script><script src="/rlt_home.js?v=20260926-manual-home-v3"></script><script src="/app.js?v=20260929-page-alignment"></script><script src="/spatial_ui.js?v=20260926-command-v1"></script><script src="/dashboard_locale.js?v=20260926-complete-locale"></script>
 <script src="/deployment_ui.js?v=20260929-scene-model"></script>
 <script src="/dock_ui.js?v=20260928-terminal-recipes"></script>
 <script src="/site_options.js?v=20260928-site-options"></script>

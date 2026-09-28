@@ -149,12 +149,12 @@
   function mount(){
     if(mounted)return;mounted=true;
     const page=$('[data-page=operation]'),grid=$('.capture-layout'),panel=grid.querySelector('.action-panel'),storage=grid.querySelector('.normal-only:not(.action-panel)');
-    page.classList.add('fixed-collection');grid.classList.add('fixed-collection-grid');panel.id='collection-controls';storage.id='collection-storage';
+    page.classList.add('fixed-collection');grid.classList.add('fixed-collection-grid','session-workspace');panel.id='collection-controls';storage.id='collection-storage';
     panel.classList.remove('normal-only','hidden');storage.classList.remove('normal-only','hidden');$('#episode-browser-operation').classList.remove('normal-only','hidden');
     const old=hideContents(panel);hideContents(storage);
     const legacy=document.createElement('div');legacy.className='collection-legacy';page.append(legacy);legacy.append($('.rl-layout'),$('.rl-process-panel'));
     const use=$('#capture-use-model'),card=document.createElement('article');card.className='panel collection-configuration';
-    card.innerHTML='<div class="collection-model-row"></div><div class="button-grid collection-model-actions"></div><p id="collection-model-state" class="inline-status" role="status"></p>';
+    card.innerHTML='<div class="panel-head"><h3 data-zh="模型" data-en="Model">模型</h3></div><div class="session-settings-body"><div class="collection-model-row"></div><div class="button-grid collection-model-actions"></div><p id="collection-model-state" class="inline-status" role="status"></p></div>';
     card.querySelector('.collection-model-row').append(use.closest('label'));
     const select=document.createElement('select');select.id='collection-model-select';
     const picker=document.createElement('div');card.querySelector('.collection-model-row').append(picker);
@@ -168,7 +168,11 @@
     for(const [id,zh,en] of [['load','加载模型','Load model'],['unload','释放模型','Release model'],['session-start','开始 Session','Start session'],['session-stop','结束 Session','End session']]){
       const button=document.createElement('button');button.type='button';button.id='collection-'+id;label(button,zh,en);button.addEventListener('click',()=>modelAction(id));card.querySelector('.collection-model-actions').append(button);
     }
-    page.querySelector('.page-heading').after(card);
+    const history=$('#episode-browser-operation');
+    for(const [node,area] of [[storage,'storage'],[card,'model'],[history,'data'],[panel,'controls']]){
+      node.dataset.workspacePanel=area;grid.append(node);
+    }
+    root.CobotWorkspaceUI?.registerWorkspaceGrid?.(grid,'collection-workspace');
     panel.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="采集控制" data-en="Collection controls">采集控制</h3><strong class="state-badge" id="collection-state">—</strong></div><div class="mini-stats"><span><small data-zh="帧数" data-en="Frames">帧数</small><strong id="collection-frame-count">0</strong></span><span><small data-zh="节点" data-en="Markers">节点</small><strong id="collection-node-count">0</strong></span><span><small data-zh="版本" data-en="Version">版本</small><strong id="collection-generation">0</strong></span></div><div class="button-grid collection-episode-actions"></div><div class="collection-results"><label class="collection-result-toggle"><input type="checkbox" id="collection-label-results"/><span data-zh="启用成功 / 失败" data-en="Enable success / failure">启用成功 / 失败</span></label><div class="button-grid collection-result-actions"></div></div>');
     const actions=[['start','开始采集','Start capture'],['pause','暂停并打节点','Pause + marker'],['resume','继续并打节点','Resume + marker'],['marker','只打节点','Add marker'],['save','结束并保存','Finish and save'],['discard','结束并放弃','Discard episode'],['success','成功并复位','Success and home'],['failure','失败并复位','Failure and home']];
     for(const [id,zh,en] of actions){
@@ -183,7 +187,10 @@
     $('#collection-label-results').checked=localStorage.getItem('cobot-collection-label-results')==='true';$('#collection-label-results').addEventListener('change',()=>{localStorage.setItem('cobot-collection-label-results',labelResults());render();});
     use.addEventListener('change',changeRuntime);
     root.addEventListener('cobot:model-default',event=>{if(active())return;selected=modelPicker.select(event.detail);render();});
-    storage.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="录制目录" data-en="Recording directory">录制目录</h3></div><label><span data-zh="目录" data-en="Directory">目录</span><input id="collection-data-root" autocomplete="off" aria-controls="collection-directory-options" role="combobox"/></label><div class="directory-browser" hidden id="collection-directory-browser"><p class="muted" id="collection-directory-hint"></p><div class="path-options" id="collection-directory-options" role="listbox"></div></div><div class="button-row"><button id="collection-storage-browse" type="button" data-zh="浏览" data-en="Browse">浏览</button><button id="collection-storage-use" type="button" data-zh="检查并使用" data-en="Check and use">检查并使用</button></div><p class="path-caption"><span data-zh="当前：" data-en="Current: ">当前：</span><code data-localize id="collection-recording-directory">—</code></p>');
+    storage.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="保存位置" data-en="Save location">保存位置</h3></div><label><span data-zh="目录" data-en="Directory">目录</span><input id="collection-data-root" autocomplete="off" aria-controls="collection-directory-options" role="combobox"/></label><div class="directory-browser" hidden id="collection-directory-browser"><p class="muted" id="collection-directory-hint"></p><div class="path-options" id="collection-directory-options" role="listbox"></div></div><div class="button-row"><button id="collection-storage-browse" type="button" data-zh="浏览" data-en="Browse">浏览</button><button id="collection-storage-use" type="button" data-zh="检查并使用" data-en="Check and use">检查并使用</button></div><p class="path-caption"><span data-zh="当前：" data-en="Current: ">当前：</span><code data-localize id="collection-recording-directory">—</code></p>');
+    const storageBody=document.createElement('div');storageBody.className='session-settings-body';
+    for(const child of [...storage.children])if(!child.classList.contains('panel-head'))storageBody.append(child);
+    storage.append(storageBody);
     const input=$('#collection-data-root');
     directoryPicker=root.CobotPathPicker.create({input,panel:$('#collection-directory-browser'),list:$('#collection-directory-options'),hint:$('#collection-directory-hint'),fetchDirectories:path=>root.request('/api/segmented-teach/storage/directories?path='+encodeURIComponent(path)),storage:localStorage,storageKey:'cobot-unified-collection-paths',onChange:()=>{input.dataset.dirty='true';const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;target.dispatchEvent(new Event('input'));}});
     recentDirectories=root.CobotPathPicker.recentSelector?.({input,id:'collection-recent-directories',storage:localStorage,storageKey:'cobot-unified-collection-paths',extraPaths:()=>root.CobotRecordingDirectories||[],onSelect:()=>$('#collection-storage-use').click()});
