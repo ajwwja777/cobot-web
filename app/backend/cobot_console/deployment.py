@@ -337,7 +337,8 @@ class ManagedRuntime:
                 except (DeploymentError, RltBackendError):
                     pass  # Continue stopping this owned process even if Session is faulted.
             os.killpg(saved["pid"], signal.SIGINT)
-            deadline = time.monotonic() + 8
+            grace = min(45, max(8, float(saved["model"].get("shutdown_grace_seconds", 8))))
+            deadline = time.monotonic() + grace
             while self._owned_members(saved) and time.monotonic() < deadline:
                 if self.process:
                     self.process.poll()
