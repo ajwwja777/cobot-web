@@ -91,7 +91,8 @@ def fake_ros(mode="policy", fault=""):
     )
 
 
-def test_bridge_does_not_claim_legacy_blocked_resume_succeeded():
+def test_bridge_does_not_claim_legacy_blocked_resume_succeeded(monkeypatch):
+    monkeypatch.setattr(bridge, "legacy_resume_needed", lambda _: False)
     ros = fake_ros()
     result = bridge.command(ros, object, object, object, "resume")
     assert not result["success"]
@@ -165,3 +166,41 @@ def test_new_protocol_and_non_pi05_refuse_legacy_repair(tmp_path):
     (tmp_path / "process.json").write_text(json.dumps(registry))
     with pytest.raises(RuntimeError, match="only supports"):
         bridge.legacy_gate(tmp_path)
+
+
+def test_explicit_legacy_resume_reconciles_before_unpausing(monkeypatch, tmp_path):
+    ros = fake_ros()
+    calls = []
+    monkeypatch.setattr(bridge, "deployment_directory", lambda: tmp_path)
+    monkeypatch.setattr(bridge, "legacy_resume_needed", lambda _: True)
+    def repair(*args, **kwargs):
+        calls.append("repair-held-pause")
+        return {"success": True}
+    def request(value):
+        calls.append(value)
+        return SimpleNamespace(success=True, message="fresh resume")
+    ros.ServiceProxy = lambda *args: request
+    monkeypatch.setattr(bridge, "repair_legacy_pause", repair)
+    result = bridge.command(ros, object, object, object, "resume")
+    assert result["success"] and calls == ["repair-held-pause", False]
+
+
+def test_blocked_legacy_reconciliation_never_resumes(monkeypatch, tmp_path):
+    ros = fake_ros()
+    monkeypatch.setattr(bridge, "deployment_directory", lambda: tmp_path)
+    monkeypatch.setattr(bridge, "legacy_resume_needed", lambda _: True)
+    def blocked(*args, **kwargs):
+        raise RuntimeError("Pause repair blocked: manual:left")
+    monkeypatch.setattr(bridge, "repair_legacy_pause", blocked)
+    with pytest.raises(RuntimeError, match="blocked"):
+        bridge.command(ros, object, object, object, "resume")
+    assert ros.calls == []
+
+
+def test_pause_does_not_reconcile_or_resume(monkeypatch):
+    ros = fake_ros()
+    def unexpected(*args):
+        raise AssertionError("Pause must not touch the legacy latch")
+    monkeypatch.setattr(bridge, "legacy_resume_needed", unexpected)
+    result = bridge.command(ros, object, object, object, "pause")
+    assert result["success"] and ros.calls == [True]

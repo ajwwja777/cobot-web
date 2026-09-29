@@ -419,4 +419,10 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 
 本批只改 web 的 π0.5 暂停适配、ROS bridge 与回归，不改控制/模型/RTC/动作参数。新 wrapper 将 Recover/其他保护请求归入手动暂停，只识别实际两个协调器节点作为 HIL，增加来源/版本诊断；真正接管仍阻止继续，保护暂停不能被普通调用解除。bridge 拒绝把旧客户端的 paused 回复视作已继续。
 
-旧模型进程不热替换：新增 repair-pause，在模型操作锁、PID身份与ROS状态检查下保持 manual_pause=true，只清除旧外部锁；不自动恢复推理、不清空HIL计数/评测历史、不释放权重。下一次正常加载才启用新版 wrapper，当前旧进程再次 Recover 仍可用兼容入口。使用与限制见 docs/WEB_RECOVERY.md。测试、发布及现场恢复结果随后补记。
+旧模型进程不热替换：新增 repair-pause，在模型操作锁、PID身份与ROS状态检查下保持 manual_pause=true，只清除旧外部锁；不自动恢复推理、不清空HIL计数/评测历史、不释放权重。下一次正常加载才启用新版 wrapper，当前旧进程的显式开始/继续也执行有界兼容协调，不要求重新加载或每次手动修复。CLI与网页暂停命令串行，修复阶段始终保持手动暂停，最终只由本次显式开始/继续请求解除。使用与限制见 docs/WEB_RECOVERY.md。测试、发布及现场恢复结果随后补记。
+
+本批回归63项通过、1项既有跳过，覆盖Recover→Continue、真实HIL阻止恢复、手动暂停不被按钮释放覆盖、未知来源不能解锁、旧版有效状态检查、无运动修复、显式继续先协调再解除与故障拒绝。源码3d05c63首次push并同步198文件后，在现场执行repair-pause成功，维持paused/manual_pause=true；未启动机器人动作。
+
+现场后续只读确认：用户自行于15:43开始eval-20260929T154302-897142dd，网页phase=running、gate paused=false/manual_pause=false，无操作错误、intervened=false。模型supervisor2019008、GPU服务2019058、RTC客户端2025877及两硬件supervisor PID/start_ticks保持。此结果证明残留锁已解除、用户开始请求通过；不冒充动作质量/整轮成功率验收。
+
+后续增强将旧客户端兼容协调放入显式开始/继续bridge，已完成离线回归；不在加载/状态轮询/Recover时自动恢复推理。同步脚本和文档无需重启网页/硬件/模型，新wrapper将在下次正常模型加载启用。现场回执：Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/pi05-recover-pause-20260929/repair.json；A6000对应outputs/pi05-recover-pause-20260929/。最终版本与逐文件SHA以.release.json和Git main为准。

@@ -260,6 +260,6 @@ source /opt/ros/noetic/setup.bash
 cat runtime/deployment/pi05-gate.json
 ~~~
 
-成功返回 Legacy latch cleared; manually paused，paused 与 manual_pause 都应为 true。随后由操作者在网页点击开始（无活动轮次）或继续（暂停的活动轮次）。当前旧客户端如果再次执行 Recover 仍可能需要该命令；下次正常重载客户端后使用新版分类，不再需要兼容修复。恢复保留原 intervention_count 和已有评测记录，不改写历史标签；下一轮沿原规则取新的计数基线。
+成功返回 Legacy latch cleared; manually paused，paused 与 manual_pause 都应为 true。随后由操作者在网页点击开始（无活动轮次）或继续（暂停的活动轮次）。已加载的旧客户端在你主动点击开始/继续时，也会先完成同样的有界检查和暂停锁协调，再执行本次请求；无需每次手动运行修复命令。真实示教或故障时拒绝继续。下次正常重载客户端后直接使用新版分类。恢复保留原 intervention_count 和已有评测记录，不改写历史标签；下一轮沿原规则取新的计数基线。
 
 网页调用的 bridge 同时检查服务的实际回复；若仍为 paused，返回明确失败原因，不再把服务返回 success 当作推理已继续。repair-pause 不适用于 RLT/其他模型、新协议客户端、真实示教中或硬件故障；这些情况按具体状态处理。
