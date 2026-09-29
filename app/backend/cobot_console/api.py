@@ -689,6 +689,13 @@ def create_app(
             return {key: dict(item) for key, item in value.items()}
         return cached
 
+    from .analysis import AnalysisReader
+    analysis_reader = AnalysisReader()
+
+    @application.get("/api/analysis/rlt")
+    def rlt_analysis(run: int = -1) -> Dict[str, object]:
+        return analysis_reader.snapshot(run)
+
     @application.get("/api/console/diagnostics")
     def console_diagnostics() -> Dict[str, object]:
         def load_session():

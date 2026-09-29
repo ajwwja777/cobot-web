@@ -230,3 +230,18 @@ def test_legacy_profile_keeps_rlt_available(monkeypatch, tmp_path):
     with TestClient(app) as client:
         assert client.get("/api/console/config").json()["rlt_enabled"] is True
         assert client.post("/api/console/mode", json={"mode": "rlt"}).status_code == 200
+
+
+def test_analysis_is_get_only_and_does_not_call_model_backend(tmp_path, monkeypatch):
+    from cobot_console.analysis import AnalysisReader
+    monkeypatch.setattr(AnalysisReader, "snapshot", lambda self, run=-1: {"selected_run": run, "read_only": True})
+    backend = FakeBackend()
+    app = create_app(cache=_fresh_cache(), bridge=FakeBridge(), recorder=FakeRecorder(),
+        segmented_service=FakeSegmentedService(), backend_client=backend,
+        lifecycle_registry=FakeRegistry(), allowed_data_root=tmp_path,
+        rlt_data_root=tmp_path, monotonic=lambda: 10.0)
+    with TestClient(app) as client:
+        assert client.get("/api/analysis/rlt?run=2").json() == {"selected_run": 2, "read_only": True}
+        assert client.get("/api/analysis/rlt?run=bad").status_code == 422
+        assert client.post("/api/analysis/rlt").status_code == 405
+    assert backend.calls == []

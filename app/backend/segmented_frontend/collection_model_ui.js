@@ -5,7 +5,7 @@
   // Estimates from recorded launches, never a timer or a readiness signal.
   root.CobotModelLoading=model=>{
     if(model?.kind==='pi05'||model?.runtime==='normal')return {zh:'正在加载 · 预计约 1–4 分钟',en:'Loading · approximately 1–4 minutes'};
-    if(model?.runtime==='rlt'||['rlt','reference','frozen','online'].includes(model?.kind))return {zh:'正在加载 · 预计约 4–6 分钟',en:'Loading · approximately 4–6 minutes'};
+    if(model?.runtime==='rlt'||['rlt','reference','frozen','online'].includes(model?.kind))return {zh:'正在加载 · 预计约 30 秒–1 分钟',en:'Loading · approximately 30 s–1 minute'};
     return {zh:'正在加载 · 预计数分钟',en:'Loading · estimated a few minutes'};
   };
   const english=()=>root.CobotPreferences?.language==='en';

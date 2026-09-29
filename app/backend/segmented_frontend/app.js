@@ -93,7 +93,7 @@ function scheduleAfterSelection() {
     if (textSelectionActive()) return;
     refresh();
     refreshConsole();
-    if (["learning", "training"].includes(activePageName())) diagnosticsPoller.tick();
+    if (["learning"].includes(activePageName())) diagnosticsPoller.tick();
     if (activePageName() === "system") devicePoller.tick();
   }, 80);
 }
@@ -1477,7 +1477,27 @@ function renderDiagnostics(payload) {
   $("#diag-pending").textContent = pending + " / " + required;
   $("#diag-quarantined").textContent = String(cycle.quarantined_episodes || 0);
   $("#diag-actor").textContent = release.actor_version == null ? "—" : String(release.actor_version);
-  $("#diag-release-name").textContent = release.name || "release —";
+  // The learner release describes the online training run; show separately what is actually deployed.
+  const deployed = learning.deployed || null;
+  const deployedActorPath = !deployed ? "—" : deployed.actor_checkpoint || (deployed.mode === "reference" ? "无 actor（只运行 Stage-1 reference）" : "—");
+  const deployedRows = deployed ? [
+    ["模型", (deployed.label || deployed.id || "—") + (deployed.mode ? " · " + deployed.mode : "")],
+    ["Actor 权重", deployedActorPath],
+    ["基础模型（Stage-1）", deployed.base_checkpoint || "—"],
+    ["推理中的 actor 版本", deployed.inference_actor_version == null || deployed.inference_actor_version < 0 ? "—" : String(deployed.inference_actor_version)],
+    ["状态", deployed.ready ? "已就绪" : String(deployed.phase || "—")],
+  ] : [["模型", "当前没有部署 RLT 模型"]];
+  $("#diag-deployed").replaceChildren(...deployedRows.flatMap(([key, value]) => {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = key; dd.textContent = value; dd.title = value; return [dt, dd];
+  }));
+  const trainingDeployed = $("#training-deployed");
+  if (trainingDeployed) trainingDeployed.textContent = deployed
+    ? "当前部署：" + (deployed.label || deployed.id) + " · actor：" + deployedActorPath + " · 基础模型：" + (deployed.base_checkpoint || "—")
+    : "";
+  $("#diag-release-name").textContent = deployed
+    ? "部署：" + (deployed.label || deployed.id || "—") + " · learner：" + (release.name || "—")
+    : (release.name || "release —");
   $("#diag-last-result").textContent = operation.phase || "—";
 
   const reasons = $("#diag-update-reasons");
@@ -1735,7 +1755,7 @@ function selectPage(name) {
   mountPersistentCameraPanel(name);
   if(window.CobotWorkspaceUI)window.CobotWorkspaceUI.onPage(name);
   if (name === 'system' || name === 'deployment') devicePoller.tick();
-  if (name === 'learning' || name === 'training') diagnosticsPoller.tick();
+  if (name === 'learning') diagnosticsPoller.tick();
   if (['operation','system','learning','deployment'].includes(name)) { syncCameraStreams(); refreshCameraTriplet(); }
   window.CobotUnifiedCollection?.render();
 }
@@ -1999,13 +2019,13 @@ if(window.CobotWorkspaceUI)window.CobotWorkspaceUI.cameraChanged=()=>{syncCamera
 syncCameraStreams();
 refreshCameraTriplet();
 const initialPage = new URLSearchParams(window.location.search).get('view');
-if (['system','operation','training','deployment','outputs','host'].includes(initialPage)) selectPage(initialPage);
+if (['system','operation','training','analysis','deployment','outputs','host'].includes(initialPage)) selectPage(initialPage);
 document.addEventListener("selectionchange", scheduleAfterSelection);
 document.addEventListener("visibilitychange",()=>{syncCameraStreams();if(!document.hidden)refreshCameraTriplet();});
 document.addEventListener("cobot:language", () => {
   refresh();
   refreshConsole();
-  if (["learning", "training"].includes(activePageName())) diagnosticsPoller.tick();
+  if (["learning"].includes(activePageName())) diagnosticsPoller.tick();
   if (activePageName() === "system") devicePoller.tick();
 });
 window.setInterval(() => { if (pagePollingEnabled('operation') && !collectionIsRlt() && !textSelectionActive()) refresh(); }, 750);
@@ -2016,7 +2036,7 @@ refreshReleases();
 window.setInterval(() => { if (!document.hidden && !textSelectionActive() && (activePageName() === 'operation' && collectionIsRlt())) refreshModels(); }, 5000);
 refreshModels();
 window.setInterval(() => {
-  if (!document.hidden && !textSelectionActive() && ['learning','training'].includes(activePageName())) diagnosticsPoller.tick();
+  if (!document.hidden && !textSelectionActive() && ['learning'].includes(activePageName())) diagnosticsPoller.tick();
 }, 1000);
 window.setInterval(() => { if (pagePollingEnabled('system') && !textSelectionActive()) devicePoller.tick(); }, 1000);
 window.setInterval(() => { if (pagePollingEnabled('deployment') && !textSelectionActive()) devicePoller.tick(); }, 2000);

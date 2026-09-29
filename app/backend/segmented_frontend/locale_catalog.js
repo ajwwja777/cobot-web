@@ -223,7 +223,7 @@
     '评估记录':'Evaluation records','有效轮次':'Valid trials','自主成功率':'Autonomous success rate','首帧':'First frame','末帧':'Last frame',
     '暂无画面':'No frames','暂无记录':'No records','暂无数据':'No data','等待记录':'Waiting for frames','等待加载':'Waiting for model',
     '状态待确认':'Status unconfirmed','重新连接中':'Reconnecting','状态更新延迟，正在核对模型状态':'Status update delayed; checking model state',
-    '正在加载 · 预计约 1–4 分钟':'Loading · approximately 1–4 minutes','正在加载 · 预计约 8–10 分钟':'Loading · approximately 8–10 minutes','正在加载 · 预计数分钟':'Loading · estimated a few minutes',
+    '正在加载 · 预计约 1–4 分钟':'Loading · approximately 1–4 minutes','正在加载 · 预计约 30 秒–1 分钟':'Loading · approximately 30 s–1 minute','正在加载 · 预计约 8–10 分钟':'Loading · approximately 8–10 minutes','正在加载 · 预计数分钟':'Loading · estimated a few minutes',
     '基础模型就绪，正在初始化推理':'Base model ready; initializing inference','正在加载权重与初始化推理':'Loading weights and initializing inference',
     '模型运行异常，请查看输出':'Model error; check the output panel','正在核对模型状态':'Checking model state',
     '模型加载成功':'Model loaded','加载成功':'Loaded','正在加载模型':'Loading model','已加载':'Loaded','未加载':'Not loaded','核对中':'Checking',

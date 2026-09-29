@@ -71,7 +71,7 @@
     ];
     $("#training-figures").querySelectorAll("figure").forEach((figure,index)=>{
       figure.classList.toggle("hidden",index>=plots.length);
-      if(plots[index]){figure.querySelector("figcaption").textContent=plots[index][0];const img=figure.querySelector("img");img.alt=plots[index][0];img.loading="eager";img.src=plots[index][1];}
+      if(plots[index]){figure.querySelector("figcaption").textContent=plots[index][0];const img=figure.querySelector("img");img.alt=plots[index][0];img.loading="lazy";img.src=plots[index][1];}
     });
     const ckpt=$("#training-checkpoint").value;
     $("#training-command").textContent=ckpt==="warmup5k_experts"

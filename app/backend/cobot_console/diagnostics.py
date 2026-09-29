@@ -339,6 +339,30 @@ class ConsoleDiagnostics:
         }
         return result
 
+    def _deployed_v3(self, session) -> Optional[Dict[str, Any]]:
+        """What the robot is actually running, from the deployment registry.
+
+        The learner status describes the online training run; a frozen warmup
+        actor or the Stage-1 reference can be deployed while it exists.
+        """
+        registry = Path(os.environ.get("COBOT_DEPLOYMENT_REGISTRY", "")) if os.environ.get("COBOT_DEPLOYMENT_REGISTRY") else None
+        if registry is None:
+            from .paths import RUNTIME_ROOT
+            registry = RUNTIME_ROOT / "deployment" / "process.json"
+        saved = self._json(registry) or {}
+        model = saved.get("model") if isinstance(saved.get("model"), dict) else None
+        if not model or model.get("kind") not in ("rlt", None) and model.get("runtime") != "rlt":
+            return None
+        base = model.get("base_checkpoint")
+        weights = model.get("checkpoint")
+        actor = None if (model.get("mode") == "reference" or not weights or weights == base) else weights
+        return {
+            "id": model.get("id"), "label": model.get("label"), "mode": model.get("mode"),
+            "actor_checkpoint": actor, "base_checkpoint": base,
+            "phase": saved.get("phase"), "ready": bool(saved.get("ready_confirmed")),
+            "inference_actor_version": (session or {}).get("actor_version"),
+        }
+
     def _snapshot_v3(self, cache, session_loader) -> Dict[str, Any]:
         availability: Dict[str, str] = {}
         metrics_path = self.root / "online/metrics/learner_metrics.jsonl"
@@ -392,6 +416,7 @@ class ConsoleDiagnostics:
             "learning": {
                 "cycle": cycle, "operation": operation, "release": release,
                 "metrics": metrics, "history": {"release_count": 1, "releases": []},
+                "deployed": self._deployed_v3(session),
                 "episode_q": None, "decision_q": [], "actor_delta": [],
                 "progress": progress,
                 "update_explanation": {

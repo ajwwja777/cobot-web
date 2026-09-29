@@ -658,3 +658,24 @@ Cobot只读终端核对：
     curl --noproxy '*' -s http://127.0.0.1:8015/api/deployment/status
 
 第二项JSON的models对应模型提供published_learner_step/published_actor_version，session.actor_version提供实际最近推理版本。Learner内部Actor每2步更新，不能将Actor版本号直接当成Learner步数。
+
+## 训练与诊断分析
+
+左栏“训练”看进度、发布版本、登记参数及核心损失；“诊断分析”看 Actor 表现、实际 batch 来源、Q、聚类和单轮动作。页面卡片统一两列，窄窗口转单列；历史 Warmup 图放在折叠归档。训练页顶部数值来自当前状态文件，曲线使用最新连续日志段。诊断页可选历史日志段和 500/2000/全部 step；轮次按 phase、deterministic/stochastic 区分，默认显示最近8个版本，可展开全部。
+
+只读接口与网页一致：
+在 Cobot 终端执行 curl -sS --noproxy '*' 'http://127.0.0.1:8015/api/analysis/rlt'。
+run=-1（默认）取最新连续日志段；run=0、1…取返回 runs 列表中的历史段。接口只有 GET，8秒缓存；页面可见时每10秒刷新，显示日志时间与读取时间。过期心跳只表示历史快照，不表示训练仍在运行。网络失败保留旧结果并提示失败。
+
+Replay 分布是显式生成的离线快照，不随页面轮询重算。在 Cobot：
+1. cd /home/agilex/jiaan/project/rl-platform
+2. envs/online/bin/python scripts/analyze_replay.py
+3. 刷新诊断页。生成时间、池数量及当前数量不一致提示会显示出来。
+
+该命令只读 configs/rlt/plug_v3_yyshadow/online_rl.yaml 登记的可信 Replay，在 outputs/rlt/plug_v3_yyshadow/analysis/replay_projection.json 写可再生分析结果。不改变 Replay、权重、训练参数或机械臂状态。不要将不可信 pickle 交给这个离线命令；网页不接受 journal 路径、不反序列化权重。
+
+图表解释：自主成功=有标签且已写 Replay 的成功轮次中无记录的 HIL；分母为该 cohort 全部有效轮次。接管成功另列，零写入轮次不算失败。Online 探索成功率不等于固定场景评测。Warmup/recent Online/HIL 抽样比例重叠，不能相加；来源 BASE/RL/HUMAN/MIXED 互斥。Actor 曲线排除未更新步的占位0，图最多抽320点，末尾100个原始batch计算均值。
+
+聚类使用状态和动作差，不能代替视觉场景分布。两条 PCA 轴显示解释方差；k-means 在14维标准化特征中完成。点击点查看相同 Replay episode_id 的代表chunk；它不是原始录像index，也不假造视频帧对应。图中动作可能包含HIL、探索与限幅。当前没有逐帧媒体关联。
+
+实现：web/app/backend/cobot_console/analysis.py 只做读取缓存与HTTP适配，领域聚合归 rl-platform/integrations/cobot_runtime/analysis.py；快照脚本归 rl-platform/scripts/analyze_replay.py。新机器从这两个Git项目部署，沿用在线环境的NumPy/PyYAML，不需要运行GPU模型即可分析。实际目录根为 /home/agilex/jiaan/project/；A6000主目录为 /data/LFT-W02_data/jiaan/jiaan/projects/。

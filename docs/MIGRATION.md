@@ -449,3 +449,13 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 ## 2026-09-29：正式后端切换已完成
 
 用户反馈仍无published后，现场确认waiting_scene/policy_paused、无活动writer/操作，持模型操作锁仅重载8015。模型supervisor2139119、Stage12139241、机械臂1318293、相机1317979身份与Session UUID/generation119保持。正式API确认Learner6915/internal3457、published6500/3250、last inference3250；录制标签修复一并生效。未开始推理或释放模型。回执：Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/rlt-publication-20260929/release.json。guide Git未提交。
+
+## 2026-09-29：训练页整理与新增诊断分析
+
+用户要求新增核心分析板块、训练页保留有用信息并对齐。本批新增独立Analysis导航和只读/api/analysis/rlt；训练页保留进度/发布/配置/Critic与Actor核心曲线，移除混排重复诊断卡，历史Warmup图归入诊断页折叠档案。两页同一响应式卡片网格；浅深色沿用主题，静态和动态文案支持语言切换。
+
+分析来自真实JSONL与只读Replay：按实际Actor和phase/确定性模式拆分自主/接管成功；显示Wilson区间、真实抽样比例、Q和加权目标；按训练step回退拆段，未更新Actor的0不作有效loss。Replay特征为7维proprio和7维平均动作差，PCA显示、14维k-means、固定seed42。3917条有效transition，前两轴解释方差31.50%；不是视觉语义聚类或成功率因果结论。
+
+验证：rl-platform4项统计/只读快照测试；web24项Python、47项Node通过。Playwright只读GET预览，阻断全部写操作与相机流，在1800/1200/760宽度核对两页相同左/上边界、无横向溢出、0 JS异常；检查聚类着色/点击和英文动态文案。证据outputs/rlt-analysis-20260929/，不是相机画面或运动验收。
+
+保留并接回了现场已有的5个web文件改动：部署与Learner区分、NVMe加载时间文案等。rl-platform现场NVMe/probe并行修改未覆盖，本批只部署新增分析模块/脚本/说明；不修改训练、Replay、模型或硬件控制。正式服务切换与SHA记录随后补记；guide Git不提交。

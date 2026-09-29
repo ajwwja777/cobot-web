@@ -99,3 +99,9 @@ UV_CACHE_DIR=/home/agilex/jiaan/project/cobot-web/runtime/cache/uv /home/agilex/
 ## 数据和模型存放
 
 2026-09-28 最终确认：Cobot 数据和 checkpoint 实体放 /media/agilex/Getea1/jiaan/{data,model}；数据按场景分，模型按项目/模型/场景/版本分。本轮不新增 A6000 资产备份，既有 A6000 历史资产另行保留。当前路径、占用、验收与清理状态见[存放清单](docs/STORAGE.md)。
+
+## 训练与诊断分析
+
+训练页显示当前 Learner、已发布 Actor、Replay、待更新预算、登记参数和核心损失。诊断分析页提供按实际 Actor/轮次类型的自主与接管结果、真实 batch 分布、Q/目标项、Replay 状态聚类和代表动作。历史 Warmup 图保留在折叠归档，不再与在线曲线混排。
+
+详细口径与只读命令见 [命令行手册](docs/COMMAND_LINE.md#训练与诊断分析)，算法侧见同级 rl-platform/docs/ANALYSIS.md。新页面目前覆盖 RLT plug_insertion；不把其他模型的旧训练记录冒充在线指标。
