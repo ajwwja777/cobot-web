@@ -459,3 +459,9 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 验证：rl-platform4项统计/只读快照测试；web24项Python、47项Node通过。Playwright只读GET预览，阻断全部写操作与相机流，在1800/1200/760宽度核对两页相同左/上边界、无横向溢出、0 JS异常；检查聚类着色/点击和英文动态文案。证据outputs/rlt-analysis-20260929/，不是相机画面或运动验收。
 
 保留并接回了现场已有的5个web文件改动：部署与Learner区分、NVMe加载时间文案等。rl-platform现场NVMe/probe并行修改未覆盖，本批只部署新增分析模块/脚本/说明；不修改训练、Replay、模型或硬件控制。正式服务切换与SHA记录随后补记；guide Git不提交。
+
+正式发布：web e775308 已push并核验origin/main，同步202运行文件SHA一致；rl-platform 88b3e1c源码已push，仅3个新增分析文件按SHA同步，后续ce8dca9修正文档换行。现场模型offline、capture idle、无writer，持.model-operation.lock仅重载8015；9个硬件相关进程PID/start_ticks保持，未请求模型加载或运动。
+
+正式GET /api/analysis/rlt首读0.20秒：Learner11750、published step11500/Actor5750、Replay3917、179条有效标注日志；展示2400个确定性抽样点。历史run=0/1及最新段接口通过；5个HTTP静态文件SHA与A6000一致。当前日志心跳已停止，界面明确标历史快照，不宣称训练正在运行。最终项目记录提交与源代码SHA由.release.json记录。
+
+回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/rlt-analysis-20260929/release.json；Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/rlt-analysis-20260929/release.json。聚类快照：Cobot /home/agilex/jiaan/project/rl-platform/outputs/rlt/plug_v3_yyshadow/analysis/replay_projection.json。生成命令已纳入命令行手册。
