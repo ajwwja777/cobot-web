@@ -247,6 +247,7 @@ def create_app(
         writer_coordinator=modes,
         capture_gate=shared_gate,
         mount_frontend=False,
+        require_previous_labels=False,
     )
 
     @rollout.get("/rlt/identity")
@@ -364,7 +365,21 @@ def create_app(
                     "detail": ", ".join(health.get("stale_keys") or []), "data_root": str(target)}
         try:
             shared_recorder.check_ready(target)
-            return {"status": "ok", "error_code": None, "data_root": str(target)}
+            # The same flat-directory inspection used by the mounted recorder.
+            # A saved unlabeled demonstration is not an unfinished recording.
+            from capture_core.labels import LabelValidationError
+            from capture_core.storage import StoragePathError
+            try:
+                prepared, _, inspection = rollout.state.inspect_storage(
+                    data_root=target, task_id="recording", model_id="shared",
+                    dataset_round="collection", storage_layout="flat")
+            except (LabelValidationError, StoragePathError) as error:
+                return {"status": "not_ready", "error_code": str(error),
+                        "detail": str(target), "data_root": str(target)}
+            return {"status": "ok", "error_code": None, "data_root": str(target),
+                    "next_episode_index": prepared.next_episode_index,
+                    "latest_labels_complete": inspection["latest_labels_complete"],
+                    "label_blocked": inspection["label_blocked"]}
         except PreflightError as error:
             return {"status": "not_ready", "error_code": error.code,
                     "detail": error.detail, "data_root": str(target)}

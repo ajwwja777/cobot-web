@@ -428,3 +428,11 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 后续增强将旧客户端兼容协调放入显式开始/继续bridge，已完成离线回归；不在加载/状态轮询/Recover时自动恢复推理。同步脚本和文档无需重启网页/硬件/模型，新wrapper将在下次正常模型加载启用。现场回执：Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/pi05-recover-pause-20260929/repair.json；A6000对应outputs/pi05-recover-pause-20260929/。最终版本与逐文件SHA以.release.json和Git main为准。
 
 补充边界：Recover来自已登记的恢复节点时，在保持manual_pause=true下退休旧HIL锁，涵盖恢复前曾接管/协调器故障的情况；所有π0.5显式开始/继续均检查实际policy/空fault，未恢复完成或仍示教时不解除暂停。旧版兼容清理只在显式请求中执行。最终相关回归65通过/1既有跳过；新增自动继续与故障拒绝由隔离测试覆盖，未为验证调用真实开始或Recover。
+
+## 2026-09-29：混用目录的历史未标注记录阻塞 RLT
+
+现场 RLT 开始失败的明确原因是 Task5 latest episode labels are incomplete：选择的 demonstrations/legacy_test 包含其他模型的已完成、未标注人工示范。旧 RLT orphan 恢复只接受同模型/轮次身份，不能处理该示范；旧恢复按钮只预检输入/写入，没有检查目录历史，所以错误重复。
+
+统一录制的 flat 目录允许已有 finalized 未标注记录，保留其标签完整性事实，不自动写 aborted/success/failure，不向 Replay 加数据。legacy 独立接口仍默认要求标签；真正 incomplete、损坏或身份无效的末条记录仍拦截。采集领域提供显式 require_labels 参数；web 挂载接口选择策略，不重复维护数据判断。
+
+网页“检查录制 / 恢复录制（保留模型）”使用同一个目录检查入口，显示检查路径、具体完整性错误与处理建议，新故障清除旧通过提示。不开始推理、不卸载模型、不删除历史数据。64项Python相关回归通过，45项前端通过。现场切换及版本另记；不能将离线测试当作真实推理验收。

@@ -3,6 +3,8 @@
   const en=()=>root.CobotPreferences?.language==="en";
   const text=(zh,english)=>en()?english:zh;
   const advice={
+    latest_episode_incomplete:["目录最后一轮尚未写完；保留原文件，等待写入结束或选择新的保存目录后再检查。","The latest recording is unfinished. Keep its files; wait for completion or select another destination, then check again."],
+    latest_episode_invalid:["目录最后一轮数据无法验证；保留原文件，选择其他保存目录并检查。","The latest episode cannot be validated. Keep its files; select another destination and check again."],
     camera_stale:["相机画面未更新；检查相机任务和连接，画面恢复后再检查。","Camera frames are stale; check the camera task and connection, then check again."],
     handover_stale:["示教/控制权反馈未更新；检查机械臂节点和示教按钮。","Handover feedback is stale; check arm nodes and teach buttons."],
     streams_not_ready:["所列相机或关节流缺失、过期或格式异常；先检查对应设备。","Listed camera/joint streams are missing, stale or invalid; check those devices."],
@@ -26,6 +28,7 @@
       hint.textContent=state.session?.phase==="fault"
         ?text("录制 Session 异常，模型仍保留。检查原因后可恢复，不必释放权重。","Recording session needs recovery; weights stay loaded. Check the cause, then recover.")
         :text("录制遇到错误时先检查；恢复不会开始推理或释放模型。","Check here if recording fails. Recovery never starts inference or unloads the model.");
+      if(state.session?.fault_reason)hint.textContent+=" "+state.session.fault_reason;
       check.disabled=busy||active||Boolean(state.operation);
       recover.disabled=check.disabled||state.session?.policy_paused!==true||!["fault","stopped"].includes(state.session?.phase);
       if(busy){result.textContent=text("正在检查/恢复…","Checking/recovering…");return;}
@@ -35,10 +38,12 @@
       if(p?.status==="ok"){
         result.textContent=last.model_retained
           ?text("已恢复，模型保留。点击“开始 Session”，再手动开始采集。","Recovered; model retained. Start the session, then start capture manually.")
-          :last.preflight?text("录制预检通过；相机、关节反馈和目标目录已检查。","Recording preflight passed: cameras, joint feedback and destination checked."):text("实时输入已恢复；点击“检查录制”核对目标目录，或恢复 Session。","Live inputs are ready; check the destination or recover the session.");
+          :last.preflight?text("录制预检通过；相机、关节反馈、目标目录和历史记录完整性已检查。","Recording preflight passed: cameras, joint feedback, destination and previous recording integrity checked."):text("实时输入已恢复；点击“检查录制”核对目标目录，或恢复 Session。","Live inputs are ready; check the destination or recover the session.");
       }else if(p){
         result.textContent=(p.error_code||"not_ready")+(p.detail||p.stale_keys?.length?" · "+(p.detail||p.stale_keys.join(", ")):"")+" — "+explanation(p.error_code);
       }
+      if(last.preflight?.data_root)result.textContent+="\n"+last.preflight.data_root;
+      if(last.preflight?.status==="ok"&&last.preflight.latest_labels_complete===false)result.textContent+="\n"+text("已有未标注记录已保留，可开始新一轮；不会自动标成功/失败或加入训练。","Existing unlabeled recordings are preserved; a new episode is allowed. They are not relabeled or added to training.");
       if(last.last_start_error&&!last.preflight)result.textContent+=" "+text("上次原因：","Last cause: ")+last.last_start_error;
     }
     async function parse(response){
@@ -64,7 +69,7 @@
     return {update(next,isActive){
       state=next||{};active=Boolean(isActive);show();
       const fault=state.session?.phase==="fault"?String(state.session.generation)+":"+state.session.fault_reason:"";
-      if(fault&&fault!==observedFault){observedFault=fault;container.open=true;
+      if(fault&&fault!==observedFault){observedFault=fault;last=null;lastError="";container.open=true;
         fetch("/api/rlt/recorder-diagnostics",{cache:"no-store"}).then(parse).then(value=>{last=value;show();}).catch(()=>{});
       }
     }};

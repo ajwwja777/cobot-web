@@ -263,3 +263,9 @@ cat runtime/deployment/pi05-gate.json
 成功返回 Legacy latch cleared; manually paused，paused 与 manual_pause 都应为 true。随后由操作者在网页点击开始（无活动轮次）或继续（暂停的活动轮次）。已加载的旧客户端在你主动点击开始/继续时，也会先完成同样的有界检查和暂停锁协调，再执行本次请求；无需每次手动运行修复命令。真实示教或故障时拒绝继续。下次正常重载客户端后直接使用新版分类。恢复保留原 intervention_count 和已有评测记录，不改写历史标签；下一轮沿原规则取新的计数基线。
 
 网页调用的 bridge 同时检查服务的实际回复；若仍为 paused，返回明确失败原因，不再把服务返回 success 当作推理已继续。repair-pause 不适用于 RLT/其他模型、新协议客户端、真实示教中或硬件故障；这些情况按具体状态处理。
+
+## RLT 提示 latest episode labels are incomplete（2026-09-29）
+
+旧版本在含人工示范或其他模型记录的目录开始 RLT 时，可能将已完成但未标注的历史记录当作阻塞。新版统一 flat 采集允许这些记录继续保留，不自动补成功/失败或加入训练。独立 legacy 录制接口维持原标签门禁。
+
+网页采集控制中打开“录制检查与恢复（保留模型）”，先“检查录制”；若 Session fault，点击“恢复录制（保留模型）”，通过后手动开始 Session/采集。结果会显示实际检查目录，不能只凭“模型已加载”判断录制可用。若提示 latest_episode_incomplete 或 latest_episode_invalid，保留原文件，等待原写入完成或选择另一保存目录后重查；不要删除未知记录或反复开始。恢复不会执行机器人运动或重载 GPU 权重。

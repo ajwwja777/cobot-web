@@ -127,3 +127,55 @@ def test_faulted_session_can_end_without_unloading(tmp_path):
     manager=DeploymentManager(None,runtime=Runtime(),directory=tmp_path,allowed_root=tmp_path,model_provider=lambda:[])
     manager.perform("collection_session_stop")
     assert calls==["/api/session/stop"] and manager.collection_session is False
+
+
+def test_unlabeled_demonstration_does_not_block_shared_rlt_start(tmp_path, monkeypatch):
+    import hashlib
+    from tests.test_labels import _write_episode
+    old, uid = _write_episode(tmp_path, index=7)
+    flat = tmp_path / old.name
+    old.rename(flat)
+    import h5py
+    with h5py.File(flat, "r+") as episode:
+        episode.attrs["storage_layout"] = "flat"
+    digest = hashlib.sha256(flat.read_bytes()).hexdigest()
+    client, backend, recorder, _ = fixture(tmp_path, monkeypatch)
+    request = dict(data_root=str(tmp_path), task_id="plug_insertion",
+                   model_id="rlt", checkpoint_id="4999", dataset_round="online",
+                   storage_layout="flat")
+    prepared = client.post("/api/rlt-recorder/api/storage/prepare", json=request)
+    assert prepared.status_code == 200, prepared.text
+    assert prepared.json()["latest_labels_complete"] is False
+    assert prepared.json()["label_blocked"] is False
+    assert prepared.json()["next_episode_index"] == 8
+    checked = client.post("/api/rlt/recorder-check", json={"data_root":str(tmp_path)})
+    assert checked.json()["preflight"]["status"] == "ok"
+    assert checked.json()["preflight"]["latest_labels_complete"] is False
+    recovered = client.post("/api/rlt/recover-recorder",
+                           json={"data_root":str(tmp_path),"reset_fault_session":True})
+    assert recovered.json()["preflight"]["status"] == "ok"
+    assert client.post("/api/console/mode", json={"mode":"rlt"}).status_code == 200
+    started = client.post("/api/rlt-recorder/api/episodes/start", json=request)
+    assert started.status_code == 200, started.text
+    assert hashlib.sha256(flat.read_bytes()).hexdigest() == digest
+    assert not flat.with_suffix(".labels.json").exists()
+
+
+@pytest.mark.parametrize("suffix,code", [
+    (".hdf5.incomplete", "latest_episode_incomplete"),
+    (".hdf5", "latest_episode_invalid"),
+])
+def test_recovery_checks_real_directory_integrity(tmp_path, monkeypatch, suffix, code):
+    path = tmp_path / ("episode_000009" + suffix)
+    path.write_bytes(b"unfinished")
+    client, backend, recorder, _ = fixture(tmp_path, monkeypatch)
+    for endpoint, body in [
+        ("/api/rlt/recorder-check", {}),
+        ("/api/rlt/recover-recorder", {"reset_fault_session":True}),
+    ]:
+        response = client.post(endpoint,json={"data_root":str(tmp_path),**body})
+        assert response.status_code == 200, response.text
+        assert response.json()["preflight"]["status"] == "not_ready"
+        assert response.json()["preflight"]["error_code"] == code
+    assert path.read_bytes() == b"unfinished"
+    assert recorder.state == "idle"

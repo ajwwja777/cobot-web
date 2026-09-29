@@ -200,6 +200,7 @@ def create_app(
     writer_coordinator: Optional[Any] = None,
     capture_gate: Optional[Any] = None,
     mount_frontend: bool = True,
+    require_previous_labels: bool = True,
 ) -> FastAPI:
     """Build an independently testable API with injectable recorder boundaries."""
     config = RecorderConfig()
@@ -271,8 +272,13 @@ def create_app(
         if storage_layout == "flat" and str(active_recorder.status().get("state")) in {"idle","stopped"}:
             from .recovery import quarantine_failed_files
             quarantine_failed_files(prepared.episode_directory,identity)
-        inspection = inspect_prepared_series(store, prepared, identity)
+        inspection = inspect_prepared_series(
+            store, prepared, identity,
+            require_labels=require_previous_labels or storage_layout != "flat",
+        )
         return prepared, store, inspection
+
+    application.state.inspect_storage = prepare_workflow
 
     def current_readiness() -> Dict[str, object]:
         if readiness_provider is not None:
