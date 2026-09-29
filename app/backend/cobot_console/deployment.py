@@ -444,6 +444,11 @@ class DeploymentManager:
             state = dict(self.cached)
             age = time.time() - self.observed_at if self.observed_at else None
             session = state.get("session") or {}
+            models = [dict(model) for model in self.models]
+            for model in models:
+                if model.get("publication_tracked") and model.get("id") == (state.get("model") or {}).get("id"):
+                    model["last_inference_actor_version"] = session.get("actor_version")
+                    model["inference_episode_id"] = session.get("episode_id")
             collection_session = (session.get("session_use") == "collection" and session.get("phase") not in ("disarmed", "stopped")) if session else self.collection_session
             self.last_status = {**state, "session_active": collection_session, "operation": self.operation, "error": self.error,
                     "data_root": self.settings.get("data_root") or str(self.allowed_root / "evaluations"),
@@ -451,7 +456,7 @@ class DeploymentManager:
                     "read_only": os.environ.get("COBOT_READ_ONLY") == "1",
                     "recent_data_roots": self.settings.get("recent_data_roots", []),
                     "active": dict(self.active) if self.active else None,
-                    "selected_model": self.settings.get("model_id"), "models": self.models,
+                    "selected_model": self.settings.get("model_id"), "models": models,
                     "observed_at": self.observed_at, "status_age_sec": age,
                     "status_stale": age is None or age > 5}
             return dict(self.last_status)

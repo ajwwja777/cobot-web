@@ -645,3 +645,16 @@ CAN TX 堵塞检测及受控修复边界见 /home/agilex/jiaan/project/cobot-con
 ## 保留模型恢复录制（2026-09-29）
 
 采集模型卡新增“录制检查与恢复（保留模型）”。对应 CLI 为 scripts/console.py api POST /api/rlt/recorder-check 和 /api/rlt/recover-recorder；故障 Session 停止后无需重新加载权重。完整 JSON 示例、预检含义和拒绝恢复的情况见 [故障手册](WEB_RECOVERY.md#rlt-录制失败保留已加载模型2026-09-29)。
+
+## RLT：训练步数、发布权重与实际使用（2026-09-29）
+
+Learner caught up ... global_step=6915 只表示 Learner 已消耗当前更新预算，不表示6915已发布。现有配置每500个Learner步发布Actor；正常情况下6915时最新周期发布为6500，但页面从实际快照读取，不按整数除法猜测，因为启动/冻结等路径可能强制导出。
+
+页面模型选项显示 published 步数；详情区分 Learner trained step / Learner internal Actor / Published learner step / Published Actor / Last inference Actor / Inference episode。Last inference 来自Session最后一次模型调用；waiting_scene时表示最近已完成轮次，不声称机器人正在推理。快照已发布也不能代替“实际使用”证据。
+
+Cobot只读终端核对：
+    cd /home/agilex/jiaan/project/rl-platform
+    cat outputs/rlt/plug_v3_yyshadow/online/metrics/learner_status.json
+    curl --noproxy '*' -s http://127.0.0.1:8015/api/deployment/status
+
+第二项JSON的models对应模型提供published_learner_step/published_actor_version，session.actor_version提供实际最近推理版本。Learner内部Actor每2步更新，不能将Actor版本号直接当成Learner步数。

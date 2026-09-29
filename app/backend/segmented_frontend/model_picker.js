@@ -12,7 +12,7 @@
     const parts = [];
     if (model.family === "RLT" || model.kind === "rlt") {
       parts.push("Stage1 " + (model.stage1_step ?? model.base_step ?? "?"));
-      if (model.stage !== "stage1") parts.push((model.stage || "warmup") + " " + (model.learner_step ?? model.step ?? "?"));
+      if (model.stage !== "stage1") parts.push((model.stage || "warmup") + " " + (model.publication_tracked ? "published " + (model.published_learner_step ?? "?") : (model.learner_step ?? model.step ?? "?")));
       if (model.actor_version >= 0 && model.actor_version != null) parts.push("Actor " + model.actor_version);
     } else if (model.parent_step != null) parts.push("DAgger " + model.parent_step + " + " + (model.step ?? "?"));
     else parts.push(model.step == null ? "Steps unknown" : "Step " + model.step);
@@ -27,8 +27,15 @@
     const rows = model ? [
       ["Model", familyOf(model)], ["Task", taskOf(model)], ["Base model", model.base_checkpoint],
       ["Training lineage", model.training_lineage], ["Launch command", model.cli_command], ["Stage1 checkpoint", model.stage1_step],
-      ["Learner step", model.learner_step], ["Actor version", model.actor_version],
-      ["Training steps", model.step], ["Control rate", model.control_hz ? model.control_hz + " Hz" : null],
+      ["Learner trained step", model.learner_step],
+      ["Learner internal Actor", model.publication_tracked ? model.learner_actor_version : null],
+      ["Published learner step", model.publication_tracked ? (model.published_learner_step ?? "Unknown") : null],
+      ["Published Actor", model.publication_tracked ? (model.published_actor_version ?? "Unknown") : null],
+      ["Last inference Actor", model.publication_tracked ? (model.last_inference_actor_version ?? "Not observed") : null],
+      ["Inference episode", model.publication_tracked ? model.inference_episode_id : null],
+      ["Publication status", model.publication_tracked ? (model.published_learner_step == null ? "Publication not verified" : model.learner_step > model.published_learner_step ? (model.learner_step - model.published_learner_step) + " trained steps not yet published" : "Published snapshot is up to date") : null],
+      ["Actor version", model.publication_tracked ? null : model.actor_version],
+      ["Training steps", model.publication_tracked ? null : model.step], ["Control rate", model.control_hz ? model.control_hz + " Hz" : null],
       ["Action mode", model.deterministic === true ? "Deterministic / no exploration" : model.kind === "pi05" ? "Original RTC inference" : null],
       ["Validation", model.validation], ["Availability", available(model) ? "Available" : reason(model)]
     ].filter(([,v]) => v != null && v !== "") : [];

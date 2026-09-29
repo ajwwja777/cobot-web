@@ -58,3 +58,21 @@ test("a removed or unavailable saved model cannot become a new loadable selectio
     assert.equal(select.value,"");
   }finally{dom.window.close();}
 });
+
+
+test("RLT picker shows published snapshot separately from learner and inference",()=>{
+ const dom=new JSDOM('<dl id="facts"></dl>',{runScripts:"outside-only"}),w=dom.window;
+ w.eval(fs.readFileSync("segmented_frontend/model_picker.js","utf8"));
+ const model={family:"RLT",stage:"online",stage1_step:4999,available:true,
+   publication_tracked:true,learner_step:6915,learner_actor_version:3457,
+   published_learner_step:6500,published_actor_version:3250,actor_version:3250,
+   last_inference_actor_version:3250,inference_episode_id:14,step:6500};
+ assert.match(w.CobotModelPicker.stepLabel(model),/published 6500/);
+ assert.doesNotMatch(w.CobotModelPicker.stepLabel(model),/6915/);
+ const facts=w.document.querySelector("#facts");w.CobotModelPicker.renderDetails(facts,model);
+ assert.match(facts.textContent,/Learner trained step6915/);
+ assert.match(facts.textContent,/Published learner step6500/);
+ assert.match(facts.textContent,/Last inference Actor3250/);
+ assert.match(facts.textContent,/415 trained steps not yet published/);
+ dom.window.close();
+});

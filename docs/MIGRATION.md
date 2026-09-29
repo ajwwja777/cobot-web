@@ -436,3 +436,9 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 统一录制的 flat 目录允许已有 finalized 未标注记录，保留其标签完整性事实，不自动写 aborted/success/failure，不向 Replay 加数据。legacy 独立接口仍默认要求标签；真正 incomplete、损坏或身份无效的末条记录仍拦截。采集领域提供显式 require_labels 参数；web 挂载接口选择策略，不重复维护数据判断。
 
 网页“检查录制 / 恢复录制（保留模型）”使用同一个目录检查入口，显示检查路径、具体完整性错误与处理建议，新故障清除旧通过提示。不开始推理、不卸载模型、不删除历史数据。64项Python相关回归通过，45项前端通过。现场切换及版本另记；不能将离线测试当作真实推理验收。
+
+## 2026-09-29：区分训练、发布和实际推理版本
+
+用户看到6915误以为已发布。只读核验learner_status为step6915/internal actor3457，而实际actor_snapshot.pkl头部为step6500/version3250，Session最近一次实际推理actor3250。旧model_catalog误用learner内部版本表示可加载权重。现只解析固定快照前512字节的整数头部，不执行pickle或导入模型，未知格式不推算版本；选项显示published步数，详情分别显示Learner trained step、内部Actor、Published learner step/Actor、Last inference Actor、Episode及未发布步数。Session版本来自实际推理返回，不以已发布推定已使用。
+
+本次不改变500步发布周期、算法或当前进程。另将RLT首次加载提示依据本次实测改为4–6分钟估计。24项Python通过/1既有跳过；前端全套和新增版本区分验证另记。当前用户正在在线采集，源码同步后后端仍需空闲窗口重载；不宣称已生效。guide Git不提交。

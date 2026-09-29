@@ -85,7 +85,13 @@ class ModelCatalog:
         valid = manifest.get("cohort") == self.profile and manifest.get("status") == "offline_validated" and (checkpoint/"params").is_dir()
         learner = _json(V3_RUN/"online/metrics/learner_status.json") or {}
         snapshot = RLT_MODELS/"online/actor_snapshot/actor_snapshot.pkl"
-        version = learner.get("actor_version", learner.get("published_actor_version"))
+        from .rlt_progress import published_actor
+        publication = published_actor(snapshot)
+        version = publication.get("published_actor_version")
+        progress = {**publication, "learner_step": learner.get("global_step"),
+                    "learner_actor_version": learner.get("actor_version"),
+                    "learner_observed_at": learner.get("timestamp"),
+                    "publication_tracked": True}
         params = self._parameters(manifest)
         return [
           {"id":"plug_v3-stage1-reference","label":"plug_v3 / Stage-1 reference","cohort":self.profile,
@@ -97,14 +103,14 @@ class ModelCatalog:
           {"id":"plug_v3-frozen-latest","label":"plug_v3 / frozen latest actor","cohort":self.profile,
            "kind":"frozen","available":bool(valid and snapshot.is_file() and learner.get("ready_for_online")),
            "status":"ready" if snapshot.is_file() and learner.get("ready_for_online") else "awaiting_warmup",
-           "checkpoint":str(snapshot),"checkpoint_step":version,"actor_version":version,"step":learner.get("global_step"),
+           "checkpoint":str(snapshot),"checkpoint_step":version,"actor_version":version,"step":publication.get("published_learner_step"), **progress,
            "run_root":str(V3_RUN),"start_target":"frozen",
            "description":"Same latest actor snapshot with actor updates frozen for controlled comparison.",
            "parameters":params},
           {"id":"plug_v3-online-latest","label":"plug_v3 / latest online actor","cohort":self.profile,
            "kind":"online","available":bool(valid and snapshot.is_file() and learner.get("ready_for_online")),
            "status":"ready" if snapshot.is_file() and learner.get("ready_for_online") else "awaiting_warmup",
-           "checkpoint":str(snapshot),"checkpoint_step":version,"actor_version":version,"step":learner.get("global_step"),
+           "checkpoint":str(snapshot),"checkpoint_step":version,"actor_version":version,"step":publication.get("published_learner_step"), **progress,
            "run_root":str(V3_RUN),"start_target":"online",
            "description":"Latest actor/critic after the warmup gate; online updates remain enabled.",
            "parameters":params}
