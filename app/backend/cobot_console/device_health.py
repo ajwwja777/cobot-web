@@ -20,6 +20,7 @@ MESSAGES = {
  "route": ("前臂控制通路未就绪", "Front-arm control route unavailable", "检查协调器与前臂节点；排除重复发布者后重新启动机械臂节点。", "Check the coordinator and front driver; remove duplicate publishers before restarting arm nodes."),
  "handover": ("示教协调器反馈缺失或故障", "Teach coordinator feedback missing or faulty", "查看机械臂输出；检查同步通路并执行同步恢复。", "Inspect Arms output, check the control route and run sync recovery."),
  "sync": ("示教已进入，前后臂同步尚未确认", "Teach active; paired synchronization not verified", "检查前后臂与协调器反馈；若持续异常，松开示教并检查输出。", "Check front/rear/coordinator feedback; if this persists, release teach and inspect output."),
+ "teach_exit": ("正在退出示教", "Leaving teaching mode", "", ""),
  "teach_transition": ("示教接管中", "Teaching takeover in progress", "", ""),
  "sync_recovering": ("同步正在恢复确认", "Confirming synchronization recovery", "", ""),
  "teaching": ("前后臂示教同步中", "Paired teaching active", "", ""),
@@ -28,6 +29,7 @@ MESSAGES = {
 }
 
 SYNC_MESSAGES = {
+    "release": ("退出示教尚未完成", "Teaching release has not completed"),
     "teach_feedback": ("后臂 CAN 尚未确认示教模式", "Rear CAN has not confirmed teaching mode"),
     "teach_button": ("后臂已进入示教，但按钮 ROS 状态未接通", "Rear teaching active but its ROS button signal is missing"),
     "stale": ("反馈或指令过期", "Stale feedback or commands"),

@@ -42,7 +42,7 @@ def test_faults_remain_yellow_and_have_bilingual_remedies(issue):
     assert health["remedy_en"] and health["remedy_zh"]
 
 def teach(systems,cache,side="left",stamp=10):
-    systems["arms_feedback"]["rear-"+side].update(rear_mode="teaching",enabled_joints=6)
+    systems["arms_feedback"]["rear-"+side].update(rear_mode="teaching",enabled_joints=6,ctrl_mode=2,teach_status=1)
     for key,value in [("handover_mode","manual:"+side),("teach_"+side,True),
                       ("front_"+side,{"position":np.zeros(7)}),
                       ("rear_"+side,{"position":np.ones(7)}),
@@ -187,21 +187,21 @@ def test_moving_brief_lag_never_flickers_but_continuous_lag_warns_and_recovers_s
         h=moving_health(observer,systems,cache,at,error)
         assert all(h[n+"-left"]["phase"]=="teaching" for n in ("front","rear","gripper"))
         assert h["front-left"]["max_joint_error"]==pytest.approx(error)
-    assert moving_health(observer,systems,cache,11,.2)["front-left"]["phase"]=="teaching"
-    h=moving_health(observer,systems,cache,11.81,.2)
+    assert moving_health(observer,systems,cache,11,.3)["front-left"]["phase"]=="teaching"
+    h=moving_health(observer,systems,cache,13.05,.3)
     assert h["front-left"]["code"]=="sync" and h["front-left"]["phase"]=="warning"
     # Hysteresis: touching just below the warning threshold is not recovery.
-    assert moving_health(observer,systems,cache,12,.12)["front-left"]["phase"]=="warning"
-    assert moving_health(observer,systems,cache,12.1,.09)["front-left"]["code"]=="sync_recovering"
-    assert moving_health(observer,systems,cache,12.4,.08)["front-left"]["phase"]=="warning"
-    assert moving_health(observer,systems,cache,12.65,.08)["front-left"]["phase"]=="teaching"
+    assert moving_health(observer,systems,cache,13.2,.18)["front-left"]["phase"]=="warning"
+    assert moving_health(observer,systems,cache,13.3,.14)["front-left"]["code"]=="sync_recovering"
+    assert moving_health(observer,systems,cache,13.6,.13)["front-left"]["phase"]=="warning"
+    assert moving_health(observer,systems,cache,13.85,.13)["front-left"]["phase"]=="teaching"
 
 
 def test_short_stale_sample_preserves_blue_but_missing_stream_still_warns():
     systems,cache=fixture();observer=DeviceHealth()
     moving_health(observer,systems,cache,10)
     assert observer.evaluate(systems,cache.snapshot(10.3),now=10.3)["front-left"]["phase"]=="teaching"
-    assert observer.evaluate(systems,cache.snapshot(10.8),now=10.8)["front-left"]["phase"]=="warning"
+    assert observer.evaluate(systems,cache.snapshot(11.35),now=11.35)["front-left"]["phase"]=="warning"
 
 
 @pytest.mark.parametrize("fault",["front_teach","can_tx","hardware","disabled","node","route","ros","gripper","severe_tracking"])
@@ -227,10 +227,112 @@ def test_real_faults_bypass_smoothing_even_during_a_transient(fault):
 def test_teach_exit_clears_debounce_for_next_takeover():
     systems,cache=fixture();observer=DeviceHealth()
     moving_health(observer,systems,cache,10)
-    moving_health(observer,systems,cache,10.1,.2)
-    assert moving_health(observer,systems,cache,11,.2)["front-left"]["phase"]=="warning"
+    moving_health(observer,systems,cache,10.1,.3)
+    assert moving_health(observer,systems,cache,12.2,.3)["front-left"]["phase"]=="warning"
     systems["arms_feedback"]["rear-left"].update(rear_mode="idle_disabled",enabled_joints=0)
-    cache.put("teach_left",False,12,12);cache.put("handover_mode","policy",12,12)
-    h=observer.evaluate(systems,cache.snapshot(12),now=12)
+    cache.put("teach_left",False,13,13);cache.put("handover_mode","policy",13,13)
+    h=observer.evaluate(systems,cache.snapshot(13),now=13)
     assert h["front-left"]["phase"]=="ready" and "left" not in observer.teach_display
-    assert moving_health(observer,systems,cache,13,.16)["front-left"]["code"]=="teach_transition"
+    assert moving_health(observer,systems,cache,14,.3)["front-left"]["code"]=="teach_transition"
+
+
+def test_moderate_motion_lag_and_short_feedback_gap_keep_blue():
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    # A moving arm can have sustained ordinary lag, or a larger short pulse.
+    for at,error in [(10.2,.20),(11.2,.22),(12.2,.24),(12.4,.30),(13.4,.32),(14.2,.30),(14.3,.22)]:
+        h=moving_health(observer,systems,cache,at,error)
+        assert all(h[n+"-left"]["phase"]=="teaching" for n in ("front","rear","gripper"))
+    h=observer.evaluate(systems,cache.snapshot(14.5),now=14.5)
+    assert h["front-left"]["phase"]=="teaching" and h["front-left"]["sync_issue"]=="stale"
+    assert observer.evaluate(systems,cache.snapshot(15.2),now=15.2)["front-left"]["phase"]=="teaching"
+    assert moving_health(observer,systems,cache,15.25)["front-left"]["phase"]=="teaching"
+
+
+def release_sample(observer,systems,cache,at,*,rear_mode="unexpected",ctrl=2,teach_status=2,
+                   enabled=6,button=False,routed=False):
+    systems["arms_feedback"]["rear-left"].update(
+        rear_mode=rear_mode,ctrl_mode=ctrl,teach_status=teach_status,enabled_joints=enabled)
+    cache.put("teach_left",button,at,at)
+    cache.put("handover_mode","manual:left" if routed else "policy",at,at)
+    return observer.evaluate(systems,cache.snapshot(at),now=at)
+
+
+@pytest.mark.parametrize("first",["button","can"])
+def test_release_skew_and_partial_disable_do_not_flash_yellow(first):
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    if first=="button":
+        h=release_sample(observer,systems,cache,10.1,rear_mode="teaching",teach_status=1,routed=True)
+    else:
+        h=release_sample(observer,systems,cache,10.1,button=True,routed=True)
+    for n in ("front","rear","gripper"):
+        assert h[n+"-left"]["code"]=="teach_exit" and h[n+"-left"]["phase"]=="ready"
+        assert not h[n+"-left"]["sync_confirmed"]
+    assert h["front-left"]["reason_zh"]=="正在退出示教"
+    h=release_sample(observer,systems,cache,10.6,ctrl=1,teach_status=0,enabled=3)
+    assert all(h[n+"-left"]["phase"]=="ready" for n in ("front","rear","gripper"))
+    h=release_sample(observer,systems,cache,11.4,rear_mode="idle_disabled",ctrl=0,teach_status=0,enabled=0)
+    assert h["rear-left"]["code"]=="idle" and h["front-left"]["code"]=="ready"
+    assert not observer.teach_exits and not observer.teach_display
+
+
+def test_stuck_release_has_fixed_deadline_and_warns_until_it_really_finishes():
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    for at in (10.1,10.7,11.5):
+        assert release_sample(observer,systems,cache,at)["rear-left"]["code"]=="teach_exit"
+    h=release_sample(observer,systems,cache,11.7)
+    assert h["rear-left"]["phase"]=="warning" and h["front-left"]["phase"]=="warning"
+    assert release_sample(observer,systems,cache,12.1)["rear-left"]["phase"]=="warning"
+    h=release_sample(observer,systems,cache,12.2,rear_mode="idle_disabled",ctrl=0,teach_status=0,enabled=0)
+    assert h["rear-left"]["code"]=="idle"
+    assert moving_health(observer,systems,cache,13)["front-left"]["phase"]=="teaching"
+
+
+@pytest.mark.parametrize("fault",["front_teach","front_disabled","rear_hardware","rear_can_tx",
+                                   "rear_node","rear_feedback","rear_can","ros","route","handover",
+                                   "gripper","rear_wrong_mode"])
+def test_release_transition_never_hides_independent_faults(fault):
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    release_sample(observer,systems,cache,10.1)
+    target="front-left"
+    if fault=="front_teach":systems["arms_feedback"]["front-left"]["ctrl_mode"]=2
+    elif fault=="front_disabled":systems["arms_feedback"]["front-left"]["enabled_joints"]=5
+    elif fault=="rear_hardware":systems["arms_feedback"]["rear-left"]["error_code"]=1;target="rear-left"
+    elif fault=="rear_can_tx":systems["can_tx"]={"rear-left":{"phase":"error","detail":"TX stalled"}};target="rear-left"
+    elif fault=="rear_node":systems["arm_nodes"]["rear-left"]=False;target="rear-left"
+    elif fault=="rear_feedback":systems["arms_feedback"]["rear-left"]["fresh"]=False;target="rear-left"
+    elif fault=="rear_can":systems["can_interfaces"]={"rear-left":False};target="rear-left"
+    elif fault=="ros":systems["roscore"]["phase"]="offline"
+    elif fault=="route":systems["control_routes"]["left"]["ready"]=False
+    elif fault=="handover":cache.put("handover_fault","fault",10.1,10.1)
+    elif fault=="gripper":systems["arms_feedback"]["front-left"]["gripper"]["error_bits"]=1;target="gripper-left"
+    elif fault=="rear_wrong_mode":systems["arms_feedback"]["rear-left"]["ctrl_mode"]=6;target="rear-left"
+    h=observer.evaluate(systems,cache.snapshot(10.1),now=10.2)
+    assert h[target]["phase"] in ("warning","offline")
+    assert h[target]["code"]!="teach_exit"
+
+
+def test_unobserved_startup_teach_stop_residue_still_warns():
+    systems,cache=fixture();observer=DeviceHealth()
+    h=release_sample(observer,systems,cache,10.1)
+    assert h["rear-left"]["code"]=="rear_mode" and h["rear-left"]["phase"]=="warning"
+    assert not observer.teach_exits
+
+
+def test_other_side_keeps_teaching_while_left_exits_and_reenters():
+    systems,cache=fixture();observer=DeviceHealth()
+    teach(systems,cache,"left");teach(systems,cache,"right")
+    cache.put("handover_mode","manual:left+right",10,10)
+    observer.evaluate(systems,cache.snapshot(10),now=10)
+    systems["arms_feedback"]["rear-left"].update(rear_mode="unexpected",teach_status=2)
+    teach(systems,cache,"right",10.1);cache.put("teach_left",False,10.1,10.1)
+    h=observer.evaluate(systems,cache.snapshot(10.1),now=10.1)
+    assert h["front-left"]["code"]=="teach_exit" and h["front-right"]["phase"]=="teaching"
+    teach(systems,cache,"left",10.3);teach(systems,cache,"right",10.3)
+    cache.put("handover_mode","manual:left+right",10.3,10.3)
+    h=observer.evaluate(systems,cache.snapshot(10.3),now=10.3)
+    assert h["front-left"]["phase"]=="teaching" and h["front-right"]["phase"]=="teaching"
+    assert not observer.teach_exits
