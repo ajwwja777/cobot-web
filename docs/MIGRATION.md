@@ -479,3 +479,16 @@ CAN fault/drained events are visible. Same control semantics and confirmation re
 A6000: 53 selected Python tests, 50 Node tests passed. Read-only browser QA at1800/1200/760
 checks alignment, no horizontal overflow, no JS errors; offline screenshots in
 outputs/rlt-analysis-20260929. Final live release verification is recorded below after synchronization.
+
+### Formal8015 release verification
+
+Code661abd9 pushed before selected-file sync (15 runtime/doc/config files). Modeloffline,
+capture/recorderidle, no writer/active mode; held the model-operation lock and restarted only web.
+Seven matched ROS/arm/camera process identities remained identical; no robot motion/CAN reset.
+Real browser checks:14 version rows,12 experiment rows,6 frames/3 camera overlays,English rendering,
+episode-appropriate dimensions,missing historical batch disclosure,0 JS errors.
+API analysis0.229s; devices0.0064s (single observed requests, not a latency guarantee).
+Warmup/Online/Pi05 metadata returns registered collection/evaluation defaults.
+Evidence: outputs/rlt-analysis-20260929/{live-release,api-check,live-browser}.json;
+Cobot runtime/verification/rlt-diagnosis-20260929. Training/Analysis alignment at1800/1200/760
+has no horizontal overflow. No full robot collection/deployment acceptance is claimed.

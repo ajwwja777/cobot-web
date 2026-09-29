@@ -47,6 +47,13 @@
   const rep=d.replay_composition||{},b=scope==="batch"?batches[Number(batch)]:rep[scope],rows=b?.dimensions?.[dimension]||[];
   $("audit-summary").textContent=scope==="batch"?t("实际抽样数：","Actual sampled transitions: ")+num(b?.count)+" · "+t("不重复 transition：","Unique transitions: ")+num(b?.unique_transitions):
    t("只读快照：","Read-only snapshot: ")+new Date((rep.generated_at||0)*1000).toLocaleString()+" · "+num(b?.count)+" "+scope;
+  if(scope==="transitions"){
+   const episodes=rep.episode_rows||[],online=episodes.filter(r=>r.phase==="online"),
+    autonomous=online.filter(r=>r.outcome==="success"&&!r.episode_hil),
+    n=autonomous.reduce((sum,r)=>sum+(r.transitions||0),0);
+   $("audit-summary").textContent+=" · "+t("新自主成功：","New autonomous successes: ")+autonomous.length+"/"+online.length+
+    t("轮；"," episodes; ")+n+"/"+num(rep.transitions?.count)+" transitions ("+pct(n/(rep.transitions?.count||1))+")";
+  }
   $("audit-warning").textContent=scope==="batch"&&!b?t("旧日志没有逐 batch 身份，无法倒推成功/失败及头尾比例。新审计入口在下次启动 Learner 后记录每步；此处展示最近 128 个，完整记录保留在 batch_composition.jsonl。","Historical batch identities were not recorded, so episode outcome/position cannot be reconstructed. The new entry records every update on the next Learner launch. Latest 128 shown; full history is in batch_composition.jsonl."):
    t("同一维度可相加；不同维度重叠，不能相加。成功按完整轮次结局；含人工动作的 chunk 不等于整轮；Warmup 人工示范也计入 HUMAN，不全是在线接管。","Categories within one dimension sum; different dimensions overlap. Success means whole-episode outcome. Human-containing chunks and whole episodes differ. Warmup demonstrations also count as HUMAN; not all are online interventions.");
   table($("audit-table"),[t("类别","Category"),t("数量","Count"),t("比例","Ratio"),t("分布","Distribution")],
