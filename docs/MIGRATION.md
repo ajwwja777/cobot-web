@@ -378,3 +378,6 @@ control fba6fe5 / web 55c572f 已推送并同步146/197文件；空闲时重载�
 用户确认进入示教已不闪黄，本批只补充“正在退出示教 / Leaving teaching mode”及退出超时的双语展示。实际规则仍由cobot-control维护：普通跟随误差2秒确认、软信号1秒确认，已确认示教退出最多1.5秒绿色过渡；明确故障和前臂独立示教仍即时黄色。完整参数和边界见同级cobot-control/docs/MIGRATION.md最新节。
 
 A6000设备/任务/健康回归100项通过，包含消息顺序、逐步失能、退出超时、重新进入、两侧独立和真实故障优先级；未改变网页按钮、控制参数、HIL或机械臂行为。发布同步及空闲网页重载结果另记，不把离线测试当作用户运动复测。
+
+
+本批发布：control ace3b1f / web fdd6cdc 已push并核验远端，Cobot 146/197文件SHA一致。模型offline、无活动采集/归位/恢复/CAN任务时仅重载8015；臂PID1318293和相机PID1317979保持不变，正式API七个设备健康、五路TX队列为空。未请求运动。回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-control/outputs/diagnostics/teach-release-20260929/release.json；Cobot /home/agilex/jiaan/project/cobot-control/runtime/diagnostics/teach-release-20260929/release.json。用户已确认上一版进入示教不闪黄；本版运动/退出的实际连续操作颜色仍待用户观察，不能把空闲API检查作为动作验收。
