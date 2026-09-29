@@ -390,3 +390,8 @@ A6000设备/任务/健康回归100项通过，包含消息顺序、逐步失能�
 44项Node测试通过；相关Python回归404项通过。Playwright用本地静态文件和现场只读GET、拦截全部非GET，在1800/1200/760宽度验证两页上排坐标/选择框一致、权重背景透明、展开无内部滚动、无JS异常。证据在 outputs/model-pose-layout-20260929/（不入Git）；实时流屏蔽，截图不用于相机验收。
 
 发布前已有在线RLT加载进程，并观察到 session=fault / task5_start_failed: recorder_not_ready；未由只读预览触发。本批不声称修复此采集错误，不自动释放模型/结束Session或启动推理。发布前后核验任务PID和Session，真机位姿/夹爪动作仍待现场验收。
+
+
+本批正式发布：control 15c1917 / web fd8d182 已 push 并核验远端，Cobot 146/197 文件 SHA 一致。无活动录制/归位/恢复时，仅重载8015；臂 PID1318293、相机 PID1317979、在线RLT PID1436537 及进程 start_ticks 均保持，RLT Session UUID 保留。现场位姿 YAML SHA 未改变。正式HTTP提供的新静态资产SHA与A6000一致，设备API已提供单夹爪reinit入口。
+
+网页 recorder 从已停止记录的 committed/stopped 状态恢复为 idle，generation 重置为0；RLT Session 仍为原有 fault/recorder_not_ready，不声称重启修复了此故障。未发机械臂/CAN/夹爪动作，未重启驱动或模型。回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/model-pose-layout-20260929/release.json；Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/model-pose-layout-20260929/release.json。
