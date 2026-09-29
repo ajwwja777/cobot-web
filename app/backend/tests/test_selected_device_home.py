@@ -45,7 +45,9 @@ def test_rear_teach_and_idle_disabled_are_healthy():
         return {0x2a1:bytes(arm), 0x2a8:bytes(8),
                 **{number:bytes(motor) for number in range(0x261,0x267)}}
 
-    teaching = dc._classify_arm_feedback('can_rear_left', feedback(2,2,True))
+    teaching = dc._classify_arm_feedback('can_rear_left', feedback(2,1,True))
+    exited = dc._classify_arm_feedback('can_rear_left', feedback(2,2,True))
+    assert exited['rear_mode'] != 'teaching' and exited['phase'] != 'ready'
     idle = dc._classify_arm_feedback('can_rear_left', feedback(0,0,False))
     holding = dc._classify_arm_feedback('can_rear_left', feedback(1,0,True))
     unexpected = dc._classify_arm_feedback('can_rear_left', feedback(2,0,True))

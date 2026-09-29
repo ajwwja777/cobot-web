@@ -84,3 +84,59 @@ def test_partial_joint_feedback_never_confirms_teaching_sync(joint_count):
     health = DeviceHealth().evaluate(systems, cache.snapshot(10))
     assert health["front-left"]["code"] == "sync"
     assert health["rear-left"]["phase"] == "warning"
+
+
+@pytest.mark.parametrize("side", ["left", "right"])
+def test_wire_teach_start_becomes_blue_and_exit_residue_does_not(side):
+    systems,cache=fixture();teach(systems,cache,side)
+    frame={0x2a1:bytes([2,0,0,1,0,0,0,0]),0x2a8:bytes(8)}
+    for i in range(0x261,0x267):frame[i]=bytes([0,0,0,0,0,0x40,0,0])
+    systems["arms_feedback"]["rear-"+side]=_classify_arm_feedback("can_rear_"+side,frame)
+    h=DeviceHealth().evaluate(systems,cache.snapshot(10))
+    assert all(h[n+"-"+side]["phase"]=="teaching" for n in ("front","rear","gripper"))
+    frame[0x2a1]=bytes([2,0,0,2,0,0,0,0])
+    systems["arms_feedback"]["rear-"+side]=_classify_arm_feedback("can_rear_"+side,frame)
+    h=DeviceHealth().evaluate(systems,cache.snapshot(10))
+    assert all(h[n+"-"+side]["phase"]!="teaching" for n in ("front","rear","gripper"))
+
+
+def test_tx_stall_with_fresh_rx_is_reported_on_both_paired_arms():
+    systems,cache=fixture();teach(systems,cache)
+    systems["can_tx"]={"front-left":{"phase":"error","detail":"can_left TX queue 10"}}
+    h=DeviceHealth().evaluate(systems,cache.snapshot(10))
+    assert h["front-left"]["code"]=="can_tx" and "发送队列堵塞" in h["front-left"]["reason_zh"]
+    assert h["gripper-left"]["code"]=="can_tx"
+    assert h["rear-left"]["paired_code"]=="can_tx" and "发送队列堵塞" in h["rear-left"]["reason_zh"]
+    assert h["front-right"]["phase"]=="ready"
+
+
+def test_paired_fault_does_not_overwrite_front_raw_feedback():
+    systems,cache=fixture()
+    systems["arms_feedback"]["front-left"]["detail"]="FRONT mode 1"
+    systems["arms_feedback"]["rear-left"].update(arm_status=5,detail="REAR mode 2")
+    h=DeviceHealth().evaluate(systems,cache.snapshot(10))["front-left"]
+    assert h["code"]=="pair" and h["detail"]=="FRONT mode 1"
+    assert h["paired_code"]=="hardware" and "保护" in h["reason_zh"]
+
+
+@pytest.mark.parametrize("issue",["teach_button","routing","stale","tracking","joints"])
+def test_sync_diagnostic_names_the_failed_stage(issue):
+    systems,cache=fixture();teach(systems,cache)
+    if issue=="teach_button":cache.put("teach_left",False,10,10)
+    if issue=="routing":cache.put("handover_mode","policy",10,10)
+    if issue=="stale":cache.put("coordinator_left",{"position":np.zeros(7)},8,8)
+    if issue=="tracking":cache.put("coordinator_left",{"position":np.ones(7)},10,10)
+    if issue=="joints":cache.put("front_left",{"position":[float("nan")]*7},10,10)
+    h=DeviceHealth().evaluate(systems,cache.snapshot(10))["front-left"]
+    assert h["sync_issue"]==issue and h["phase"]=="warning"
+    assert h["reason_en"] and h["remedy_en"] and h["reason_zh"] and h["remedy_zh"]
+    if issue=="tracking":assert h["max_joint_error"]==1.
+    if issue=="stale":assert "coordinator_left" in h["reason_zh"]
+
+
+def test_rear_teach_requires_all_motors_enabled():
+    systems,cache=fixture();teach(systems,cache)
+    systems["arms_feedback"]["rear-left"]["enabled_joints"]=5
+    h=DeviceHealth().evaluate(systems,cache.snapshot(10))
+    assert h["rear-left"]["code"]=="disabled"
+    assert all(h[n+"-left"]["phase"]!="teaching" for n in ("front","rear","gripper"))

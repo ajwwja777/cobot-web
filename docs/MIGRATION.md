@@ -354,3 +354,9 @@ A6000前端42项通过，相关后端28项通过；修正旧模型元数据测�
 - 设置 → 编辑布局后，四框都可拖动换位；采集和部署分别保存到现有布局偏好的 collection-workspace / deployment-workspace，刷新恢复。语义卡片 ID 取代数量/位置编号；旧三框布局顺序不套用到新四框。单列拖放按纵向中点排序。
 - A6000 主代码 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web；Cobot /home/agilex/jiaan/project/cobot-web。变更仅静态前端，源码同步不重启任何业务服务。
 - 验证：Node 前端回归 42 项全部通过。Chromium 在 1600、1200、760 px 窗宽验证两页四框位置、窄屏顺序；两列时两页各框 x/y/width 完全对应，上排均 360 px；真实鼠标拖放和刷新后排列恢复在两页通过。已查看两页截图。证据：outputs/four-panel-layout-20260929/（A6000 项目内）。浏览器验证拦截写请求及图像流，仅验证交互布局，不启动模型或运动。
+
+## 2026-09-29：示教状态、CAN TX故障与中臂首次归位
+
+本批硬件修正归同级 cobot-control（robot/mid_home.py、src/cobot_control/device_control.py、device_health.py、can_health.py）；网页只补充健康码翻译。真实示教状态 mode=2/teach=1 不再误判；同步正常显示蓝色，失败会标明按钮/接管/过期话题/跟踪偏差/配对故障。前臂详情保留自身CAN反馈，避免错误复制后臂mode。新增 CAN 发送队列堵塞的中英文原因与恢复提示；不因接收正常而掩盖发送故障。
+
+现场只读确认左右前臂TX堵塞、内核echo异常，未自行执行恢复或归位；详见 control/docs/MIGRATION.md 及 outputs/diagnostics/teach-and-mid-20260929。首轮384项、收尾190项离线回归通过。发布、网页重载与现场动作验证分别记录，不将静态测试作为真机成功。

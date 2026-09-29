@@ -7,6 +7,8 @@ MESSAGES = {
  "ros": ("ROS 未连接", "ROS disconnected", "启动 ROS；若已启动，检查 ROS_MASTER_URI 和网络。", "Start ROS; if running, check ROS_MASTER_URI and the network."),
  "can": ("CAN 未连接或接口未启用", "CAN disconnected or interface down", "检查电源、USB/CAN 线，再配置 CAN。", "Check power and USB/CAN cables, then configure CAN."),
  "feedback": ("未收到机械臂反馈", "No arm feedback", "检查机械臂电源和对应 CAN 线；确认接口配置。", "Check arm power, its CAN cable and interface configuration."),
+ "can_tx": ("CAN 发送队列堵塞，接收正常不代表能控制", "CAN transmit queue stalled; reception does not prove control",
+            "停止推理/示教并支撑机械臂，再对该臂执行恢复以复位其 CAN；不要连续发送动作。", "Stop policy/teaching and support the arm, then recover this arm to reset its CAN; do not keep sending commands."),
  "node": ("机械臂节点未启动", "Arm node offline", "启动机械臂节点；失败时查看机械臂输出。", "Start arm nodes; inspect Arms output if launch fails."),
  "hardware": ("机械臂报告保护或故障", "Arm reports protection or a fault", "查看错误码，排除碰撞或接线问题，再执行恢复。", "Inspect the error code, clear collision/wiring problems, then recover."),
  "disabled": ("关节未全部使能", "Not all joints enabled", "检查机械臂输出并恢复对应臂；不要重复 launch。", "Inspect Arms output and recover this arm; do not launch duplicate nodes."),
@@ -23,10 +25,36 @@ MESSAGES = {
  "gripper": ("夹爪报告故障", "Gripper reports a fault", "检查夹爪错误码、线缆和机械卡滞，再恢复夹爪。", "Inspect the gripper error code, cable and mechanical obstruction, then recover it."),
 }
 
+SYNC_MESSAGES = {
+    "teach_feedback": ("后臂 CAN 尚未确认示教模式", "Rear CAN has not confirmed teaching mode"),
+    "teach_button": ("后臂已进入示教，但按钮 ROS 状态未接通", "Rear teaching active but its ROS button signal is missing"),
+    "stale": ("反馈或指令过期", "Stale feedback or commands"),
+    "routing": ("协调器未接管此侧", "Coordinator has not taken over this side"),
+    "joints": ("关节反馈/指令不完整或无效", "Incomplete or invalid joint feedback/command"),
+    "tracking": ("前臂未跟上协调器目标", "Front arm is not tracking the coordinator target"),
+    "paired_health": ("配对机械臂有异常", "Paired arm has a fault"),
+}
+
 class DeviceHealth(HardwareHealth):
     def evaluate(self, *args, **kwargs):
         values = super().evaluate(*args, **kwargs)
         for value in values.values():
             zh, en, remedy_zh, remedy_en = MESSAGES[value["code"]]
+            issue = value.get("sync_issue")
+            if issue in SYNC_MESSAGES:
+                zh, en = SYNC_MESSAGES[issue]
+                if issue == "stale":
+                    suffix = ": " + ", ".join(value["stale_topics"])
+                    zh += suffix; en += suffix
+                elif issue == "routing":
+                    zh += ": " + value["handover_mode"]; en += ": " + value["handover_mode"]
+                elif issue == "tracking":
+                    zh += "（最大关节误差 {:.3f} rad）".format(value["max_joint_error"])
+                    en += " (max joint error {:.3f} rad)".format(value["max_joint_error"])
+            paired = value.get("paired_code")
+            if paired in MESSAGES:
+                pair_zh, pair_en, pair_remedy_zh, pair_remedy_en = MESSAGES[paired]
+                zh += "：" + pair_zh; en += ": " + pair_en
+                remedy_zh, remedy_en = pair_remedy_zh, pair_remedy_en
             value.update(reason_zh=zh, reason_en=en, remedy_zh=remedy_zh, remedy_en=remedy_en)
         return values
