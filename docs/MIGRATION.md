@@ -442,3 +442,5 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 用户看到6915误以为已发布。只读核验learner_status为step6915/internal actor3457，而实际actor_snapshot.pkl头部为step6500/version3250，Session最近一次实际推理actor3250。旧model_catalog误用learner内部版本表示可加载权重。现只解析固定快照前512字节的整数头部，不执行pickle或导入模型，未知格式不推算版本；选项显示published步数，详情分别显示Learner trained step、内部Actor、Published learner step/Actor、Last inference Actor、Episode及未发布步数。Session版本来自实际推理返回，不以已发布推定已使用。
 
 本次不改变500步发布周期、算法或当前进程。另将RLT首次加载提示依据本次实测改为4–6分钟估计。24项Python通过/1既有跳过；前端全套和新增版本区分验证另记。当前用户正在在线采集，源码同步后后端仍需空闲窗口重载；不宣称已生效。guide Git不提交。
+
+发布记录：web 81114d1已push并核验origin/main，Cobot同步199运行文件SHA一致；24项Python通过/1既有跳过、46项Node通过。现场新代码只读快照确认6500/3250，Session episode14实际actor3250，模型PID2139119保留。两个修复批次均已同步源码；正式8015后端仍待用户结束连续采集后的重载窗口，本次未重启网页/模型/硬件。此前恢复故障目录对照：4条原示范保留，最新index16，旧规则label_blocked=true、新false，下一index17。
