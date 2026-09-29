@@ -444,3 +444,8 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 本次不改变500步发布周期、算法或当前进程。另将RLT首次加载提示依据本次实测改为4–6分钟估计。24项Python通过/1既有跳过；前端全套和新增版本区分验证另记。当前用户正在在线采集，源码同步后后端仍需空闲窗口重载；不宣称已生效。guide Git不提交。
 
 发布记录：web 81114d1已push并核验origin/main，Cobot同步199运行文件SHA一致；24项Python通过/1既有跳过、46项Node通过。现场新代码只读快照确认6500/3250，Session episode14实际actor3250，模型PID2139119保留。两个修复批次均已同步源码；正式8015后端仍待用户结束连续采集后的重载窗口，本次未重启网页/模型/硬件。此前恢复故障目录对照：4条原示范保留，最新index16，旧规则label_blocked=true、新false，下一index17。
+
+
+## 2026-09-29：正式后端切换已完成
+
+用户反馈仍无published后，现场确认waiting_scene/policy_paused、无活动writer/操作，持模型操作锁仅重载8015。模型supervisor2139119、Stage12139241、机械臂1318293、相机1317979身份与Session UUID/generation119保持。正式API确认Learner6915/internal3457、published6500/3250、last inference3250；录制标签修复一并生效。未开始推理或释放模型。回执：Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/rlt-publication-20260929/release.json。guide Git未提交。
