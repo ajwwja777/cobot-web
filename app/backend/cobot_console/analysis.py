@@ -20,7 +20,22 @@ class AnalysisReader:
             from integrations.cobot_runtime.analysis import snapshot, read_json
             root = os.environ.get("COBOT_RLT_RUN_ROOT", str(RLT/"outputs/rlt/plug_v3_yyshadow"))
             config = RLT/"configs/rlt/plug_v3_yyshadow/online_rl.yaml"
+            record = read_json(RUNTIME_ROOT/"deployment/process.json")
+            model = record.get("model", {})
+            if model.get("runtime_profile"):
+                from integrations.cobot_runtime.experiment_profiles import resolve
+                profile = resolve(model.get("id"), RLT)
+                root, config = profile["run_dir"], profile["config"]
             value = snapshot(root, config, run)
+            value["run_root"] = str(root)
+            if model.get("runtime_profile"):
+                # Shared offline diagnostics retain their own source/checkpoint
+                # provenance; live metrics/batches always come from this run.
+                from pathlib import Path
+                common = RLT/"outputs/rlt/plug_v3_yyshadow/analysis"
+                for key, filename in (("credit_assignment", "credit_assignment.json"),
+                        ("sensitivity", "rl_sensitivity.json"), ("visual_sensitivity", "visual_sensitivity.json")):
+                    if not value.get(key): value[key] = read_json(common/filename)
             actor = value.get("config", {}).get("runtime", {}).get("actor_service", {}).get("snapshot_path")
             value["publication"] = published_actor(actor) if actor else {}
             record = read_json(RUNTIME_ROOT/"deployment/process.json")

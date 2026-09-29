@@ -32,6 +32,7 @@
   const note=el("p",null,"analysis-note");note.id="audit-visual-note";visual.lastChild.append(note);
   const images=el("div",null,"audit-camera-grid");images.id="audit-visual-images";visual.lastChild.append(images);
   grid.prepend(comp,evalPanel,sensitivity,visual);
+  mountCredit(grid);
  }
  function render(d){data=d;if(!d||!$("audit-scope"))return;
   $("audit-composition").querySelector("h3").textContent=t("Replay 与实际训练 batch 构成","Replay and actual training batch composition");
@@ -78,6 +79,7 @@
   root.CobotDiagnosticsUI?.renderChart(svg,(s.action_probes||[]).map(v=>({global_step:v.human_direction,q:v.q_mean})),[{key:"q",label:"Q1",color:"#e7b766"}],{xLabel:"Human correction alpha",xFormat:v=>Number(v).toFixed(2),xDigits:2,yLabel:"Q1",emptyText:"No probe"});
   probe.append(el("span",t("α=0 是 Actor，α=1 是所录 HIL 动作；不是成功率。","α=0: Actor; α=1: recorded HIL actions. This is not success rate.")));
   renderVisual();
+  renderCredit();
 
  }
  function renderVisual(){
@@ -99,5 +101,53 @@
   parent.append(el("p","0 — "+num(max)+" rad · "+f.path,"analysis-note"));
  }
 
+
+
+ let creditVariant="baseline",creditEpisode="0";
+ function mountCredit(grid){
+  const card=panel("audit-credit","Credit assignment and action corrections");
+  const toolbar=el("div",null,"analysis-toolbar");
+  for(const [id,label] of [["audit-credit-variant","Experiment"],["audit-credit-episode","Episode window"]]){
+   const s=el("select");s.id=id;s.setAttribute("aria-label",label);
+   s.addEventListener("change",()=>{if(id.endsWith("variant")){creditVariant=s.value;creditEpisode="0";}else creditEpisode=s.value;renderCredit();});
+   toolbar.append(s);
+  }
+  card.lastChild.append(toolbar);
+  for(const id of ["audit-credit-note","audit-credit-table","audit-credit-summary","audit-credit-charts"]){
+   const n=el(id.includes("note")||id.includes("summary")?"p":"div",null,"analysis-note");n.id=id;card.lastChild.append(n);
+  }
+  $("audit-credit-charts")?.classList.add("audit-action-grid");
+  grid.prepend(card);
+ }
+ function renderCredit(){
+  if(!$("audit-credit-variant"))return;
+  const report=data?.credit_assignment||{},runs=report.experiments||[];
+  $("audit-credit").querySelector("h3").textContent=t("奖励传播实验与 Actor 动作修正","Credit experiments and Actor action corrections");
+  $("audit-credit-note").textContent=t("同一 Warmup 初始化、相同更新数；按整轮排除开发集。此开发集已反复检查，不能当成独立测试集。中间 success=0 不代表没有 TD 信号；MC 是显式实验，不是重写原始奖励。","Same Warmup initialization and update count; development episodes excluded from training. This repeatedly examined cohort is not an independent test set. Intermediate success=0 does not remove TD credit; MC is an explicit experiment, not relabeled recorded rewards.")
+   +" · "+(report.finished_at?t("已完成","Complete"):t("实验进行中或尚无结果","Running or no result yet"))+" · "+num(report.updates)+" updates";
+  table($("audit-credit-table"),["Profile","Seed","HIL MAE (rad)","HIL improved","Correction cosine","Q AUC · early / middle / late","MC RMSE"],
+   runs.map(r=>[r.variant,num(r.seed),num(r.validation.human_mae_rad),pct(r.validation.hil_steps_improved_ratio),num(r.validation.correction_human_cosine),
+    ["early","middle","late"].map(k=>num(r.validation.q_by_portion[k]?.auc)).join(" / "),num(r.validation.mc_rmse)]));
+  const views=[["warmup",report.baseline],...runs.filter(r=>r.seed===42).map(r=>[r.variant,r.validation])];
+  if(!views.some(v=>v[0]===creditVariant))creditVariant=views[0]?.[0]||"warmup";
+  select("audit-credit-variant",views.map(v=>[v[0],v[0]]),creditVariant);
+  const view=views.find(v=>v[0]===creditVariant)?.[1],traces=view?.traces||[];
+  if(!traces[Number(creditEpisode)])creditEpisode="0";
+  select("audit-credit-episode",traces.map((r,i)=>[String(i),"Episode "+r.episode+" · step "+r.step+" · "+r.outcome]),creditEpisode);
+  $("audit-credit-summary").textContent=t("只比较相同记录状态下的预测；绿色为人工/实际执行轨迹，不是自动成功轨迹。仅 HUMAN/MIXED 步参与改善比例和方向余弦；夹爪单独用米表示。","Predictions at the same recorded state. Green is human/recorded execution, not an autonomous successful trajectory. Improvement and direction cosine use HUMAN/MIXED steps only; gripper is shown separately in metres.");
+  const parent=$("audit-credit-charts");parent.replaceChildren();parent.className="audit-action-grid";
+  const trace=traces[Number(creditEpisode)];if(!trace)return;
+  for(let joint=0;joint<7;joint++){
+   const box=el("div"),svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+   svg.setAttribute("viewBox","0 0 430 180");svg.setAttribute("role","img");
+   const label=joint===6?"Gripper (m)":"Joint "+(joint+1)+" (rad)";
+   svg.setAttribute("aria-label",label+" reference actor executed");
+   box.append(el("strong",label),svg);
+   const series=trace.reference.map((a,i)=>({global_step:i,reference:a[joint],actor:trace.actor[i][joint],executed:trace.executed[i][joint]}));
+   root.CobotDiagnosticsUI?.renderChart(svg,series,[{key:"reference",label:"Reference",color:"#8aa7ff"},{key:"actor",label:"Actor",color:"#e7b766"},{key:"executed",label:"Executed / HIL",color:"#64d8ad"}],
+    {xLabel:"Logical step (20 Hz)",yLabel:joint===6?"m":"rad",emptyText:"No actions"});
+   parent.append(box);
+  }
+ }
  root.CobotReplayAuditUI={mount,render};
 })(window);

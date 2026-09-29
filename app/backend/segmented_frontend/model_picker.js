@@ -10,6 +10,7 @@
   const sceneLabel = task => task;
   function stepLabel(model) {
     const parts = [];
+    if (model.experiment_label) parts.push(model.experiment_label);
     if (model.family === "RLT" || model.kind === "rlt") {
       parts.push("Stage1 " + (model.stage1_step ?? model.base_step ?? "?"));
       if (model.stage !== "stage1") parts.push((model.stage || "warmup") + " " + (model.publication_tracked ? "published " + (model.published_learner_step ?? "?") : (model.learner_step ?? model.step ?? "?")));

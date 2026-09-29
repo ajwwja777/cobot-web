@@ -68,8 +68,23 @@ def catalog():
         else:
             entry_root = DAGGER if item["id"].endswith("dagger") else LEGACY
             available = available and (entry_root / "run_checkpoint_rtc_task2.sh").is_file()
+        if item.get("runtime_profile"):
+            import runpy
+            from .rlt_progress import published_actor
+            try:
+                profile = runpy.run_path(str(RLT / "integrations/cobot_runtime/experiment_profiles.py"))["resolve"](item["id"], RLT)
+                publication = published_actor(checkpoint)
+                learner = read_json(Path(profile["run_dir"]) / "online/metrics/learner_status.json")
+                item.update(**publication, publication_tracked=True,
+                    learner_step=learner.get("global_step", publication.get("published_learner_step")),
+                    learner_actor_version=learner.get("actor_version", publication.get("published_actor_version")),
+                    actor_version=publication.get("published_actor_version"),
+                    step=publication.get("published_learner_step"),
+                    experiment_label=item.get("experiment_label", item["runtime_profile"]))
+            except (OSError, ValueError, KeyError):
+                available = False
         item.update(available=bool(available), unavailable_reason="" if available else "权重或运行入口缺失",
-                    entry=str(PLATFORM / "scripts/deployment_run.sh"), training_enabled=False,
+                    entry=str(PLATFORM / "scripts/deployment_run.sh"), training_enabled=bool(item.get("capabilities", {}).get("train")),
                     recording="结果与三相机首尾帧")
     # Same catalog and process owner in both pages. Online training remains an
     # explicit choice; evaluation uses the frozen sibling of that checkpoint.

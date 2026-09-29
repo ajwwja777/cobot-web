@@ -87,3 +87,5 @@
 
 .analysis-toolbar .audit-overlay-label {display:flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;}
 .analysis-toolbar input.audit-overlay-toggle {width:16px;height:16px;min-height:0;max-width:16px;margin:0;accent-color:var(--accent,#74c8b2);}
+
+.audit-action-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr));gap:16px}.audit-action-grid svg{width:100%;height:auto;display:block}.audit-action-grid>div{min-width:0;padding:8px;border:1px solid var(--border,#383838);border-radius:8px}
