@@ -360,3 +360,7 @@ A6000前端42项通过，相关后端28项通过；修正旧模型元数据测�
 本批硬件修正归同级 cobot-control（robot/mid_home.py、src/cobot_control/device_control.py、device_health.py、can_health.py）；网页只补充健康码翻译。真实示教状态 mode=2/teach=1 不再误判；同步正常显示蓝色，失败会标明按钮/接管/过期话题/跟踪偏差/配对故障。前臂详情保留自身CAN反馈，避免错误复制后臂mode。新增 CAN 发送队列堵塞的中英文原因与恢复提示；不因接收正常而掩盖发送故障。
 
 现场只读确认左右前臂TX堵塞、内核echo异常，未自行执行恢复或归位；详见 control/docs/MIGRATION.md 及 outputs/diagnostics/teach-and-mid-20260929。首轮384项、收尾190项离线回归通过。发布、网页重载与现场动作验证分别记录，不将静态测试作为真机成功。
+
+### 现场发布与复测
+
+control fba6fe5 / web 55c572f 已推送并同步146/197文件；空闲时重载正式8015，原臂和相机launch未重启。用户授权后前双臂CAN堵塞已通过原Recover解除，0.01rad小幅往返实测通过。第一次人工示教复测发现latched模式/故障被误判为过期，已改为按真实状态变化协议判断并补24项健康回归；不得把latched话题套用心跳超时。第二次真实示教复测及中臂首次冷上电home结果另记。
