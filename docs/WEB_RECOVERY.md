@@ -222,3 +222,25 @@ sudo dmesg -T | tail -n 80
 主代码在 A6000 的 cobot-web，现场只同步脚本和文档；运行时证据不入 Git。问题交接时带 snapshot 路径、网页版本与复现步骤：页面／任务管理交 cobot-web，数据交 cobot-dagger，模型与 RL 交相应平台，硬件与 CAN 交 cobot-control。
 
 脚本的隔离测试覆盖 PID 复用拒绝、缺失身份拒绝、多进程组／ROS 式独立子 session、父进程退出后的子进程、网页只停止单 PID、暂停令牌与不可达接口。真实机械臂的停止／恢复没有在本次文档交付中演练；现场验证只做只读查询与停止预览。具体部署版本、校验值和验证记录见 [迁移记录](MIGRATION.md)。
+
+## RLT 录制失败，保留已加载模型（2026-09-29）
+
+在采集页模型卡展开“录制检查与恢复（保留模型）”；Session 报 fault 时自动展开。
+先点“检查录制”，它检查三相机、关节反馈、控制权和所选保存目录的可写性/空间，不启动推理、不创建 Episode。
+根据显示的具体原因处理：camera_stale 检查相机；handover_stale 检查节点/按钮；streams_not_ready 按列出的流检查；not_writable / disk_space_low 检查 Getea1 挂载、权限或容量。
+
+输入恢复后点“恢复录制（保留模型）”。对暂停且无未决 Episode 的启动失败，它仅停止故障 Session、恢复退出后的错误录制器，并再次预检；模型/在线 Learner 保留。完成后手动点击“开始 Session”，再开始采集。不会自动重试推理、归位、释放模型或丢弃未决数据。正在写入、仍有未完成 Episode 或策略未暂停时拒绝恢复并提示原因。
+
+故障状态也可点“结束 Session”，不再要求释放模型。刷新浏览器不能清除后端故障；ui_down/up 可重启网页，但不是这类问题的第一步，且进行中的录制不可重启。
+
+终端与网页使用同一接口（把路径换成页面实际保存目录）：
+
+~~~bash
+cd /home/agilex/jiaan/project/cobot-web
+python3 scripts/console.py state recorder
+python3 scripts/console.py api POST /api/rlt/recorder-check --json '{"data_root":"/media/agilex/Getea1/jiaan/data/datasets/test"}'
+python3 scripts/console.py api POST /api/rlt/recover-recorder --json '{"reset_fault_session":true,"data_root":"/media/agilex/Getea1/jiaan/data/datasets/test"}'
+python3 scripts/console.py state model
+~~~
+
+检查返回 preflight.status=ok 才表示该时刻预检通过；model_retained 表示未释放，不代表真实推理/整轮验收通过。工作线程未退出或数据未决时不强杀 PID，请先按输出处理该轮。恢复不会修复 USB 掉线、硬盘 I/O 故障或机械臂故障本身。

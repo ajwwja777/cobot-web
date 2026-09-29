@@ -527,7 +527,11 @@ class DeploymentManager:
             if self.busy() or self.active:
                 raise DeploymentError("请先结束当前 Episode")
             state = self.runtime.status()
-            if state.get("phase") not in {"ready", "paused"}:
+            stopping_fault = (operation == "collection_session_stop"
+                              and state.get("model", {}).get("kind") == "rlt"
+                              and state.get("session", {}).get("phase") == "fault"
+                              and state.get("session", {}).get("policy_paused") is True)
+            if state.get("phase") not in {"ready", "paused"} and not stopping_fault:
                 raise DeploymentError("请先加载采集模型并结束当前 Episode")
             if state.get("model", {}).get("kind") == "rlt":
                 starting = operation == "collection_session_start"

@@ -216,7 +216,7 @@ def create_app(
 
     def readiness() -> Dict[str, object]:
         result=evaluate_readiness(
-            shared_bridge.status(), shared_cache.snapshot(float(monotonic()))
+            shared_bridge.status(), shared_cache.snapshot(monotonic)
         )
         return result
 
@@ -340,30 +340,97 @@ def create_app(
         phase = status.get("data_phase") or ("warmup" if mode == "reference" else "online")
         return storage, phase, status
 
+    def recorder_details():
+        raw = shared_recorder.status()
+        return {**{k: raw.get(k) for k in ("state", "error", "last_error", "last_start_error",
+                "path", "writer_thread_alive", "acquisition_active", "publication_status")},
+                "readiness": readiness()}
+
     @application.get("/api/rlt/recorder-diagnostics")
     def recorder_diagnostics():
-        raw=shared_recorder.status()
-        return {k:raw.get(k) for k in ("state","error","last_error","path","writer_thread_alive","acquisition_active","publication_status")}
+        return recorder_details()
+
+    def check_recorder(data_root=None):
+        from capture_core.validation import PreflightError
+        if data_root is not None and not isinstance(data_root, str):
+            raise HTTPException(422, "data_root_must_be_a_path_string")
+        target = Path(data_root or selected_rlt_root).expanduser().resolve()
+        allowed = (allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve()
+        if target != allowed and allowed not in target.parents:
+            raise HTTPException(422, "recording_path_outside_allowed_root")
+        health = readiness()
+        if health["status"] != "ok":
+            return {"status": "not_ready", "error_code": health.get("error_code"),
+                    "detail": ", ".join(health.get("stale_keys") or []), "data_root": str(target)}
+        try:
+            shared_recorder.check_ready(target)
+            return {"status": "ok", "error_code": None, "data_root": str(target)}
+        except PreflightError as error:
+            return {"status": "not_ready", "error_code": error.code,
+                    "detail": error.detail, "data_root": str(target)}
+
+    @application.post("/api/rlt/recorder-check")
+    def check_rlt_recorder(body: Dict[str, object]):
+        if shared_recorder.status().get("state") not in ("idle", "stopped"):
+            raise HTTPException(409, "finish_recording_before_check")
+        result = check_recorder(body.get("data_root"))
+        return {**recorder_details(), "preflight": result}
 
     @application.post("/api/rlt/recover-recorder")
-    def recover_rlt_recorder():
+    def recover_rlt_recorder(body: Dict[str, object]):
+        # Coordinate with load/unload and episode requests. Recovery never calls
+        # start/resume, home or unload; the model remains paused in memory.
+        manager = application.state.deployment_manager
+        with manager.lock:
+            if manager.operation or manager.active:
+                raise HTTPException(409, "finish_model_operation_before_recovery")
+            manager.operation = "recorder_recovery"
         try:
-            response=backend.request("GET","/api/session")
-        except RltBackendError as error:
-            raise HTTPException(status_code=503,detail="cannot_verify_session_stopped") from error
-        if response.status!=200 or response.payload.get("phase")!="stopped" or response.payload.get("policy_paused") is not True:
-            raise HTTPException(status_code=409,detail="stop_session_before_recorder_recovery")
-        if modes.snapshot().active_mode not in (None,"rlt"):
-            raise HTTPException(status_code=409,detail="normal_recording_owns_writer")
-        raw=shared_recorder.status()
-        if raw.get("state") in ("error","fatal"):
-            try: result=rollout.state.recover_failed_recorder()
-            except Exception as error:
-                raise HTTPException(status_code=409,detail=str(error)) from error
-            return {"state":result["state"],"retained_incomplete_file":result.get("path"),"recovered":True}
-        if modes.snapshot().active_mode is not None:
-            raise HTTPException(status_code=409,detail="pending_episode_finalization")
-        return {"state":raw.get("state"),"recovered":False}
+            from .runtime_lock import operation
+            with operation(manager.runtime.directory):
+                try:
+                    response = backend.request("GET", "/api/session")
+                except RltBackendError as error:
+                    raise HTTPException(503, "cannot_verify_session_stopped") from error
+                session = response.payload
+                if response.status != 200 or session.get("policy_paused") is not True:
+                    raise HTTPException(409, "pause_policy_before_recorder_recovery")
+                snapshot = modes.snapshot()
+                raw = shared_recorder.status()
+                if snapshot.active_mode not in (None, "rlt"):
+                    raise HTTPException(409, "normal_recording_owns_writer")
+                if raw.get("writer_thread_alive") or raw.get("acquisition_active") or raw.get("state") in ("starting", "recording", "stopping"):
+                    raise HTTPException(409, "recorder_worker_still_active")
+                if session.get("phase") == "fault" and body.get("reset_fault_session") is True:
+                    # No uncertain in-flight episode may be silently discarded.
+                    if session.get("task5_episode_uuid") is not None or snapshot.active_mode is not None:
+                        raise HTTPException(409, "pending_episode_finalization")
+                    response = backend.request("POST", "/api/session/stop",
+                        {"episode_id": session["episode_id"], "generation": session["generation"]})
+                    if response.status != 200:
+                        raise HTTPException(response.status, response.payload)
+                    response = backend.request("GET", "/api/session")
+                    session = response.payload
+                if response.status != 200 or session.get("phase") != "stopped" or session.get("policy_paused") is not True:
+                    raise HTTPException(409, "stop_session_before_recorder_recovery")
+                recovered = False
+                if raw.get("state") in ("error", "fatal"):
+                    try:
+                        raw = rollout.state.recover_failed_recorder()
+                        recovered = True
+                    except Exception as error:
+                        raise HTTPException(409, str(error)) from error
+                if modes.snapshot().active_mode is not None:
+                    raise HTTPException(409, "pending_episode_finalization")
+                result = {"state": raw.get("state"), "retained_incomplete_file": raw.get("path"),
+                          "recovered": recovered, "model_retained": True, "session_phase": "stopped"}
+                if body.get("reset_fault_session") is True:
+                    result["preflight"] = check_recorder(body.get("data_root"))
+                return result
+        finally:
+            with manager.lock:
+                manager.operation = None
+            manager.refresh()
 
     def can_reset_rlt_storage(status):
         manager = getattr(application.state, "deployment_manager", None)

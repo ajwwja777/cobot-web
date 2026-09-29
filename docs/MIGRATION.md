@@ -395,3 +395,13 @@ A6000设备/任务/健康回归100项通过，包含消息顺序、逐步失能�
 本批正式发布：control 15c1917 / web fd8d182 已 push 并核验远端，Cobot 146/197 文件 SHA 一致。无活动录制/归位/恢复时，仅重载8015；臂 PID1318293、相机 PID1317979、在线RLT PID1436537 及进程 start_ticks 均保持，RLT Session UUID 保留。现场位姿 YAML SHA 未改变。正式HTTP提供的新静态资产SHA与A6000一致，设备API已提供单夹爪reinit入口。
 
 网页 recorder 从已停止记录的 committed/stopped 状态恢复为 idle，generation 重置为0；RLT Session 仍为原有 fault/recorder_not_ready，不声称重启修复了此故障。未发机械臂/CAN/夹爪动作，未重启驱动或模型。回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/model-pose-layout-20260929/release.json；Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/model-pose-layout-20260929/release.json。
+
+## 2026-09-29：RLT 录制故障保留模型恢复
+
+用户要求现场修复且不释放权重。发布前只读检查：模型PID1436537存活、policy_paused=true，Session fault=task5_start_failed/recorder_not_ready、无未决Episode，recorder idle、ROS readiness正常。使用已有的带episode/generation身份的Session stop及recorder recovery，恢复stopped/模型ready；PID/start_ticks不变，没有推理、归位或学习动作。
+
+源码修正：web增加录制预检/恢复页面入口；fault允许结束Session；新恢复选项只处理策略暂停、无未决数据且工作线程已退出的状态，使用模型操作锁，保留模型，拒绝活动录制/待提交数据。HTTP错误保留具体ROS、流、目录和空间原因；短时相机/示教流间隙只在开writer前等最多1秒，不重试有副作用请求，不放宽有效期阈值。
+
+dagger原有snapshot调用先取clock再抢锁，可包含时间更新的callback而产生负age。离线确定复现并修复：实时预检传入clock，在缓存锁内取样；显式历史时间与真正未来时间戳仍按原语义。该机制能导致偶发未就绪，但旧HTTP 503丢失详细原因，不能认定全部历史失败都由它造成。数据格式、HIL/mask、模型算法、Replay及控制参数不改。
+
+254项Python回归通过、1项既有跳过；45项Node通过。证据：outputs/rlt-recorder-recovery-20260929/。发布、模型保持暂停的真实短录制及清理回执另记，不以预检代替写入验证。

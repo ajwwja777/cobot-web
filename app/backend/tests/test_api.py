@@ -915,7 +915,7 @@ def test_ros_bridge_failure_degrades_health_and_blocks_start_without_crashing(
         }
         response = client.post("/api/episodes/start", json=_start_payload())
         assert response.status_code == 503
-        assert response.json() == {"detail": "recorder_not_ready"}
+        assert response.json() == {"detail": "recorder_not_ready: ros_unavailable"}
 
 
 def test_start_value_error_reports_safe_error_type_without_path(tmp_path: Path) -> None:

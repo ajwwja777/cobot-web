@@ -280,7 +280,7 @@ def create_app(
         if not lifespan_state["started"]:
             return {"status": "ok"}
         return evaluate_readiness(
-            bridge.status(), shared_cache.snapshot(float(monotonic()))
+            bridge.status(), shared_cache.snapshot(monotonic)
         )
 
     def acquire_writer() -> object:
@@ -306,10 +306,11 @@ def create_app(
         active_lease.pop("episode_uuid", None)
 
     def recover_failed_recorder():
-        result=active_recorder.recover_error()
-        close_capture_gate()
-        release_writer()
-        return result
+        with episode_mutation_lock:
+            result=active_recorder.recover_error()
+            close_capture_gate()
+            release_writer()
+            return result
 
     application.state.recover_failed_recorder=recover_failed_recorder
 
@@ -336,7 +337,7 @@ def create_app(
     def status() -> Dict[str, object]:
         try:
             public = _public_status(active_recorder.status())
-            snapshot = shared_cache.snapshot(float(monotonic()))
+            snapshot = shared_cache.snapshot(monotonic)
             mode_available = snapshot.has_value("handover_mode")
             raw_mode = snapshot.get("handover_mode") if mode_available else None
             mode = raw_mode if isinstance(raw_mode, str) else "unknown"
@@ -430,8 +431,19 @@ def create_app(
                 max_timesteps=request.max_timesteps,
                 data_root=prepared.data_root,
             )
-            if current_readiness()["status"] != "ok":
-                raise _http_error(503, "recorder_not_ready")
+            # Wait only for a fresh input snapshot, before opening any writer.
+            # Do not retry start/finish requests or loosen freshness thresholds.
+            ready = current_readiness()
+            deadline = time.monotonic() + 1.0
+            while ready["status"] != "ok" and ready.get("error_code") in {"camera_stale", "handover_stale"} and time.monotonic() < deadline:
+                time.sleep(0.04)
+                ready = current_readiness()
+            if ready["status"] != "ok":
+                detail = "recorder_not_ready: " + str(ready.get("error_code") or "unknown")
+                if ready.get("stale_keys"):
+                    detail += ": " + ",".join(ready["stale_keys"])
+                LOGGER.warning("RLT recorder preflight rejected: %s", detail)
+                raise _http_error(503, detail)
             state = str(active_recorder.status().get("state", "unknown"))
             if state not in {"idle", "stopped"}:
                 raise _http_error(409, "recorder_already_started")
@@ -455,7 +467,8 @@ def create_app(
         except FileExistsError as error:
             raise _http_error(409, "episode_already_exists") from error
         except PreflightError as error:
-            raise _http_error(503, "recorder_not_ready") from error
+            LOGGER.warning("RLT recorder preflight rejected: %s", error)
+            raise _http_error(503, "recorder_not_ready: " + str(error)) from error
         except (StoragePathError, TypeError, ValueError) as error:
             LOGGER.exception("RLT recorder invalid start request (%s)", type(error).__name__)
             raise _http_error(422, f"invalid_start_request: {type(error).__name__}") from error

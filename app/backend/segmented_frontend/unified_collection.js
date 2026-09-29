@@ -1,7 +1,7 @@
 "use strict";
 (function(root){
   const $=s=>document.querySelector(s);
-  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null;
+  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null,recorderRecovery=null;
   const english=()=>root.CobotPreferences?.language==='en';
   const text=(zh,en)=>english()?en:zh;
   const useModel=()=>Boolean($('#capture-use-model')?.checked);
@@ -71,13 +71,14 @@
     modelPicker.setDisabled(!use||locked,{lockSelection:locked});
     $('#collection-label-results').disabled=Boolean(context.busy||changing);
     const backendOnline=state.model&&!['offline'].includes(state.phase);
-    $('#collection-load').disabled=!use||!root.CobotModelPicker.available(chosen)||locked||modelLoaded()||!routeReady;
+    recorderRecovery?.update(state,active()||changing||Boolean(context.busy));
+    $('#collection-load').disabled=!use||!root.CobotModelPicker.available(chosen)||locked||modelLoaded()||(state.model?.id===chosen?.id&&Boolean(state.pid))||!routeReady;
     $('#collection-unload').disabled=!use||active()||changing||processing||!backendOnline;
     const ready=modelLoaded();
     const estimate=root.CobotModelLoading(chosen);
     label($('#collection-model-state'),!use?'纯示教':loading?estimate.zh:processing?'正在处理…':ready?'模型加载成功':'等待加载模型',!use?'Manual capture':loading?estimate.en:processing?'Working…':ready?'Model loaded successfully':'Load model to start');
     const failure=use&&(state.error||(state.phase==='error'?(state.detail||'模型加载失败'):null));
-    if(failure)label($('#collection-model-state'),String(failure),root.CobotPreferences?.text(String(failure))||String(failure));
+    if(failure)label($('#collection-model-state'),state.model_ready&&state.session?.phase==='fault'?'模型已加载；录制需要恢复（见下方）':String(failure),state.model_ready&&state.session?.phase==='fault'?'Model loaded; recording needs recovery (below)':root.CobotPreferences?.text(String(failure))||String(failure));
     $('#collection-model-state').dataset.tone=failure?'error':ready?'ready':'idle';
     $('#collection-session-start').disabled=!use||!routeReady||changing||processing||!ready||active()||Boolean(state.session_active);
     $('#collection-session-stop').disabled=!use||!routeReady||changing||processing||active()||!state.session_active;
@@ -170,6 +171,7 @@
     for(const [id,zh,en] of [['load','加载模型','Load model'],['unload','释放模型','Release model'],['session-start','开始 Session','Start session'],['session-stop','结束 Session','End session']]){
       const button=document.createElement('button');button.type='button';button.id='collection-'+id;label(button,zh,en);button.addEventListener('click',()=>modelAction(id));card.querySelector('.collection-model-actions').append(button);
     }
+    const recovery=document.createElement('details');recovery.className='recorder-recovery';card.querySelector('.session-settings-body').append(recovery);recorderRecovery=root.CobotRecorderRecovery?.create(recovery);
     const history=$('#episode-browser-operation');
     for(const [node,area] of [[storage,'storage'],[card,'model'],[history,'data'],[panel,'controls']]){
       node.dataset.workspacePanel=area;grid.append(node);

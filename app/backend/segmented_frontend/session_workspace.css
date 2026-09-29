@@ -70,3 +70,10 @@
 .page .session-workspace .path-caption code{background:none;border:0;padding:0;overflow-wrap:anywhere}
 .page .session-workspace .deployment-control-panel .post-save-home{padding:12px;border:1px solid var(--line);border-radius:9px;margin:12px 0 0}
 .page .session-workspace .deployment-control-panel .post-save-home>.checkbox-row{margin:0 0 8px}
+
+.recorder-recovery{border-top:1px solid var(--line);padding-top:10px;font-size:12px}
+.recorder-recovery[hidden]{display:none!important}
+.recorder-recovery p{margin:0 0 8px;overflow-wrap:anywhere}
+.recorder-recovery .button-row{flex-wrap:wrap}
+.recorder-recovery .recorder-recovery-result{margin:8px 0 0;color:var(--muted);white-space:pre-wrap}
+.recorder-recovery summary{cursor:pointer;font-size:12px;margin-bottom:8px}

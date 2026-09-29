@@ -1,0 +1,20 @@
+const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),{JSDOM}=require("jsdom");
+test("fault recovery has one explicit action and never calls load, resume or start",async()=>{
+ const dom=new JSDOM('<input id="collection-data-root" value="/data/test"><div id="recovery"></div>',{runScripts:"outside-only",url:"http://localhost"}),w=dom.window,calls=[];
+ w.CobotPreferences={language:"en"};w.CobotCollectionModel={refresh:async()=>{}};
+ w.fetch=async(url,options={})=>{calls.push([url,options]);return{ok:true,json:async()=>options.method?{state:"idle",model_retained:true,preflight:{status:"ok"}}:{readiness:{status:"not_ready",error_code:"camera_stale",stale_keys:["camera_left"]}}};};
+ w.eval(fs.readFileSync("segmented_frontend/recorder_recovery.js","utf8"));
+ const root=w.document.querySelector("#recovery"),ui=w.CobotRecorderRecovery.create(root);
+ const state={model:{kind:"rlt"},phase:"error",session:{phase:"fault",policy_paused:true,generation:9}};
+ ui.update(state,false);await new Promise(resolve=>setImmediate(resolve));
+ assert.match(root.textContent,/camera_left/);
+ root.querySelector(".recorder-recover").click();await new Promise(resolve=>setImmediate(resolve));
+ const posts=calls.filter(([,o])=>o.method==="POST");
+ assert.equal(posts.length,1);assert.equal(posts[0][0],"/api/rlt/recover-recorder");
+ assert.deepEqual(JSON.parse(posts[0][1].body),{data_root:"/data/test",reset_fault_session:true});
+ assert.match(root.textContent,/Recovered; model retained/);
+ ui.update({...state,session:{phase:"rollout",policy_paused:false}},true);
+ assert.equal(root.querySelector(".recorder-recover").disabled,true);
+ assert.equal(root.querySelector(".recorder-check").disabled,true);
+ dom.window.close();
+});

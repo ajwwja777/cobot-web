@@ -640,3 +640,8 @@ cd /home/agilex/jiaan/project/cobot-control
 设备图选一个夹爪，按钮只操作该侧；Ctrl 选两个可处理双夹爪。“恢复”在详情底部独立整行。Recover 与“张开/闭合”不同：前者保留既有恢复协议，后者显式开合；两者保留控制权、反馈与故障检查。算法、动作参数、ROS 接口和自动归位规则未改变。
 
 CAN TX 堵塞检测及受控修复边界见 /home/agilex/jiaan/project/cobot-control/docs/DEPLOYMENT.md。本批未开启后台自动 CAN 复位。
+
+
+## 保留模型恢复录制（2026-09-29）
+
+采集模型卡新增“录制检查与恢复（保留模型）”。对应 CLI 为 scripts/console.py api POST /api/rlt/recorder-check 和 /api/rlt/recover-recorder；故障 Session 停止后无需重新加载权重。完整 JSON 示例、预检含义和拒绝恢复的情况见 [故障手册](WEB_RECOVERY.md#rlt-录制失败保留已加载模型2026-09-29)。
