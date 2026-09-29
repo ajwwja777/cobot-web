@@ -140,3 +140,11 @@ def test_rear_teach_requires_all_motors_enabled():
     h=DeviceHealth().evaluate(systems,cache.snapshot(10))
     assert h["rear-left"]["code"]=="disabled"
     assert all(h[n+"-left"]["phase"]!="teaching" for n in ("front","rear","gripper"))
+
+
+def test_unchanged_latched_coordinator_state_is_not_a_stale_heartbeat():
+    systems,cache=fixture();teach(systems,cache)
+    cache.put("handover_mode","manual:left",1,1)
+    cache.put("handover_fault","",1,1)
+    health=DeviceHealth().evaluate(systems,cache.snapshot(10))
+    assert all(health[n+"-left"]["phase"]=="teaching" for n in ("front","rear","gripper"))
