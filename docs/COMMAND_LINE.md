@@ -724,3 +724,16 @@ python3 scripts/control.py status
 ~~~
 两条只读且不需要网页。堵塞/排空会提示，不自动恢复推理或发 motor Recover。
 完整 CAN 排障边界见 control/docs/DEPLOYMENT.md。
+
+## 2026-09-30: MC30 candidate and action diagnostics
+
+The Analysis page now includes credit-assignment experiments and seven separate action plots (six joints in rad, gripper in m): Reference / Actor / recorded execution. Select a profile and an episode window; expand All experiment runs for 21 results. HIL improvement and direction cosine use human steps only. This is offline development-set analysis, not robot success rate or attention.
+
+The registered plug_insertion / RLT / MC30 candidate loads paused through the normal shared model workflow. Its method profile, separate outputs and algorithm are owned by rl-platform, not Web. Published/trained steps use the candidate's paths. CLI equivalent:
+
+```bash
+cd /home/agilex/jiaan/project/rl-platform
+COBOT_DEPLOYMENT_MODEL_ID=plug-v3-credit-mc30 ./scripts/rlt_up.sh online
+```
+
+The script resolves configs/deployment_models.json -> configs/experiments/runtime_profiles.json -> the generated candidate YAML. online_role uses the original supervisor/Actor/Replay with a process-local experimental Learner adapter. It mixes 30% complete-episode discounted return into the Critic target; it does not increase the success sampling ratio. Start, pause, HIL and end remain existing controls. To revert, end the Session, release this selection and manually load the original online/warmup entry. Replay is shared and retained; weights/logs are separate. RTC, 40 Hz and increased noise are not enabled. Full reproducible commands and acceptance limits: /data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/EXPERIMENTS_20260930.md (Cobot: /home/agilex/jiaan/project/rl-platform/docs/EXPERIMENTS_20260930.md).

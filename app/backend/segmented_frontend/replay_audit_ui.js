@@ -116,7 +116,9 @@
   for(const id of ["audit-credit-note","audit-credit-table","audit-credit-summary","audit-credit-charts"]){
    const n=el(id.includes("note")||id.includes("summary")?"p":"div",null,"analysis-note");n.id=id;card.lastChild.append(n);
   }
-  $("audit-credit-charts")?.classList.add("audit-action-grid");
+  const allRuns=el("details"),detailsTitle=el("summary","All experiment runs");
+  allRuns.append(detailsTitle,card.querySelector("#audit-credit-table"));
+  card.lastChild.append(card.querySelector("#audit-credit-summary"),card.querySelector("#audit-credit-charts"),allRuns);
   grid.prepend(card);
  }
  function renderCredit(){

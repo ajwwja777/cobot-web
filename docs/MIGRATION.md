@@ -492,3 +492,7 @@ Warmup/Online/Pi05 metadata returns registered collection/evaluation defaults.
 Evidence: outputs/rlt-analysis-20260929/{live-release,api-check,live-browser}.json;
 Cobot runtime/verification/rlt-diagnosis-20260929. Training/Analysis alignment at1800/1200/760
 has no horizontal overflow. No full robot collection/deployment acceptance is claimed.
+
+## 2026-09-30: credit experiments / action comparison
+
+Added a compact profile/episode action comparison panel with seven dimension-specific curves; 21-run results are expandable. Analysis reads rl-platform JSON only. Registered experimental runtimes resolve configuration, publication and live telemetry by project-owned profile; original entries stay available. Selected files developed/tested/pushed on A6000 then SHA256-synced to Cobot. Tests: 51 Node checks; 22 selected Python checks passed, one environment-dependent test skipped; responsive read-only preview at 1800/1200/760 px has no JS errors or workspace overflow. No robot inference initiated. Candidate process/algorithm evidence and remaining physical/RTC acceptance are in rl-platform/docs/EXPERIMENTS_20260930.md.
