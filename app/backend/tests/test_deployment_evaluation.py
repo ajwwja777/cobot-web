@@ -343,7 +343,9 @@ def test_legacy_manual_pause_survives_hil(monkeypatch,tmp_path):
     import importlib.util
     class Gate:
         def __init__(self):self._lock=threading.RLock();self.paused=True
-        def handle_set_paused(self,request):self.paused=request.data;return self.paused
+        def handle_set_paused(self,request):
+            self.paused=request.data
+            return SimpleNamespace(success=True,message="paused" if self.paused else "fresh resume")
     monkeypatch.setitem(sys.modules,"inference_pi05_rtc_task2",SimpleNamespace(Task2PauseGate=Gate))
     monkeypatch.setenv("COBOT_PI05_CLIENT_ROOT",str(tmp_path))
     monkeypatch.setenv("COBOT_PI05_GATE_STATE",str(tmp_path/"gate.json"))
@@ -351,13 +353,16 @@ def test_legacy_manual_pause_survives_hil(monkeypatch,tmp_path):
     script=Path(cobot_console.__file__).parent/"deployment_pi05_client.py"
     spec=importlib.util.spec_from_file_location("gate_under_test",script);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     gate=module.ConsolePauseGate()
-    def send(value,caller):return gate.handle_set_paused(SimpleNamespace(data=value,_connection_header={"callerid":caller}))
+    def send(value,caller):
+        result = gate.handle_set_paused(SimpleNamespace(data=value,_connection_header={"callerid":caller}))
+        assert result.success
+        return gate.paused
     assert send(False,"/cobot_deployment_command_1") is False
-    assert send(True,"/coordinator") is True
-    assert send(False,"/coordinator") is False
+    assert send(True,"/task2_teach_button_handover") is True
+    assert send(False,"/task2_teach_button_handover") is False
     assert send(True,"/cobot_deployment_command_2") is True
-    assert send(True,"/coordinator") is True
-    assert send(False,"/coordinator") is True
+    assert send(True,"/task2_teach_button_handover") is True
+    assert send(False,"/task2_teach_button_handover") is True
     assert json.loads((tmp_path/"gate.json").read_text())["intervention_count"]==2
 
 

@@ -412,3 +412,11 @@ dagger原有snapshot调用先取clock再抢锁，可包含时间更新的callbac
 Session始终stopped/policy_paused，模型保持加载，在独立 datasets/test/recorder_recovery_check_<UUID> 下连续3次直接录制，每次12帧HDF5成功提交；逐轮通过UUID绑定的discard接口删除，无剩余数据/标签/目录。未向Session发start/resume、未归位、未新增Replay，Session generation10及chunk_count18不变。最终模型ready、recorder idle、Session stopped，可手动开始Session；在线Learner仍5090、Actor2545。该验收证明当前录制器可连续写入，不冒充完整推理/HIL轮次或长期稳定性测试。
 
 回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/rlt-recorder-recovery-20260929/{release.json,passive-recording.json,final.json}；Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/rlt-recorder-recovery-20260929/。详细恢复方式见web/docs/WEB_RECOVERY.md。
+
+## 2026-09-29：π0.5 Recover 后暂停锁误判
+
+来源：用户成功部署 in_the_pot DAgger 后点击开始立即暂停，并说明刚执行双后臂 Recover。只读核对：GPU 服务仍就绪；后臂 mode=0、0/6 enabled、无故障，协调器 policy、三处 fault 为空。Recover 通过 task2_recover_cli 调用 set_paused(true)，旧 web wrapper 将所有非网页调用标成 hil_active，导致继续请求仍返回 paused；服务 success 被错误当作已恢复。不是加载失败或后臂失能故障。
+
+本批只改 web 的 π0.5 暂停适配、ROS bridge 与回归，不改控制/模型/RTC/动作参数。新 wrapper 将 Recover/其他保护请求归入手动暂停，只识别实际两个协调器节点作为 HIL，增加来源/版本诊断；真正接管仍阻止继续，保护暂停不能被普通调用解除。bridge 拒绝把旧客户端的 paused 回复视作已继续。
+
+旧模型进程不热替换：新增 repair-pause，在模型操作锁、PID身份与ROS状态检查下保持 manual_pause=true，只清除旧外部锁；不自动恢复推理、不清空HIL计数/评测历史、不释放权重。下一次正常加载才启用新版 wrapper，当前旧进程再次 Recover 仍可用兼容入口。使用与限制见 docs/WEB_RECOVERY.md。测试、发布及现场恢复结果随后补记。

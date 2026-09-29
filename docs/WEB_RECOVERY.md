@@ -244,3 +244,22 @@ python3 scripts/console.py state model
 ~~~
 
 检查返回 preflight.status=ok 才表示该时刻预检通过；model_retained 表示未释放，不代表真实推理/整轮验收通过。工作线程未退出或数据未决时不强杀 PID，请先按输出处理该轮。恢复不会修复 USB 掉线、硬盘 I/O 故障或机械臂故障本身。
+
+## π0.5 在 Recover 后点击开始仍暂停（2026-09-29）
+
+后臂 Recover 完成后失能、协调器回到 policy 是正常待机。旧网页 π0.5 客户端把所有非网页的 pause 请求都误记为 HIL，Recover 的保护性暂停因此可能留下外部锁；日志反复 paused / takeover 不等于又按了示教按钮。
+
+已修正的新客户端区分手动、保护与示教暂停，仅实际协调器的请求计入 HIL。Recover 保持暂停，之后由操作者点击开始/继续；真正的示教接管仍优先。新版在下一次正常加载时生效，不需要为当前故障释放已加载权重。
+
+已经加载的旧版可用下面的有界恢复入口。先停止当前操作并松开示教按钮，确认设备安全；此命令检查已登记的 π0.5 PID/启动时间、ROS 服务所有者、协调器 policy 和三处空故障，持有与网页相同的模型操作锁，先锁定手动暂停再清除旧外部锁。检查不通过就保留暂停，不执行 Recover、归位、启动推理或结束模型。
+
+~~~bash
+cd /home/agilex/jiaan/project/cobot-web
+source /opt/ros/noetic/setup.bash
+/usr/bin/python3 app/backend/cobot_console/deployment_ros.py repair-pause
+cat runtime/deployment/pi05-gate.json
+~~~
+
+成功返回 Legacy latch cleared; manually paused，paused 与 manual_pause 都应为 true。随后由操作者在网页点击开始（无活动轮次）或继续（暂停的活动轮次）。当前旧客户端如果再次执行 Recover 仍可能需要该命令；下次正常重载客户端后使用新版分类，不再需要兼容修复。恢复保留原 intervention_count 和已有评测记录，不改写历史标签；下一轮沿原规则取新的计数基线。
+
+网页调用的 bridge 同时检查服务的实际回复；若仍为 paused，返回明确失败原因，不再把服务返回 success 当作推理已继续。repair-pause 不适用于 RLT/其他模型、新协议客户端、真实示教中或硬件故障；这些情况按具体状态处理。
