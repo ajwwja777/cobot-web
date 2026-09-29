@@ -86,7 +86,7 @@ python3 scripts/console.py device can configure
 | 启动 ROS | `device roscore start` | `W/scripts/roscore_up.sh` → `C/scripts/roscore_up.sh` → `/opt/ros/noetic/bin/roscore -p 11311`；脚本将 ROS Master 放入后台 |
 | 启动机械臂 | `device arms start` | `W/scripts/arms_up.sh` → `C/scripts/arms_up.sh` → `roslaunch C/robot/arms/arms.launch` |
 | 启动相机 | `device cameras start` | `W/scripts/cameras_up.sh` → `C/scripts/cameras_up.sh` → `C/integrations/legacy_control/launch/multi_camera_shuai.launch` |
-| 停止机械臂 | `device arms stop` | 当前由 `W/app/backend/cobot_console/device_control.py` 核对登记进程身份、发送 SIGINT 并等待退出；不是调用一个尚不存在的 control/arms_down.sh |
+| 停止机械臂 | `device arms stop` | `C/src/cobot_control/device_control.py` 核对登记进程身份、向登记进程组发送 SIGINT 并等待退出；网页模块保留转发入口 |
 | 停止相机 | `device cameras stop` | 同上，对相机启动进程组执行停止 |
 | 停止 ROS | `device roscore stop` | 同上；先检查机械臂、相机依赖，仍运行时拒绝停止 ROS |
 | 选臂归位 | `device home run --target selection --arms mid,front-right --pose plug2` | `W/scripts/home.sh selected --targets mid,front-right --pose plug2 --yes` → `C/scripts/home.sh` → `C/robot/home.py` |
@@ -99,7 +99,7 @@ python3 scripts/console.py device can configure
 
 三相机 launch 进一步 include `$(find astra_camera)/launch/dabai.launch`。当前现场解析到 `/home/agilex/cobot_magic/camera_ws/src/ros_astra_camera/launch/dabai.launch`，运行编译后的 `camera_ws/devel/lib/astra_camera/astra_camera_node`。因此顶层入口在 control，相机公共驱动仍在登记的现场工作区。
 
-归位由 home.py 检查选择、位姿和控制状态，再调用已有协调器／后臂节点服务或相应中臂实现；不会另起一套前后臂控制权。正式位姿在 `/media/agilex/Getea1/jiaan/data/motion/poses/home_poses.yaml`。硬件诊断与部分启停规则目前仍在 web，后续边界整理尚未实施。
+归位由 home.py 检查选择、位姿和控制状态，再调用已有协调器／后臂节点服务或相应中臂实现；不会另起一套前后臂控制权。正式位姿在 `/media/agilex/Getea1/jiaan/data/motion/poses/home_poses.yaml`。硬件诊断和设备任务规则已归 control/src/cobot_control；网页接口保留兼容转发。
 
 ### 模型、采集和评测按钮
 
@@ -602,12 +602,41 @@ cd /home/agilex/jiaan/project/cobot-web
 
 ## 2026-09-29：场景与模型联动选择
 
-采集和部署使用同一个场景/模型选择组件：左侧选择场景，只列对应模型；选择“全部场景”可跨场景挑选模型，选择后自动定位所属场景。两页同步当前选择并记住浏览器偏好，过滤或选中不等于加载，仍需手动点击“加载模型”。
+采集和部署共用三段选择：Scene → Model → Steps（场景、模型家族、具体 checkpoint）。场景标识及模型/步数选项使用英文；选择 All scenes 可跨场景查看，选中 checkpoint 后定位对应场景。两页同步当前选择并记住浏览器偏好，过滤或选中不等于加载，仍需手动点击“加载模型”。
 
-选项显示模型家族、版本/步数及可用状态；完整权重路径位于选择框下方，可直接选取复制。不可用项在两页均置灰禁用，保留缺文件、仅终端或待适配等原因；没有可加载模型的场景显示明确提示。正在加载或执行活动轮次时锁定选择，不改当前任务。
+第三框显示版本/步数及可用状态，RLT 分列 Stage1、Learner 与 Actor；完整权重路径位于选择框下方，可直接选取复制。不可用项在两页均置灰禁用，保留缺文件、仅终端或待适配等原因；没有可加载模型的场景显示明确提示。正在加载或执行活动轮次时锁定选择，不改当前任务。
 
 分类来自现有登记的task字段；新增同类模型无需修改网页场景清单。CLI scripts/models.py 的模型ID、命令和底层运行协议保持不变。
 
 ### 采集与部署面板排列
 
-默认四框为“保存位置 | 模型 / 数据（部署为评估记录）| 采集或部署控制”。进入左下角 **设置 → 编辑布局**，拖动任一框的标题栏到另一位置，再点 **完成布局**。两页分别记住排列，刷新保留；**恢复默认位置** 会恢复默认网页布局。窄内容区依次排成单列，仍可上下拖动。模型卡内部可滚动查看完整路径及详情；布局调整不会启动任务或改变采集/部署参数。
+默认四框为“保存位置 | 模型 / 数据（部署为评估记录）| 采集或部署控制”。进入左下角 **设置 → 编辑布局**，拖动任一框的标题栏到另一位置，再点 **完成布局**。两页分别记住排列，刷新保留；**恢复默认位置** 会恢复默认网页布局。窄内容区依次排成单列，仍可上下拖动。设置卡默认至少 410px 高，完整权重路径无彩色底；模型详情默认折叠，展开后卡片增高，不在模型卡内上下滚动。两页保存位置均有浏览、检查并使用、最近目录和当前目录；部署不提供“启用模型”勾选框。布局调整不会启动任务或改变采集/部署参数。
+
+## 选臂记录位姿与单夹爪（2026-09-29）
+
+“目标位姿”用于归位；“位姿名称”可选择已有名称或输入新名称。“记录哪些臂”只决定读取/保存哪些实测值，不改变设备图上的归位选择。已有名称显示“替换所选臂位姿”，新名称显示“记录新位姿”。记录不移动机器人。
+
+- 只记录左前臂：左前、左后均可使用；右侧同理。
+- 记录前双臂：前后四臂可使用。重录前臂时清除该名称中同侧旧后臂覆盖值，使后臂复用新前臂值。
+- 同次记录前后四臂/五臂：各自保存实测值，后臂显式值优先。
+- 未勾选的其他臂、其他位姿名称保留。归位可单选、Ctrl 多选或框选，只提供所有所选臂都能解析的位姿。
+
+实现为 control/robot/home.py 实时读取→锁内合并→原子替换 YAML；后臂无独立值时由 resolve_selected 使用同侧前臂值。正式数据仍在 /media/agilex/Getea1/jiaan/data/motion/poses/home_poses.yaml，本批未改现场数据。
+
+终端例子（分别执行；归位和夹爪动作需现场准备）：
+
+~~~bash
+cd /home/agilex/jiaan/project/cobot-control
+# 只记录，不移动；同名只更新选择范围及同侧后臂共用关系。
+./scripts/home.sh capture --targets front-left,front-right --pose my_pose
+# 单臂/多臂归位，保留交互确认。
+./scripts/home.sh selected --targets front-left,rear-left --pose my_pose
+# 单夹爪保持当前开度的受控恢复；另一侧用 gripper-right。
+./scripts/recover.sh gripper-left
+# 单夹爪张开70mm、到位后停0.5秒、闭合；另一侧用 --side right。
+./scripts/home.sh gripper --side left --pose reinit
+~~~
+
+设备图选一个夹爪，按钮只操作该侧；Ctrl 选两个可处理双夹爪。“恢复”在详情底部独立整行。Recover 与“张开/闭合”不同：前者保留既有恢复协议，后者显式开合；两者保留控制权、反馈与故障检查。算法、动作参数、ROS 接口和自动归位规则未改变。
+
+CAN TX 堵塞检测及受控修复边界见 /home/agilex/jiaan/project/cobot-control/docs/DEPLOYMENT.md。本批未开启后台自动 CAN 复位。

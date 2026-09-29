@@ -26,18 +26,20 @@ test("choosing a model from all scenes pairs its scene, retains weights path, an
     picker.update(models,"plug");
     const scene=w.document.getElementById("scene");
     scene.value="";scene.dispatchEvent(new w.Event("change"));
-    assert.equal(select.options.length,4);
+    assert.equal(select.options.length,3); // Steps are scoped to RLT.
+    const family=w.document.getElementById("model-family");
+    family.value="π0.5";family.dispatchEvent(new w.Event("change"));
     select.value="pot";select.dispatchEvent(new w.Event("change"));
     assert.equal(scene.value,"in_the_pot");
     assert.deepEqual([...select.options].map(o=>o.value),["","pot"]);
-    assert.match(select.selectedOptions[0].textContent,/DAgger 2000\+3000/);
+    assert.match(select.selectedOptions[0].textContent,/DAgger 2000 \+ 3000/);
     assert(!select.selectedOptions[0].textContent.includes("/weights/"));
     assert.match(w.document.getElementById("model-path").textContent,/\/weights\/pi05/);
     assert.equal(changes.at(-1).modelId,"pot");
     w.CobotPreferences.language="en";
     w.document.dispatchEvent(new w.Event("cobot:language"));
     assert.equal(scene.getAttribute("aria-label"),"Scene");
-    assert.equal(select.getAttribute("aria-label"),"Model");
+    assert.equal(select.getAttribute("aria-label"),"Steps");
     assert(!/[\u4e00-\u9fff]/u.test(w.document.getElementById("picker").textContent));
     picker.update([...models,{id:"other",task:"new_scene",family:"New model",available:true}],"plug");
     assert.equal(select.value,"pot"); // Heartbeats and catalog growth preserve the user's choice.

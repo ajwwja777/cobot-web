@@ -6,26 +6,43 @@
   const text = (zh, en) => english() ? en : zh;
   const taskOf = model => String(model?.task || "unspecified");
   const available = model => Boolean(model?.available) && model?.capabilities?.load !== false;
-  const scenes = {
-    plug_insertion: ["插孔", "Plug insertion"],
-    in_the_pot: ["放入锅中", "In the pot"],
-    lift_book: ["抬书", "Lift book"],
-    put_two_fruits: ["放置两种水果", "Put two fruits"],
-    base: ["基础模型", "Base models"],
-    unspecified: ["未指定场景", "Unspecified scene"]
-  };
-  function sceneLabel(task) {
-    const name = scenes[task];
-    return name ? text(...name) + " · " + task : task;
+  const familyOf = model => String(model?.family || model?.kind || "Unregistered");
+  const sceneLabel = task => task;
+  function stepLabel(model) {
+    const parts = [];
+    if (model.family === "RLT" || model.kind === "rlt") {
+      parts.push("Stage1 " + (model.stage1_step ?? model.base_step ?? "?"));
+      if (model.stage !== "stage1") parts.push((model.stage || "warmup") + " " + (model.learner_step ?? model.step ?? "?"));
+      if (model.actor_version >= 0 && model.actor_version != null) parts.push("Actor " + model.actor_version);
+    } else if (model.parent_step != null) parts.push("DAgger " + model.parent_step + " + " + (model.step ?? "?"));
+    else parts.push(model.step == null ? "Steps unknown" : "Step " + model.step);
+    const status = available(model) ? "available" : ({
+      cli_only: "unavailable: CLI only", base_model: "base dependency",
+      missing_files: "unavailable: missing files", unregistered: "unavailable: unregistered"
+    }[model.availability] || "unavailable");
+    return parts.join(" · ") + " · " + status;
+  }
+  function renderDetails(container, model) {
+    if (!container) return;
+    const rows = model ? [
+      ["Model", familyOf(model)], ["Task", taskOf(model)], ["Base model", model.base_checkpoint],
+      ["Training lineage", model.training_lineage], ["Launch command", model.cli_command], ["Stage1 checkpoint", model.stage1_step],
+      ["Learner step", model.learner_step], ["Actor version", model.actor_version],
+      ["Training steps", model.step], ["Control rate", model.control_hz ? model.control_hz + " Hz" : null],
+      ["Action mode", model.deterministic === true ? "Deterministic / no exploration" : model.kind === "pi05" ? "Original RTC inference" : null],
+      ["Validation", model.validation], ["Availability", available(model) ? "Available" : reason(model)]
+    ].filter(([,v]) => v != null && v !== "") : [];
+    const signature = JSON.stringify(rows);
+    if (container.dataset.signature === signature) return;
+    container.dataset.signature = signature;
+    container.replaceChildren(...rows.flatMap(([k,v]) => [node("dt",k),node("dd",String(v))]));
   }
   function savedSelection() {
     try { return JSON.parse(root.localStorage.getItem(storageKey) || "null"); }
     catch (_) { return null; }
   }
   function reason(model) {
-    return english()
-      ? model.unavailable_reason_en || (available(model) ? "" : "Unavailable in the web")
-      : model.unavailable_reason || (available(model) ? "" : "网页不可用");
+    return model.unavailable_reason_en || (available(model) ? "" : "Unavailable in the web");
   }
   function setText(element, value) { if (element.textContent !== value) element.textContent = value; }
   function node(tag, value, className) {
@@ -37,6 +54,9 @@
   function create({container, modelSelect, sceneId, onChange = () => {}}) {
     const sceneSelect = node("select");
     sceneSelect.id = sceneId;
+    const familySelect = node("select"); familySelect.id = modelSelect.id + "-family";
+    const familyTitle = node("span"), familyField = node("label");
+    familyField.append(familyTitle, familySelect);
     const sceneTitle = node("span"), modelTitle = node("span");
     const sceneField = node("label"), modelField = node("label");
     sceneField.append(sceneTitle, sceneSelect);
@@ -48,13 +68,15 @@
     hint.setAttribute("role", "status");
     modelSelect.setAttribute("aria-describedby", path.id + " " + hint.id);
     container.classList.add("model-picker-pair");
-    container.replaceChildren(sceneField, modelField, path, hint);
-    let models = [], selected = "", scene = "", initialized = false, disabled = false, locked = false;
-    let sceneSignature = "", modelSignature = "";
+    container.replaceChildren(sceneField, familyField, modelField, path, hint);
+    let models = [], selected = "", scene = "", family = "", initialized = false, disabled = false, locked = false;
+    let sceneSignature = "", modelSignature = "", familySignature = "";
     const current = () => models.find(model => model.id === selected);
     function render() {
       setText(sceneTitle, text("场景", "Scene"));
-      setText(modelTitle, text("模型", "Model"));
+      setText(familyTitle, text("模型", "Model"));
+      setText(modelTitle, text("步数", "Steps"));
+      familySelect.setAttribute("aria-label", familyTitle.textContent);
       sceneSelect.setAttribute("aria-label", sceneTitle.textContent);
       modelSelect.setAttribute("aria-label", modelTitle.textContent);
       const tasks = [...new Set(models.map(taskOf))];
@@ -62,19 +84,30 @@
       if (sceneSignature !== nextSceneSignature) {
         sceneSignature = nextSceneSignature;
         sceneSelect.replaceChildren(...["", ...tasks].map(task => {
-          const option = node("option", task ? sceneLabel(task) : text("全部场景", "All scenes"));
+          const option = node("option", task ? sceneLabel(task) : "All scenes");
           option.value = task;
           return option;
         }));
       }
       if (sceneSelect.value !== scene) sceneSelect.value = scene;
-      const matching = models.filter(model => !scene || taskOf(model) === scene);
-      const labels = matching.map(model => root.CobotModelChoiceLabel(model, {compact: true}));
+      const sceneModels = models.filter(model => !scene || taskOf(model) === scene);
+      const families = [...new Set(sceneModels.map(familyOf))];
+      if (!families.includes(family)) family = families[0] || "";
+      const nextFamilySignature = JSON.stringify(families);
+      if (familySignature !== nextFamilySignature) {
+        familySignature = nextFamilySignature;
+        familySelect.replaceChildren(...families.map(value => {
+          const option = node("option", value); option.value = value; return option;
+        }));
+      }
+      familySelect.value = family;
+      const matching = sceneModels.filter(model => familyOf(model) === family);
+      const labels = matching.map(stepLabel);
       const nextModelSignature = JSON.stringify([english(), matching, labels]);
       if (modelSignature !== nextModelSignature) {
         modelSignature = nextModelSignature;
-        const placeholder = node("option", !models.length ? text("正在读取模型…", "Reading models…")
-          : matching.some(available) ? text("选择模型", "Choose a model") : text("该场景暂无可加载模型", "No loadable models in this scene"));
+        const placeholder = node("option", !models.length ? "Reading models…"
+          : matching.some(available) ? "Choose steps" : "No available checkpoints");
         placeholder.value = "";
         placeholder.disabled = true;
         modelSelect.replaceChildren(placeholder, ...matching.map((model, index) => {
@@ -99,18 +132,19 @@
         : models.length && !matching.some(available) ? text("当前场景的模型暂不可用，请查看灰色选项的原因或切换场景。", "Models in this scene are unavailable. Check the disabled options or choose another scene.") : "");
       hint.hidden = !hint.textContent;
       sceneSelect.disabled = disabled;
+      familySelect.disabled = disabled;
       modelSelect.disabled = disabled;
     }
     function notify(persist, source) {
       if (persist) {
-        root.localStorage.setItem(storageKey, JSON.stringify({scene, model: selected}));
+        root.localStorage.setItem(storageKey, JSON.stringify({scene, family, model: selected}));
         if (selected) {
           root.localStorage.setItem("cobot-capture-model", selected);
           root.localStorage.setItem("cobot-collection-model-id", selected);
         }
       }
       onChange({modelId: selected, scene, model: current(), source});
-      if (persist) root.dispatchEvent(new CustomEvent(eventName, {detail: {owner: sceneId, scene, model: selected}}));
+      if (persist) root.dispatchEvent(new CustomEvent(eventName, {detail: {owner: sceneId, scene, family, model: selected}}));
     }
     sceneSelect.addEventListener("change", () => {
       if (disabled) { render(); return; }
@@ -119,11 +153,17 @@
       render();
       notify(true, "user");
     });
+    familySelect.addEventListener("change", () => {
+      if (disabled) { render(); return; }
+      family = familySelect.value;
+      if (!available(current()) || familyOf(current()) !== family) selected = "";
+      render(); notify(true, "user");
+    });
     modelSelect.addEventListener("change", () => {
       const chosen = models.find(model => model.id === modelSelect.value);
       if (disabled || !available(chosen)) { render(); return; }
       selected = chosen.id;
-      scene = taskOf(chosen);
+      scene = taskOf(chosen); family = familyOf(chosen);
       render();
       notify(true, "user");
     });
@@ -136,6 +176,7 @@
       if (selection.scene && !models.some(model => taskOf(model) === selection.scene)) return;
       selected = chosen?.id || "";
       scene = chosen ? taskOf(chosen) : selection.scene || "";
+      family = chosen ? familyOf(chosen) : selection.family || "";
       render();
       notify(false, "peer");
     });
@@ -150,7 +191,8 @@
           if (scene && !models.some(model => taskOf(model) === scene)) scene = "";
           const fallback = models.find(model => available(model) && (!scene || taskOf(model) === scene));
           selected = preferredModel?.id || fallback?.id || "";
-          if (selected) scene = taskOf(models.find(model => model.id === selected));
+          if (selected) { scene = taskOf(current()); family = familyOf(current()); }
+          else family = saved?.family || "";
           initialized = true;
         }
         if (selected && !models.some(model => model.id === selected)) selected = "";
@@ -162,7 +204,7 @@
         const chosen = models.find(model => model.id === id);
         if (chosen && (loaded || available(chosen))) {
           selected = chosen.id;
-          scene = taskOf(chosen);
+          scene = taskOf(chosen); family = familyOf(chosen);
         }
         render();
         return selected;
@@ -172,5 +214,5 @@
       get scene() { return scene; }
     };
   }
-  root.CobotModelPicker = {create, available, sceneLabel};
+  root.CobotModelPicker = {create, available, sceneLabel, stepLabel, renderDetails};
 })(window);

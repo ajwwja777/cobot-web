@@ -316,3 +316,13 @@ def test_process_markers_accept_registered_migration_paths_only(monkeypatch):
     assert not device_control._matches_process_marker("roslaunch /someone-else/robot/arms/arms.launch", marker)
     assert not device_control._matches_process_marker("roslaunch " + marker + ".bak", marker)
     assert device_control._matches_process_marker("python /registered/cobot-platform/robot/home.py", "cobot-platform/robot/arms/home.py")
+
+
+@pytest.mark.parametrize("side",["left","right"])
+def test_individual_gripper_home_and_recovery_are_scoped(tmp_path,side):
+    launched=[]
+    control=DeviceController(tmp_path,launcher=lambda command,log:launched.append(command) or Process())
+    spec={"component":"home","action":"run","target":"gripper-"+side,"pose":"reinit"}
+    token=control.confirm(spec)["confirmation_token"]
+    control.start(spec,token)
+    assert launched[-1][-6:]==["gripper","--side",side,"--pose","reinit","--yes"]

@@ -62,6 +62,7 @@
     if(next)context={...context,...next};if(!mounted)return;
     updateCatalog();
     const rlt=isRlt(),use=useModel(),chosen=selectedModel(),state=modelState();
+    root.CobotModelPicker.renderDetails($('#collection-model-details'),chosen);
     const processing=modelBusy||root.CobotCollectionModel?.busy;
     const loading=root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading';
     const locked=active()||changing||context.busy||processing||loading;
@@ -154,8 +155,9 @@
     const old=hideContents(panel);hideContents(storage);
     const legacy=document.createElement('div');legacy.className='collection-legacy';page.append(legacy);legacy.append($('.rl-layout'),$('.rl-process-panel'));
     const use=$('#capture-use-model'),card=document.createElement('article');card.className='panel collection-configuration';
-    card.innerHTML='<div class="panel-head"><h3 data-zh="模型" data-en="Model">模型</h3></div><div class="session-settings-body"><div class="collection-model-row"></div><div class="button-grid collection-model-actions"></div><p id="collection-model-state" class="inline-status" role="status"></p></div>';
-    card.querySelector('.collection-model-row').append(use.closest('label'));
+    card.innerHTML='<div class="panel-head"><h3 data-zh="模型" data-en="Model">模型</h3></div><div class="session-settings-body"><div class="collection-model-row"></div><div class="button-grid collection-model-actions model-actions"></div><p id="collection-model-state" class="inline-status" role="status"></p><details class="model-details"><summary data-zh="模型详情" data-en="Model details">模型详情</summary><dl id="collection-model-details"></dl></details></div>';
+    use.closest('label').classList.add('session-model-toggle');
+    card.querySelector('.panel-head').append(use.closest('label'));
     const select=document.createElement('select');select.id='collection-model-select';
     const picker=document.createElement('div');card.querySelector('.collection-model-row').append(picker);
     modelPicker=root.CobotModelPicker.create({container:picker,modelSelect:select,sceneId:'collection-scene-select',onChange:selection=>{

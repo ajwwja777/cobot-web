@@ -6,20 +6,22 @@
   const operationName={load:"加载模型",unload:"释放模型",start:"开始部署",pause:"暂停",resume:"继续",success:"记录成功",failure:"记录失败",abort:"放弃本轮"};
   const outcomes={success:"成功",failure:"失败",abort:"放弃",start_failed:"启动失败"};
   let state=null, localBusy=false, selectedModel="", modelSignature="", selectedRecord="", records=[], recordKey="", lastNotice="", lastLoaded="", activeBefore=null,loadedSelectionKey="";
+  const selectableArms=["front-left","front-right","mid","rear-left","rear-right"];
+  const homeArms=()=>[...document.querySelectorAll("#deployment-home-arms input:checked")].map(input=>input.value);
   let homePoses={}, outputsBusy=false, statusBusy=false, recordRequest=0;
-  let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null;
+  let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null,directoryPicker=null;
   const modelPicker=window.CobotModelPicker.create({container:$("deployment-model-picker"),modelSelect:$("deployment-model"),sceneId:"deployment-scene",onChange:selection=>{selectedModel=selection.modelId;selectedRecord="";describeModel();renderControls();refreshRecords();}});
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
   function notify(text,error=false,tone=null){transportMessage=false;$("deployment-message").textContent=text;$("deployment-message").classList.toggle("error",error);window.CobotWorkspaceUI?.report(text,tone||(error?"error":"success"),"部署");}
   async function request(path, body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});let p;try{p=await r.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error("服务返回异常（HTTP "+r.status+"）");}if(!r.ok)throw new Error(typeof p.detail==="string"?p.detail:JSON.stringify(p.detail||p.error||r.status));return p;}catch(error){if(controller.signal.aborted||error.name==="AbortError"||error instanceof TypeError){const failure=new Error(controller.signal.aborted||error.name==="AbortError"?"请求超时（12 秒），正在重新连接":"连接中断，正在重新连接");failure.transport=true;throw failure;}throw error;}finally{clearTimeout(timer);}}
   function model(){return state?.models?.find(m=>m.id===selectedModel);}
-  function describeModel(){const m=model(),facts=$("deployment-facts");facts.replaceChildren();if(!m){renderControls();return;}
-    const rows=[["模型",m.family],["任务",m.task],["终端命令",m.cli_command],["适配状态",window.CobotPreferences?.language==="en"?(m.unavailable_reason_en||m.unavailable_reason):m.unavailable_reason],["基础模型",m.base_checkpoint],["训练来源",m.training_lineage],["训练步数",m.step?.toLocaleString()],["Stage 1 checkpoint",m.stage1_step],["Learner step",m.learner_step],["Actor 版本",m.actor_version],["控制频率",m.control_hz?m.control_hz+" Hz":null],["动作模式",m.deterministic===true?"固定均值 / 无探索":m.kind==="pi05"?"原 RTC 推理":"—"],["验证",m.validation]];
-    for(const [key,value] of rows){if(value==null||value==="")continue;facts.append(el("dt",key),el("dd",value));}
+  function describeModel(){const m=model(),facts=$("deployment-facts");if(!m){window.CobotModelPicker.renderDetails(facts,null);renderControls();return;}
+    window.CobotModelPicker.renderDetails(facts,m);
     window.CobotFeaturePaths?.update("deployment",{model:m,state});
     $("deploy-home-pose").dataset.preferred=m.home_pose;renderHomePoses();renderControls();
   }
-  function renderHomePoses(){const select=$("deploy-home-pose"),target=$("deploy-home-target").value;const previous=select.value,values=homePoses[target]||[];const preferred=select.dataset.preferred;select.replaceChildren(...values.map(v=>{const o=el("option",v);o.value=v;return o;}));select.value=values.includes(preferred)?preferred:values.includes(previous)?previous:(values[0]||"");if(values.length)delete select.dataset.preferred;}
+  function renderHomePoses(){const select=$("deploy-home-pose"),target=$("deploy-home-target").value;const previous=select.value,arms=homeArms(),values=target==="selection"?(arms.length?arms.reduce((shared,arm)=>shared.filter(pose=>(homePoses[arm]||[]).includes(pose)),homePoses[arms[0]]||[]):[]):homePoses[target]||[];
+    $("deployment-home-arms").hidden=target!=="selection";const preferred=select.dataset.preferred;select.replaceChildren(...values.map(v=>{const o=el("option",v);o.value=v;return o;}));select.value=values.includes(preferred)?preferred:values.includes(previous)?previous:(values[0]||"");if(values.length)delete select.dataset.preferred;}
   function renderControls(){if(!state)return;const uncertain=Boolean(connectionError||state.status_stale),busy=localBusy||Boolean(state.operation),loaded=["ready","paused","running"].includes(state.phase),active=Boolean(state.active),same=state.model?.id===selectedModel;
     $("deploy-load").disabled=busy||uncertain||state.phase!=="offline"||!window.CobotModelPicker.available(model());
     $("deploy-unload").disabled=busy||state.phase==="offline";
@@ -31,6 +33,7 @@
     $("deployment-storage-apply").disabled=active;
     recentDirectories?.setDisabled(active);recentDirectories?.update();
     $("deployment-storage").disabled=false;
+    $("deployment-recording-directory").textContent=state.data_root||"—";
     $("deploy-home").disabled=busy||uncertain||!$("deploy-home-pose").value;
     modelPicker.setDisabled(busy||active||state.phase==="loading");
     $("deployment-gate").textContent=uncertain?"状态待确认":phaseName[state.phase]||state.phase;
@@ -79,7 +82,7 @@
     renderStatus(next);
   }catch(error){connectionError=error.message;if(state)renderControls();else $("deployment-load-state").textContent=connectionError;}finally{statusBusy=false;}}
   async function act(action){if(localBusy)return false;localBusy=true;renderControls();notify(action==="load"?window.CobotModelLoading(model()).zh:operationName[action]+"中",false,"running");try{let next=await request("/api/deployment/action",{action,model_id:selectedModel,trial_id:state?.active?.id||null});renderStatus(next);window.CobotOutputPanel?.follow({id:'deployment',component:'deployment'});for(let i=0;next.operation&&i<150;i++){await sleep(600);next=await request("/api/deployment/status");renderStatus(next);}if(next.operation)throw new Error("操作仍在进行，请到输出页查看进度");if(next.error)throw new Error(next.error);if(action!=="load")notify(operationName[action]+"完成");else if(!["ready","paused","running"].includes(next.phase))notify(window.CobotModelLoading(next.model||model()).zh);await refreshRecords();return true;}catch(error){if(error.transport){connectionError=error.message;notify(error.message+"；操作结果待确认，请勿重复点击。后台操作可能仍在执行。",true);transportMessage=true;}else notify(error.message,true);return false;}finally{localBusy=false;renderControls();}}
-  async function home(confirmed=false){const pose=$("deploy-home-pose").value;if(!pose)return;if(state?.active){if(!await act("abort"))return;}return window.CobotDeviceUI?.execute({component:"home",action:"run",target:$("deploy-home-target").value,pose},"归位到 "+pose,confirmed);}
+  async function home(confirmed=false){const pose=$("deploy-home-pose").value;if(!pose)return;if(state?.active){if(!await act("abort"))return;}return window.CobotDeviceUI?.execute({component:"home",action:"run",target:$("deploy-home-target").value,...($("deploy-home-target").value==="selection"?{arms:homeArms()}:{}),pose},"归位到 "+pose,confirmed);}
   async function terminal(action){if(await act(action)){if($("deploy-auto-home").checked)await home(true);}}
   async function refreshRecords(){if(!state)return;const token=++recordRequest;const key=selectedModel;try{const result=await request("/api/deployment/records?model_id="+encodeURIComponent(key));if(token!==recordRequest)return;records=result.records;$("deploy-total").textContent=result.total;$("deploy-success-count").textContent=result.success;$("deploy-failure-count").textContent=result.failure;$("deploy-rate").textContent=result.rate==null?"—":(result.rate*100).toFixed(1)+"%";$("deploy-autonomous").textContent="自主成功率 "+(result.autonomous_rate==null?"—":(result.autonomous_rate*100).toFixed(1)+"%");$("deploy-aborted").textContent="放弃 "+result.aborted;$("deployment-result-scope").textContent="当前模型";
       const select=$("deployment-records");select.replaceChildren(...records.map(r=>{const o=el("option",new Date(r.started_at*1000).toLocaleString()+" · "+(outcomes[r.outcome]||"进行中")+(r.intervened?" · 人工介入":""));o.value=r.id;return o;}));if(!records.length){const o=el("option","暂无记录");select.append(o);}if(records.some(r=>r.id===selectedRecord))select.value=selectedRecord;else selectedRecord=records[0]?.id||"";renderFrames();
@@ -98,13 +101,24 @@
   $("deployment-storage-apply").addEventListener("click",async()=>{storageInitialized=true;try{const result=await request("/api/deployment/storage",{data_root:$("deployment-storage").value.trim()});state.data_root=result.data_root;recentDirectories?.remember(result.data_root);delete $("deployment-storage").dataset.dirty;selectedRecord="";await refreshRecords();notify("保存位置已更新");}catch(error){notify(error.message,true);}});
   $("deployment-storage").addEventListener("input",()=>{$("deployment-storage").dataset.dirty="true";});
   $("deployment-records").addEventListener("change",()=>{selectedRecord=$("deployment-records").value;renderFrames();});
+  for(const [index,arm] of selectableArms.entries()){
+    const label=el("label"),input=el("input"),caption=el("span");
+    input.type="checkbox";input.value=arm;input.checked=arm!=="mid";
+    caption.dataset.zh=["左前臂","右前臂","中臂","左后臂","右后臂"][index];
+    caption.dataset.en=["Front left","Front right","Middle","Rear left","Rear right"][index];
+    caption.textContent=window.CobotPreferences?.language==="en"?caption.dataset.en:caption.dataset.zh;
+    label.append(input,caption);$("deployment-home-arms").append(label);
+    input.addEventListener("change",()=>{renderHomePoses();renderControls();});
+  }
   $("deploy-home-target").addEventListener("change",()=>{renderHomePoses();renderControls();});$("deploy-home").addEventListener("click",()=>home());
   for(const id of ["outputs-filter","outputs-history"])$(id).addEventListener("change",refreshOutputs);$("outputs-refresh").addEventListener("click",refreshOutputs);
-  document.addEventListener("keydown",event=>{if(!document.querySelector('[data-page="deployment"].active')||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.target.closest("input,select,textarea,[contenteditable=true]")||document.querySelector("dialog[open]"))return;const action=event.key==="ArrowRight"?state?.active?(state.phase==="running"?"pause":"resume"):"start":({ArrowUp:"success",ArrowDown:"failure",ArrowLeft:"abort"}[event.key]);if(!action)return;event.preventDefault();const button=$("deploy-"+action);if(button&&!button.disabled)button.click();});
+  document.addEventListener("keydown",event=>{if(!document.querySelector('[data-page="deployment"].active')||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.target.closest("input,select,textarea,[contenteditable=true]")||document.querySelector("dialog[open]"))return;const action=event.key===" "||event.key==="Spacebar"?(state?.active?(state.phase==="running"?"pause":"resume"):null):event.key==="ArrowRight"?state?.active?(state.phase==="running"?"pause":"resume"):"start":({ArrowUp:"success",ArrowDown:"failure",ArrowLeft:"abort"}[event.key]);if(!action)return;event.preventDefault();const button=$("deploy-"+action);if(button&&!button.disabled)button.click();});
   window.addEventListener("cobot:model-default",event=>{selectedModel=modelPicker.select(event.detail);modelSignature="";poll();});
   window.CobotDeploymentUI={get state(){return state;},set state(value){state=value;},poll,refreshOutputs};
   document.querySelector('[data-view="outputs"]').addEventListener("click",refreshOutputs);document.querySelector('[data-view="deployment"]').addEventListener("click",()=>{poll();refreshRecords();});
   async function devices(){try{const d=await request("/api/console/devices");homePoses=d.home_poses||{};renderHomePoses();renderControls();}catch(_){} }
+  directoryPicker=window.CobotPathPicker.create({input:$("deployment-storage"),panel:$("deployment-directory-browser"),list:$("deployment-directory-options"),hint:$("deployment-directory-hint"),fetchDirectories:path=>request("/api/segmented-teach/storage/directories?path="+encodeURIComponent(path)),storage:localStorage,storageKey:"cobot-recent-evaluation-paths",onChange:()=>$("deployment-storage").dataset.dirty="true"});
+  $("deployment-storage-browse").addEventListener("click",()=>directoryPicker.refresh());
   recentDirectories=window.CobotPathPicker?.recentSelector?.({input:$("deployment-storage"),id:"deployment-recent-directories",storage:localStorage,storageKey:"cobot-recent-evaluation-paths",extraPaths:()=>state?.recent_data_roots||[],onSelect:()=>$("deployment-storage-apply").click()});
   renderFrames();poll();devices();setInterval(()=>{if(!document.hidden){poll();if(document.querySelector('[data-page="outputs"].active'))refreshOutputs();}},1000);setInterval(()=>{if(document.querySelector('[data-page="deployment"].active'))devices();},15000);
 })();

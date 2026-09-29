@@ -114,7 +114,8 @@ test("collection and deployment share scene filtering, disabled options and sele
     const $=id=>w.document.getElementById(id);
     for(const id of ["collection-model-select","deployment-model"]){
       assert.equal($(id).querySelector('option[value="missing-plug"]').disabled,true);
-      assert.equal($(id).querySelector('option[value="no-load"]').disabled,true);
+      assert.equal($(id).querySelector('option[value="no-load"]'),null); // Different family.
+      assert([...$(id+"-family").options].some(o=>o.value==="External"));
       assert.equal([...$(id).options].some(o=>o.value==="pi05-in-the-pot-dagger"),false);
       assert(!$(id).selectedOptions[0].textContent.includes("/models/"));
     }
@@ -131,6 +132,13 @@ test("collection and deployment share scene filtering, disabled options and sele
     assert.equal($("collection-scene-select").value,"in_the_pot");
     assert.match($("collection-model-select-path").textContent,/step_3000/);
     assert.equal(requests.length,0); // Filtering/selecting never loads or starts a Session.
+    $("deployment-scene").value="plug_insertion";
+    $("deployment-scene").dispatchEvent(new w.Event("change"));
+    $("deployment-model-family").value="External";
+    $("deployment-model-family").dispatchEvent(new w.Event("change"));
+    assert.equal($("deployment-model").querySelector('option[value="no-load"]').disabled,true);
+    assert.equal($("collection-model-select-family").value,"External");
+    assert.equal($("deploy-load").disabled,true);
     $("deployment-scene").value="lift_book";
     $("deployment-scene").dispatchEvent(new w.Event("change"));
     assert.equal($("deployment-model").value,"");

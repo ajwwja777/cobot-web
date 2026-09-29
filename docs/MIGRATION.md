@@ -381,3 +381,12 @@ A6000设备/任务/健康回归100项通过，包含消息顺序、逐步失能�
 
 
 本批发布：control ace3b1f / web fdd6cdc 已push并核验远端，Cobot 146/197文件SHA一致。模型offline、无活动采集/归位/恢复/CAN任务时仅重载8015；臂PID1318293和相机PID1317979保持不变，正式API七个设备健康、五路TX队列为空。未请求运动。回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-control/outputs/diagnostics/teach-release-20260929/release.json；Cobot /home/agilex/jiaan/project/cobot-control/runtime/diagnostics/teach-release-20260929/release.json。用户已确认上一版进入示教不闪黄；本版运动/退出的实际连续操作颜色仍待用户观察，不能把空闲API检查作为动作验收。
+
+
+## 2026-09-29：三段模型选择、共用模板及选臂位姿
+
+采集/部署共用 Scene→Model→Steps；场景与模型选项英文，RLT Stage1/Learner/Actor 分列，不可用项一致禁用。两页保存位置/模型使用相同几何布局和控件，部署无启用模型勾选；详情默认折叠、展开增高，权重路径去彩色底，编辑布局拖动保留。部署增加自选归位臂。设备详情支持已有/新位姿名、勾选记录臂；底部独立 Recover，单夹爪开合/恢复分别分发到指定侧。
+
+44项Node测试通过；相关Python回归404项通过。Playwright用本地静态文件和现场只读GET、拦截全部非GET，在1800/1200/760宽度验证两页上排坐标/选择框一致、权重背景透明、展开无内部滚动、无JS异常。证据在 outputs/model-pose-layout-20260929/（不入Git）；实时流屏蔽，截图不用于相机验收。
+
+发布前已有在线RLT加载进程，并观察到 session=fault / task5_start_failed: recorder_not_ready；未由只读预览触发。本批不声称修复此采集错误，不自动释放模型/结束Session或启动推理。发布前后核验任务PID和Session，真机位姿/夹爪动作仍待现场验收。

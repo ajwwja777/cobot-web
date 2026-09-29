@@ -24,7 +24,7 @@
   const state = {devices:null, cameras:null, host:null, lastDevices:0, lastCameras:0, lastHost:0,
     focus:"front-right", selected:new Set(["front-right"]), busy:false, pollBusy:false, lastAlert:"", actionStarted:false,
     rearModes:{}, rearExitAt:{}, lastJob:"",customGroups:{},activeGroup:null,
-    shortcutOrder:[],draggedShortcut:null,suppressShortcutClickUntil:0};
+    shortcutOrder:[],draggedShortcut:null,suppressShortcutClickUntil:0,captureSelectionKey:null};
   try {
     const saved=JSON.parse(root.localStorage?.getItem("cobot-spatial-groups-v1")||"{}");
     if(saved && typeof saved==="object" && !Array.isArray(saved))
@@ -85,8 +85,8 @@
     section.innerHTML=`<div class="spatial-card"><header class="spatial-head"><h3 id="spatial-heading"></h3><div class="spatial-quick-groups" id="spatial-quick-groups"></div><button type="button" id="spatial-save-group">保存组合</button></header>${sceneMarkup()}</div><div class="spatial-detail"><div class="spatial-detail-head"><div><h3 id="spatial-focus-name"></h3><span class="spatial-phase" id="spatial-focus-phase"></span></div></div>
       <p class="spatial-detail-value" id="spatial-focus-detail"></p><div class="spatial-selection" id="spatial-selection"></div>
       <div class="spatial-actions" id="spatial-arm-actions"><label><span id="spatial-pose-label"></span><select id="spatial-pose"></select></label>
-        <div class="spatial-button-row"><button type="button" id="spatial-home"></button><button type="button" id="spatial-recover" class="secondary"></button></div>
-        <label><span id="spatial-capture-label"></span><input id="spatial-capture-name" maxlength="64" autocomplete="off"></label><div class="spatial-button-row"><button type="button" id="spatial-capture" class="secondary"></button><button type="button" id="spatial-pose-delete" class="danger">删除位姿</button></div><small id="spatial-action-limit"></small><small class="spatial-config-path" id="spatial-config-path"></small></div>
+        <button type="button" id="spatial-home"></button>
+        <div id="spatial-pose-recording"><label><span id="spatial-capture-label"></span><input id="spatial-capture-name" list="spatial-pose-names" maxlength="64" autocomplete="off"></label><datalist id="spatial-pose-names"></datalist><fieldset class="spatial-capture-arms" id="spatial-capture-arms"><legend id="spatial-capture-arms-label"></legend></fieldset><div class="spatial-button-row"><button type="button" id="spatial-capture" class="secondary"></button><button type="button" id="spatial-pose-delete" class="danger">删除位姿</button></div><small id="spatial-action-limit"></small><small class="spatial-config-path" id="spatial-config-path"></small></div><button type="button" id="spatial-recover" class="secondary"></button></div>
       <div class="spatial-actions" id="spatial-computer-actions" hidden><div class="spatial-computer-facts" id="spatial-computer-facts"></div><div class="spatial-button-row"><button type="button" id="spatial-can"></button><button type="button" id="spatial-can-reset" class="secondary"></button></div><div class="spatial-button-row"><button type="button" id="spatial-ros-start">启动 ROS</button><button type="button" id="spatial-ros-stop" class="secondary">停止 ROS</button></div><div class="spatial-button-row"><button type="button" id="spatial-arms-start">启动机械臂</button><button type="button" id="spatial-arms-stop" class="secondary">停止机械臂</button></div><div class="spatial-button-row"><button type="button" id="spatial-cameras-start">启动相机</button><button type="button" id="spatial-cameras-stop" class="secondary">停止相机</button></div><button type="button" id="spatial-host" class="secondary"></button></div>
       <div class="spatial-actions" id="spatial-camera-actions" hidden><div id="spatial-camera-facts"></div><button type="button" id="spatial-open-cameras" class="secondary"></button></div>
     </div>`;
@@ -102,7 +102,12 @@
     $("#spatial-recover").addEventListener("click",recover);
     $("#spatial-capture").addEventListener("click",capture);
     $("#spatial-pose-delete").addEventListener("click",deletePose);
-    $("#spatial-pose").addEventListener("change",renderActions);
+    $("#spatial-pose").addEventListener("change",()=>{$("#spatial-capture-name").value=$("#spatial-pose").value;renderActions();});
+    for(const arm of armIds){
+      const label=document.createElement("label"),box=document.createElement("input"),caption=document.createElement("span");
+      box.type="checkbox";box.value=arm;caption.dataset.armName=arm;label.append(box,caption);
+      $("#spatial-capture-arms").append(label);box.addEventListener("change",renderActions);
+    }
     $("#spatial-capture-name").addEventListener("input",renderActions);
     $("#spatial-can").addEventListener("click",()=>$("#device-can")?.click());
     $("#spatial-can-reset").addEventListener("click",()=>$("#device-can-reset")?.click());
@@ -300,6 +305,7 @@
     text("#spatial-capture-label","位姿名称","Pose name");
     text("#spatial-home","归位","Home"); text("#spatial-recover","恢复","Recover");
     text("#spatial-capture","记录位姿","Capture pose");
+    text("#spatial-capture-arms-label","记录哪些臂","Record arms");
     text("#spatial-can","配置 CAN","Configure CAN"); text("#spatial-can-reset","重置 CAN","Reset CAN");
     text("#spatial-host","本机参数","Host settings");text("#spatial-open-cameras","查看相机","View cameras");
     text("#spatial-pose-delete","删除位姿","Delete pose");
@@ -354,25 +360,46 @@
   }
   function renderActions() {
     const target=selectedTarget(),ids=[...state.selected].filter(id=>armIds.includes(id)),available=state.devices?.home_poses||{};
-    const poses=target==="gripper"?["reinit"]:ids.length?ids.reduce((shared,id)=>shared.filter(pose=>(available[id]||[]).includes(pose)),available[ids[0]]||[]):[];
+    const grips=[...state.selected].filter(id=>gripperIds.includes(id));
+    const poses=grips.length?["reinit"]:ids.length?ids.reduce((shared,id)=>shared.filter(pose=>(available[id]||[]).includes(pose)),available[ids[0]]||[]):[];
     const select=$("#spatial-pose"), previous=select.value;
     if(JSON.stringify([...select.options].map(option=>option.value))!==JSON.stringify(poses))
       select.replaceChildren(...poses.map(pose=>{const option=document.createElement("option");option.value=pose;option.textContent=pose;return option;}));
     if(poses.includes(previous))select.value=previous;
     $("#spatial-home").disabled=state.busy||!poses.length;
-    $("#spatial-capture").disabled=state.busy||!ids.length||!$("#spatial-capture-name").value.trim();
+    const selectionKey=ids.join(",");
+    if(state.captureSelectionKey!==selectionKey){
+      state.captureSelectionKey=selectionKey;
+      for(const box of document.querySelectorAll("#spatial-capture-arms input"))box.checked=ids.includes(box.value);
+    }
+    for(const caption of document.querySelectorAll("#spatial-capture-arms [data-arm-name]"))caption.textContent=name(caption.dataset.armName);
+    $("#spatial-pose-recording").hidden=!ids.length;
+    const names=[...new Set(Object.values(available).flat())].filter(p=>p!=="reinit").sort();
+    const suggestions=$("#spatial-pose-names");
+    if(suggestions.dataset.names!==JSON.stringify(names)){
+      suggestions.dataset.names=JSON.stringify(names);
+      suggestions.replaceChildren(...names.map(p=>{const option=document.createElement("option");option.value=p;return option;}));
+    }
+    $("#spatial-capture").textContent=names.includes($("#spatial-capture-name").value.trim())?t("替换所选臂位姿","Replace selected arm poses"):t("记录新位姿","Capture new pose");
+    $("#spatial-capture-name").placeholder=t("选择已有名称或输入新名称","Choose an existing name or enter a new one");
+    $("#spatial-capture").disabled=state.busy||!document.querySelector("#spatial-capture-arms input:checked")||!$("#spatial-capture-name").value.trim();
     $("#spatial-pose-delete").disabled=state.busy||!ids.length||!select.value;
+    $("#spatial-recover").textContent=grips.length===1?t("恢复所选夹爪","Recover selected gripper"):grips.length===2?t("恢复双夹爪","Recover both grippers"):t("恢复所选机械臂","Recover selected arms");
+    $("#spatial-home").textContent=grips.length?t("张开 / 闭合所选夹爪","Open / close selected grippers"):t("归位","Home");
     $("#spatial-recover").disabled=state.busy||![...state.selected].some(id=>armIds.includes(id)||gripperIds.includes(id));
     $("#spatial-config-path").textContent=state.devices?.pose_config_path||"";
     $("#spatial-action-limit").textContent=ids.length&&!poses.length?
-      t("该组合暂无归位或位姿记录入口","No home or pose capture for this selection"):"";
+      t("此组合尚无共用位姿；可选择臂并记录新位姿。","No shared pose yet; select arms and capture a new pose."):"";
   }
   async function home() {
     const target=selectedTarget(), pose=$("#spatial-pose").value;
     if(!pose || state.busy)return;
-    if(target==="gripper"){
-      const oldTarget=$("#device-home-target"),oldPose=$("#device-home-pose");
-      oldTarget.value="gripper";oldTarget.dispatchEvent(new Event("change",{bubbles:true}));oldPose.value="reinit";$("#device-home").click();return;
+    const grips=[...state.selected].filter(id=>gripperIds.includes(id));
+    if(grips.length){
+      state.busy=true;renderActions();
+      try{await root.CobotDeviceUI.execute({component:"home",action:"run",target:grips.length===2?"gripper":grips[0],pose:"reinit"},t("所选夹爪张开后闭合","Open and close selected grippers"));}
+      finally{state.busy=false;renderActions();}
+      return;
     }
     const arms=[...state.selected].filter(id=>armIds.includes(id));if(!arms.length)return;
     state.busy=true;renderActions();
@@ -380,11 +407,11 @@
     finally{state.busy=false;renderActions();}
   }
   async function capture() {
-    const arms=[...state.selected].filter(id=>armIds.includes(id)),pose=$("#spatial-capture-name").value.trim();
+    const arms=[...document.querySelectorAll("#spatial-capture-arms input:checked")].map(box=>box.value),pose=$("#spatial-capture-name").value.trim();
     if(!arms.length || !pose)return;
     state.busy=true;renderActions();
     try{const job=await root.CobotDeviceUI.runSelection("capture",arms,pose);
-      if(job){const done=await root.CobotDeviceUI.waitForJob(job);if(done.current.phase==="completed"){state.devices=done.payload;render();}}
+      if(job){const done=await root.CobotDeviceUI.waitForJob(job);if(done.current.phase==="completed"){state.devices=done.payload;render();if([...$("#spatial-pose").options].some(option=>option.value===pose))$("#spatial-pose").value=pose;}}
     }catch(error){root.CobotWorkspaceUI?.report(`Pose capture failed: ${error.message}`,"error","设备");}
     finally{state.busy=false;renderActions();}
   }

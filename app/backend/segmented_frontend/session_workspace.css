@@ -3,7 +3,7 @@
   container:session-page / inline-size;
 }
 .page .session-workspace{
-  --session-settings-height:360px;
+  --session-settings-height:410px;
   display:grid!important;
   grid-template-columns:repeat(2,minmax(0,1fr))!important;
   grid-template-rows:minmax(var(--session-settings-height),auto) auto;
@@ -23,8 +23,8 @@
   flex:none;min-height:56px;margin:0;padding:14px 18px;display:flex;align-items:center;
 }
 .session-settings-body{
-  flex:1;min-height:0;min-width:0;max-height:calc(var(--session-settings-height) - 58px);overflow:auto;overscroll-behavior:contain;
-  scrollbar-gutter:stable;display:flex;flex-direction:column;gap:12px;padding:16px 18px;
+  flex:1;min-height:0;min-width:0;max-height:none;overflow:visible;
+  display:flex;flex-direction:column;gap:12px;padding:16px 18px;
 }
 .session-settings-body>*{flex-shrink:0}
 .session-settings-body>.storage-recent,.session-settings-body>.path-caption,
@@ -42,5 +42,31 @@
     grid-template-columns:minmax(0,1fr)!important;grid-template-rows:auto;
   }
   .page .session-workspace>[data-workspace-panel]{height:auto}
-  .session-settings-body{flex:auto;max-height:420px}
+  .session-settings-body{flex:auto;max-height:none}
 }
+
+/* Both pages use the same settings body and never nest vertical scrolling. */
+.session-settings-body>label,.session-settings-body>form>label{display:flex;flex-direction:column;gap:7px;margin:0;font-size:12px;color:var(--muted)}
+.session-settings-body input:not([type=checkbox]),.session-settings-body select{height:38px;min-height:38px;width:100%;box-sizing:border-box}
+.session-settings-body .button-row{display:flex;gap:8px}
+.session-settings-body .path-caption{font-size:12px;margin:0;overflow-wrap:anywhere}
+.session-settings-body .model-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-height:84px;align-content:start}
+.session-settings-body .model-actions button{height:38px;margin:0}
+.session-settings-body .deployment-load-state{max-height:none;overflow:visible;min-height:18px;line-height:18px;margin:0}
+.session-workspace .panel-head{box-sizing:border-box;justify-content:space-between}
+.session-workspace>[data-workspace-panel=controls] .deploy-buttons button{position:relative;min-height:56px;padding:10px 12px 20px}
+.session-workspace>[data-workspace-panel=controls] button[data-shortcut]::after{content:attr(data-shortcut);position:absolute;right:9px;bottom:5px;font-size:10px;opacity:.64;font-weight:400}
+
+.spatial-capture-arms{display:flex;flex-wrap:wrap;gap:8px 12px;border:0;padding:0;margin:12px 0;color:var(--muted);font-size:12px}
+#spatial-capture-arms legend{margin-bottom:8px;font-size:12px;line-height:18px;font-weight:500}
+.spatial-capture-arms label{display:flex;flex-direction:row;align-items:center;gap:5px;margin:0}
+.spatial-capture-arms input{width:15px;min-width:15px;height:15px;min-height:15px;margin:0}
+#spatial-pose-recording[hidden]{display:none!important}
+#spatial-recover{width:100%;margin-top:12px}
+#spatial-pose-recording>.spatial-button-row{margin-top:12px}
+
+.page .session-workspace .session-settings-body input:not([type=checkbox]),.page .session-workspace .session-settings-body select{margin:0!important}
+.page .session-workspace>[data-workspace-panel=storage],.page .session-workspace>[data-workspace-panel=model]{min-height:var(--session-settings-height)}
+.page .session-workspace .path-caption code{background:none;border:0;padding:0;overflow-wrap:anywhere}
+.page .session-workspace .deployment-control-panel .post-save-home{padding:12px;border:1px solid var(--line);border-radius:9px;margin:12px 0 0}
+.page .session-workspace .deployment-control-panel .post-save-home>.checkbox-row{margin:0 0 8px}

@@ -31,3 +31,56 @@ test("pointer drag selects arms, Ctrl adds/toggles, cancellation clears the box"
  await new Promise(resolve=>setImmediate(resolve));
  dom.window.close();
 });
+
+
+test("pose capture uses explicit arm checkboxes and allows replacing or naming a pose",async()=>{
+ const dom=new JSDOM('<div class="infrastructure-panel"><div class="device-dashboard"></div></div>',{url:"http://localhost",runScripts:"outside-only"});
+ const w=dom.window;w.setInterval=()=>0;w.CobotPreferences={language:"en"};
+ const devices={home_poses:{"front-left":["shared"],"rear-left":["shared"],"front-right":["shared"],"rear-right":["shared"],mid:["high"]}};
+ w.fetch=async url=>({ok:url==="/api/console/devices",json:async()=>devices});
+ const calls=[];
+ w.CobotDeviceUI={runSelection:async(...args)=>{calls.push(args);return {job_id:"capture-1"};},
+  waitForJob:async()=>({current:{phase:"completed"},payload:devices})};
+ w.eval(fs.readFileSync("segmented_frontend/spatial_ui.js","utf8"));w.CobotSpatialUI.mount();
+ await new Promise(resolve=>setImmediate(resolve));
+ const d=w.document;
+ assert.equal(d.querySelector("#spatial-capture-name").getAttribute("list"),"spatial-pose-names");
+ assert.deepEqual([...d.querySelectorAll("#spatial-pose-names option")].map(x=>x.value),["high","shared"]);
+ const choose=d.querySelector("#spatial-pose");choose.value="shared";choose.dispatchEvent(new w.Event("change"));
+ assert.equal(d.querySelector("#spatial-capture-name").value,"shared");
+ assert.equal(d.querySelector("#spatial-capture").textContent,"Replace selected arm poses");
+ for(const box of d.querySelectorAll("#spatial-capture-arms input")){box.checked=box.value==="front-left";box.dispatchEvent(new w.Event("change"));}
+ d.querySelector("#spatial-capture").click();await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(JSON.parse(JSON.stringify(calls[0])),["capture",["front-left"],"shared"]);
+ // Selecting record arms must not silently change which devices Home will move.
+ assert.deepEqual([...w.CobotSpatialUI.getSelection()],["front-right"]);
+ const input=d.querySelector("#spatial-capture-name");input.value="new_pose";input.dispatchEvent(new w.Event("input"));
+ assert.equal(d.querySelector("#spatial-capture").textContent,"Capture new pose");
+ d.querySelector("#spatial-capture").click();await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(JSON.parse(JSON.stringify(calls[1])),["capture",["front-left"],"new_pose"]);
+ for(const box of d.querySelectorAll("#spatial-capture-arms input")){box.checked=false;box.dispatchEvent(new w.Event("change"));}
+ assert.equal(d.querySelector("#spatial-capture").disabled,true);
+ assert.equal(d.querySelector("#spatial-arm-actions").lastElementChild.id,"spatial-recover");
+ dom.window.close();
+});
+
+test("individual gripper home and recovery dispatch only the selected side",async()=>{
+ const dom=new JSDOM('<div class="infrastructure-panel"><div class="device-dashboard"></div></div>',{url:"http://localhost",runScripts:"outside-only"});
+ const w=dom.window;w.setInterval=()=>0;w.fetch=async()=>({ok:false});w.CobotPreferences={language:"en"};
+ const home=[],recover=[];
+ w.CobotDeviceUI={execute:async spec=>home.push(spec),runRecover:async target=>{recover.push(target);return null;}};
+ w.eval(fs.readFileSync("segmented_frontend/spatial_ui.js","utf8"));w.CobotSpatialUI.mount();
+ await new Promise(resolve=>setImmediate(resolve));
+ for(const target of ["gripper-left","gripper-right"]){
+  w.document.querySelector('[data-spatial="'+target+'"]').dispatchEvent(new w.MouseEvent("click",{bubbles:true}));
+  assert.equal(w.document.querySelector("#spatial-pose-recording").hidden,true);
+  assert.equal(w.document.querySelector("#spatial-home").disabled,false);
+  w.document.querySelector("#spatial-home").click();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(home.at(-1).target,target);
+  w.document.querySelector("#spatial-recover").click();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(recover.at(-1),target);
+ }
+ assert.deepEqual(home.map(x=>x.target),["gripper-left","gripper-right"]);
+ assert.deepEqual(recover,["gripper-left","gripper-right"]);
+ dom.window.close();
+});
