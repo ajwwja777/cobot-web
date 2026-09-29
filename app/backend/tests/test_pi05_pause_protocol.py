@@ -45,7 +45,7 @@ def test_recover_protects_without_sticking_hil(gate, caller):
     assert gate.manual_pause and not gate.hil_active
     assert gate.intervention_count == 0
     saved = json.loads(gate.path.read_text())
-    assert saved["pause_caller"] == caller and saved["pause_source"] == "protective"
+    assert saved["pause_caller"] == caller and saved["pause_source"] in {"protective", "recovery"}
     assert saved["schema_version"] == 2
     assert send(gate, False).success and not gate.paused
 
@@ -204,3 +204,23 @@ def test_pause_does_not_reconcile_or_resume(monkeypatch):
     monkeypatch.setattr(bridge, "legacy_resume_needed", unexpected)
     result = bridge.command(ros, object, object, object, "pause")
     assert result["success"] and ros.calls == [True]
+
+
+def test_recover_retires_hil_but_preserves_protective_pause(gate):
+    send(gate, False)
+    send(gate, True, "/task2_teach_button_handover")
+    assert gate.hil_active
+    send(gate, True, "/task2_recover_cli_123")
+    assert gate.paused and gate.manual_pause and not gate.hil_active
+    assert gate.intervention_count == 1
+    assert send(gate, False).success and not gate.paused
+
+
+def test_new_pi05_resume_refuses_remaining_handover_fault(monkeypatch, tmp_path):
+    ros = fake_ros(fault="rear recovery not complete")
+    monkeypatch.setattr(bridge, "deployment_directory", lambda: tmp_path)
+    monkeypatch.setattr(bridge, "is_pi05", lambda _: True)
+    monkeypatch.setattr(bridge, "legacy_resume_needed", lambda _: False)
+    with pytest.raises(RuntimeError, match="blocked"):
+        bridge.command(ros, object, object, object, "resume")
+    assert ros.calls == []

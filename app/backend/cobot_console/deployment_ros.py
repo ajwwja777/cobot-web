@@ -112,12 +112,16 @@ def command_lock(directory):
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def legacy_resume_needed(directory):
+def is_pi05(directory):
     registry = directory / "process.json"
     if not registry.exists():
         return False
     saved = json.loads(registry.read_text())
-    if saved.get("model", {}).get("kind") != "pi05":
+    return saved.get("model", {}).get("kind") == "pi05"
+
+
+def legacy_resume_needed(directory):
+    if not is_pi05(directory):
         return False
     gate = json.loads((directory / "pi05-gate.json").read_text())
     return gate.get("schema_version", 1) == 1 and gate.get("paused") is True
@@ -140,8 +144,14 @@ def command(rospy, set_bool, trigger, string_type, action, arm=False):
             raise RuntimeError(armed.message)
     # This only runs for an explicit Start/Continue, never for load or polling.
     # Current already-loaded clients can therefore recover without reloading weights.
-    if action == "resume" and not arm and legacy_resume_needed(deployment_directory()):
-        repair_legacy_pause(rospy, set_bool, string_type, deployment_directory())
+    if action == "resume" and not arm:
+        directory = deployment_directory()
+        if is_pi05(directory):
+            # Recover may have retired a fault/HIL latch, but actual teaching
+            # or a remaining hardware coordinator fault must still block Start.
+            require_idle_handover(rospy, string_type)
+        if legacy_resume_needed(directory):
+            repair_legacy_pause(rospy, set_bool, string_type, directory)
     result = rospy.ServiceProxy("/task2/policy/set_paused", set_bool)(action == "pause")
     success, message = bool(result.success), result.message
     # Old pi05 returned success even when another latch prevented resume.

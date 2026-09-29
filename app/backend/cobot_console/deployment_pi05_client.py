@@ -36,6 +36,8 @@ class ConsolePauseGate(OriginalGate):
         node = caller.rsplit("/", 1)[-1]
         operator = node == "cobot_deployment_command" or node.startswith("cobot_deployment_command_")
         coordinator = node in {"task2_teach_button_handover", "task2_teach_handover_node"}
+        recovery = any(node == name or node.startswith(name + "_")
+                       for name in ("task2_recover_cli", "platform_front_pair_recovery"))
         requested = bool(request.data)
         with self._lock:
             if operator:
@@ -51,7 +53,12 @@ class ConsolePauseGate(OriginalGate):
                 # not become HIL, nor release an operator or protective pause.
                 if requested:
                     self.manual_pause = True
-                source = "protective"
+                    if recovery:
+                        # Recover resets the handover coordinator. Preserve its
+                        # protective manual pause, but retire the old HIL latch.
+                        # The bridge checks idle/fault state before operator resume.
+                        self.hil_active = False
+                source = "recovery" if recovery else "protective"
             self.pause_source, self.pause_caller = source, caller
             request.data = self.manual_pause or self.hil_active
             result = super().handle_set_paused(request)

@@ -426,3 +426,5 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 现场后续只读确认：用户自行于15:43开始eval-20260929T154302-897142dd，网页phase=running、gate paused=false/manual_pause=false，无操作错误、intervened=false。模型supervisor2019008、GPU服务2019058、RTC客户端2025877及两硬件supervisor PID/start_ticks保持。此结果证明残留锁已解除、用户开始请求通过；不冒充动作质量/整轮成功率验收。
 
 后续增强将旧客户端兼容协调放入显式开始/继续bridge，已完成离线回归；不在加载/状态轮询/Recover时自动恢复推理。同步脚本和文档无需重启网页/硬件/模型，新wrapper将在下次正常模型加载启用。现场回执：Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/pi05-recover-pause-20260929/repair.json；A6000对应outputs/pi05-recover-pause-20260929/。最终版本与逐文件SHA以.release.json和Git main为准。
+
+补充边界：Recover来自已登记的恢复节点时，在保持manual_pause=true下退休旧HIL锁，涵盖恢复前曾接管/协调器故障的情况；所有π0.5显式开始/继续均检查实际policy/空fault，未恢复完成或仍示教时不解除暂停。旧版兼容清理只在显式请求中执行。最终相关回归65通过/1既有跳过；新增自动继续与故障拒绝由隔离测试覆盖，未为验证调用真实开始或Recover。
