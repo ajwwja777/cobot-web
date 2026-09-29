@@ -20,7 +20,9 @@ MESSAGES = {
  "route": ("前臂控制通路未就绪", "Front-arm control route unavailable", "检查协调器与前臂节点；排除重复发布者后重新启动机械臂节点。", "Check the coordinator and front driver; remove duplicate publishers before restarting arm nodes."),
  "handover": ("示教协调器反馈缺失或故障", "Teach coordinator feedback missing or faulty", "查看机械臂输出；检查同步通路并执行同步恢复。", "Inspect Arms output, check the control route and run sync recovery."),
  "sync": ("示教已进入，前后臂同步尚未确认", "Teach active; paired synchronization not verified", "检查前后臂与协调器反馈；若持续异常，松开示教并检查输出。", "Check front/rear/coordinator feedback; if this persists, release teach and inspect output."),
- "teaching": ("前后臂示教同步正常", "Paired teach synchronization ready", "", ""),
+ "teach_transition": ("示教接管中", "Teaching takeover in progress", "", ""),
+ "sync_recovering": ("同步正在恢复确认", "Confirming synchronization recovery", "", ""),
+ "teaching": ("前后臂示教同步中", "Paired teaching active", "", ""),
  "idle": ("后臂已退出示教，正常失能", "Rear arm idle and disabled", "", ""),
  "gripper": ("夹爪报告故障", "Gripper reports a fault", "检查夹爪错误码、线缆和机械卡滞，再恢复夹爪。", "Inspect the gripper error code, cable and mechanical obstruction, then recover it."),
 }
@@ -41,7 +43,7 @@ class DeviceHealth(HardwareHealth):
         for value in values.values():
             zh, en, remedy_zh, remedy_en = MESSAGES[value["code"]]
             issue = value.get("sync_issue")
-            if issue in SYNC_MESSAGES:
+            if value["code"] == "sync" and issue in SYNC_MESSAGES:
                 zh, en = SYNC_MESSAGES[issue]
                 if issue == "stale":
                     suffix = ": " + ", ".join(value["stale_topics"])

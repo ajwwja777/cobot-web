@@ -127,7 +127,9 @@ def test_sync_diagnostic_names_the_failed_stage(issue):
     if issue=="stale":cache.put("coordinator_left",{"position":np.zeros(7)},8,8)
     if issue=="tracking":cache.put("coordinator_left",{"position":np.ones(7)},10,10)
     if issue=="joints":cache.put("front_left",{"position":[float("nan")]*7},10,10)
-    h=DeviceHealth().evaluate(systems,cache.snapshot(10))["front-left"]
+    observer=DeviceHealth()
+    observer.evaluate(systems,cache.snapshot(10),now=10)
+    h=observer.evaluate(systems,cache.snapshot(10),now=11.1)["front-left"]
     assert h["sync_issue"]==issue and h["phase"]=="warning"
     assert h["reason_en"] and h["remedy_en"] and h["reason_zh"] and h["remedy_zh"]
     if issue=="tracking":assert h["max_joint_error"]==1.
@@ -148,3 +150,87 @@ def test_unchanged_latched_coordinator_state_is_not_a_stale_heartbeat():
     cache.put("handover_fault","",1,1)
     health=DeviceHealth().evaluate(systems,cache.snapshot(10))
     assert all(health[n+"-left"]["phase"]=="teaching" for n in ("front","rear","gripper"))
+
+
+def moving_health(observer,systems,cache,at,error=0):
+    teach(systems,cache,stamp=at)
+    cache.put("coordinator_left",{"position":np.ones(7)*error},at,at)
+    return observer.evaluate(systems,cache.snapshot(at),now=at)
+
+
+def test_takeover_ros_can_skew_stays_blue_with_honest_transition_label():
+    systems,cache=fixture();observer=DeviceHealth()
+    teach(systems,cache)
+    # Button/coordinator are live while the slower CAN poll still says idle.
+    systems["arms_feedback"]["rear-left"].update(rear_mode="idle_disabled",enabled_joints=0)
+    h=observer.evaluate(systems,cache.snapshot(10),now=10)
+    assert all(h[n+"-left"]["phase"]=="teaching" for n in ("front","rear","gripper"))
+    assert h["front-left"]["code"]=="teach_transition" and not h["front-left"]["sync_confirmed"]
+    assert h["front-left"]["reason_zh"]=="示教接管中"
+    h=moving_health(observer,systems,cache,10.6)
+    assert h["front-left"]["code"]=="teaching" and h["front-left"]["sync_confirmed"]
+
+
+def test_missing_takeover_confirmation_eventually_turns_yellow():
+    systems,cache=fixture();observer=DeviceHealth()
+    teach(systems,cache)
+    systems["arms_feedback"]["rear-left"].update(rear_mode="idle_disabled",enabled_joints=0)
+    assert observer.evaluate(systems,cache.snapshot(10),now=10)["front-left"]["phase"]=="teaching"
+    h=observer.evaluate(systems,cache.snapshot(10),now=11.05)
+    assert h["front-left"]["phase"]=="warning" and h["front-left"]["sync_issue"]=="teach_feedback"
+
+
+def test_moving_brief_lag_never_flickers_but_continuous_lag_warns_and_recovers_stably():
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    for at,error in [(10.1,.16),(10.3,.20),(10.5,.14),(10.7,.18),(10.9,.13)]:
+        h=moving_health(observer,systems,cache,at,error)
+        assert all(h[n+"-left"]["phase"]=="teaching" for n in ("front","rear","gripper"))
+        assert h["front-left"]["max_joint_error"]==pytest.approx(error)
+    assert moving_health(observer,systems,cache,11,.2)["front-left"]["phase"]=="teaching"
+    h=moving_health(observer,systems,cache,11.81,.2)
+    assert h["front-left"]["code"]=="sync" and h["front-left"]["phase"]=="warning"
+    # Hysteresis: touching just below the warning threshold is not recovery.
+    assert moving_health(observer,systems,cache,12,.12)["front-left"]["phase"]=="warning"
+    assert moving_health(observer,systems,cache,12.1,.09)["front-left"]["code"]=="sync_recovering"
+    assert moving_health(observer,systems,cache,12.4,.08)["front-left"]["phase"]=="warning"
+    assert moving_health(observer,systems,cache,12.65,.08)["front-left"]["phase"]=="teaching"
+
+
+def test_short_stale_sample_preserves_blue_but_missing_stream_still_warns():
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    assert observer.evaluate(systems,cache.snapshot(10.3),now=10.3)["front-left"]["phase"]=="teaching"
+    assert observer.evaluate(systems,cache.snapshot(10.8),now=10.8)["front-left"]["phase"]=="warning"
+
+
+@pytest.mark.parametrize("fault",["front_teach","can_tx","hardware","disabled","node","route","ros","gripper","severe_tracking"])
+def test_real_faults_bypass_smoothing_even_during_a_transient(fault):
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    moving_health(observer,systems,cache,10.1,.17)
+    if fault=="front_teach":systems["arms_feedback"]["front-left"]["ctrl_mode"]=2
+    elif fault=="can_tx":systems["can_tx"]={"front-left":{"phase":"error","detail":"TX stalled"}}
+    elif fault=="hardware":systems["arms_feedback"]["front-left"]["error_code"]=1
+    elif fault=="disabled":systems["arms_feedback"]["front-left"]["enabled_joints"]=5
+    elif fault=="node":systems["arm_nodes"]["front-left"]=False
+    elif fault=="route":systems["control_routes"]["left"]["ready"]=False
+    elif fault=="ros":systems["roscore"]["phase"]="offline"
+    elif fault=="gripper":systems["arms_feedback"]["front-left"]["gripper"]["error_bits"]=1
+    elif fault=="severe_tracking":cache.put("coordinator_left",{"position":np.ones(7)*.51},10.1,10.1)
+    h=observer.evaluate(systems,cache.snapshot(10.1),now=10.11)
+    key="gripper-left" if fault=="gripper" else "front-left"
+    assert h[key]["phase"]=="warning"
+    assert h[key]["code"]==("sync" if fault=="severe_tracking" else fault)
+
+
+def test_teach_exit_clears_debounce_for_next_takeover():
+    systems,cache=fixture();observer=DeviceHealth()
+    moving_health(observer,systems,cache,10)
+    moving_health(observer,systems,cache,10.1,.2)
+    assert moving_health(observer,systems,cache,11,.2)["front-left"]["phase"]=="warning"
+    systems["arms_feedback"]["rear-left"].update(rear_mode="idle_disabled",enabled_joints=0)
+    cache.put("teach_left",False,12,12);cache.put("handover_mode","policy",12,12)
+    h=observer.evaluate(systems,cache.snapshot(12),now=12)
+    assert h["front-left"]["phase"]=="ready" and "left" not in observer.teach_display
+    assert moving_health(observer,systems,cache,13,.16)["front-left"]["code"]=="teach_transition"
