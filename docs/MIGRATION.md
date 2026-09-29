@@ -405,3 +405,10 @@ A6000设备/任务/健康回归100项通过，包含消息顺序、逐步失能�
 dagger原有snapshot调用先取clock再抢锁，可包含时间更新的callback而产生负age。离线确定复现并修复：实时预检传入clock，在缓存锁内取样；显式历史时间与真正未来时间戳仍按原语义。该机制能导致偶发未就绪，但旧HTTP 503丢失详细原因，不能认定全部历史失败都由它造成。数据格式、HIL/mask、模型算法、Replay及控制参数不改。
 
 254项Python回归通过、1项既有跳过；45项Node通过。证据：outputs/rlt-recorder-recovery-20260929/。发布、模型保持暂停的真实短录制及清理回执另记，不以预检代替写入验证。
+
+
+现场发布与写入验收：dagger dffc3f1 / web 8dd6983 已push并核验远端，同步45/198文件SHA一致；空闲时只重载8015，模型PID1436537及start_ticks9136435、机械臂PID1318293、相机PID1317979保持。正式预检/恢复API均成功，新静态资源SHA与A6000一致。
+
+Session始终stopped/policy_paused，模型保持加载，在独立 datasets/test/recorder_recovery_check_<UUID> 下连续3次直接录制，每次12帧HDF5成功提交；逐轮通过UUID绑定的discard接口删除，无剩余数据/标签/目录。未向Session发start/resume、未归位、未新增Replay，Session generation10及chunk_count18不变。最终模型ready、recorder idle、Session stopped，可手动开始Session；在线Learner仍5090、Actor2545。该验收证明当前录制器可连续写入，不冒充完整推理/HIL轮次或长期稳定性测试。
+
+回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/rlt-recorder-recovery-20260929/{release.json,passive-recording.json,final.json}；Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/rlt-recorder-recovery-20260929/。详细恢复方式见web/docs/WEB_RECOVERY.md。
