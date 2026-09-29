@@ -138,16 +138,21 @@
   select("audit-credit-episode",traces.map((r,i)=>[String(i),"Episode "+r.episode+" · step "+r.step+" · "+r.outcome]),creditEpisode);
   $("audit-credit-summary").textContent=t("只比较相同记录状态下的预测；绿色为人工/实际执行轨迹，不是自动成功轨迹。仅 HUMAN/MIXED 步参与改善比例和方向余弦；夹爪单独用米表示。","Predictions at the same recorded state. Green is human/recorded execution, not an autonomous successful trajectory. Improvement and direction cosine use HUMAN/MIXED steps only; gripper is shown separately in metres.");
   const parent=$("audit-credit-charts");parent.replaceChildren();parent.className="audit-action-grid";
+  const legend=el("div",null,"analysis-toolbar");legend.style.gridColumn="1 / -1";
+  for(const [label,color] of [["Reference","#8aa7ff"],["Actor","#e7b766"],["Executed / HIL","#64d8ad"]]){
+   const item=el("span","\u2501 "+label);item.style.color=color;legend.append(item);
+  }
+  parent.append(legend);
   const trace=traces[Number(creditEpisode)];if(!trace)return;
   for(let joint=0;joint<7;joint++){
    const box=el("div"),svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
-   svg.setAttribute("viewBox","0 0 430 180");svg.setAttribute("role","img");
+   svg.setAttribute("viewBox","0 0 300 120");svg.setAttribute("role","img");
    const label=joint===6?"Gripper (m)":"Joint "+(joint+1)+" (rad)";
    svg.setAttribute("aria-label",label+" reference actor executed");
    box.append(el("strong",label),svg);
    const series=trace.reference.map((a,i)=>({global_step:i,reference:a[joint],actor:trace.actor[i][joint],executed:trace.executed[i][joint]}));
    root.CobotDiagnosticsUI?.renderChart(svg,series,[{key:"reference",label:"Reference",color:"#8aa7ff"},{key:"actor",label:"Actor",color:"#e7b766"},{key:"executed",label:"Executed / HIL",color:"#64d8ad"}],
-    {xLabel:"Logical step (20 Hz)",yLabel:joint===6?"m":"rad",emptyText:"No actions"});
+    {xLabel:"Logical step (20 Hz)",yLabel:joint===6?"m":"rad",yFormat:v=>Number(v).toFixed(4),emptyText:"No actions"});
    parent.append(box);
   }
  }

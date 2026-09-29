@@ -116,7 +116,7 @@
       .filter(m=>m.rawX!==null&&m.rawX>=minX&&m.rawX<=maxX).map(m=>Object.assign(m,{x:px(m.rawX)}));
     return {empty:false,logY:!!opts.logY,
       x:{label:opts.xLabel||'step',ticks:xTicks,min:minX,max:maxX,format:opts.xFormat||(v=>v.toFixed(0))},
-      y:{label:yLabel,ticks:yTicks,min:minY,max:maxY,format:opts.logY?(v=>Math.pow(10,v).toPrecision(2)):(v=>v.toPrecision(3))},
+      y:{label:yLabel,ticks:yTicks,min:minY,max:maxY,format:opts.yFormat || (opts.logY?(v=>Math.pow(10,v).toPrecision(2)):(v=>v.toPrecision(3)))},
       series:plotted,markers};
   }
   function svgNode(name,attrs,text){const node=document.createElementNS('http://www.w3.org/2000/svg',name);for(const key of Object.keys(attrs||{}))node.setAttribute(key,String(attrs[key]));if(text!=null)node.textContent=text;return node;}

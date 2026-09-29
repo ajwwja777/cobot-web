@@ -22,12 +22,18 @@ class AnalysisReader:
             config = RLT/"configs/rlt/plug_v3_yyshadow/online_rl.yaml"
             record = read_json(RUNTIME_ROOT/"deployment/process.json")
             model = record.get("model", {})
+            profile_error = None
             if model.get("runtime_profile"):
                 from integrations.cobot_runtime.experiment_profiles import resolve
-                profile = resolve(model.get("id"), RLT)
-                root, config = profile["run_dir"], profile["config"]
+                try:
+                    profile = resolve(model.get("id"), RLT)
+                    if profile is None: raise ValueError("Runtime profile registration is missing")
+                    root, config = profile["run_dir"], profile["config"]
+                except (OSError, ValueError, KeyError) as exc:
+                    profile_error = str(exc)
             value = snapshot(root, config, run)
             value["run_root"] = str(root)
+            value["runtime_profile_error"] = profile_error
             if model.get("runtime_profile"):
                 # Shared offline diagnostics retain their own source/checkpoint
                 # provenance; live metrics/batches always come from this run.
