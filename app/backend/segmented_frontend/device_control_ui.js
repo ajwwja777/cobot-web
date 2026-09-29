@@ -1,6 +1,7 @@
 "use strict";
 (function expose(root){
  let HOME_POSES={front:['plug','origin','high','collect_start','yuheng'],rear:['plug','origin','high','collect_start','yuheng'],all:['plug','origin','high','collect_start','yuheng'],mid:['camera','origin','shuai','camara'],gripper:['reinit']};
+ const pendingRequests=new Set(), canEvents=new Map();
  const HOME_SELECTION_KEY='cobot-device-home-selection-v1';
  function readHomeSelection(){try{const value=root.localStorage&&root.localStorage.getItem(HOME_SELECTION_KEY);const parsed=value?JSON.parse(value):{};return parsed&&typeof parsed==='object'?parsed:{};}catch(_error){return {};}}
  function rememberHomeSelection(){try{const target=document.getElementById('device-home-target'),pose=document.getElementById('device-home-pose');if(root.localStorage&&target&&pose&&target.value&&pose.value)root.localStorage.setItem(HOME_SELECTION_KEY,JSON.stringify({target:target.value,pose:pose.value}));}catch(_error){}}
@@ -34,7 +35,28 @@
  }
  function message(text,error=false){const node=document.getElementById('device-message');if(node){node.textContent=text;node.classList.toggle('error',error);}if(root.CobotWorkspaceUI)root.CobotWorkspaceUI.report(text,error?'error':/正在|启动|等待|停止中/.test(text)?'running':'success','设备');}
  function resultMessage(job){if(job.phase==='stopped')return job.detail||'已停止，状态将变为灰色。';if(job.phase==='stopping')return job.detail||'已发送 Ctrl+C，正在等待进程退出。';if(job.adopted)return '检测到健康的既有进程，已接管停止入口；未重复启动。';if(job.component==='can')return 'CAN 操作已启动；进度和失败接口会显示在下方日志。';return '已启动 '+job.job_id+'；状态和日志会自动刷新。';}
- async function execute(operation,description,confirmed=false,secret=null){const trigger=typeof document!=='undefined'?document.activeElement:null;setBusy(trigger,true);try{const prepared=await jsonRequest('/api/console/devices/confirm',{method:'POST',body:JSON.stringify(operation)});if(!confirmed&&!root.confirm(root.CobotPreferences.text(description+'\n\n该操作只使用登记的固定入口。确认现场状态安全后继续。'))){setBusy(trigger,false);return null;}const actionOperation=secret==null?operation:{...operation,sudo_password:secret};const job=await jsonRequest('/api/console/devices/action',{method:'POST',body:JSON.stringify({operation:actionOperation,confirmation_token:prepared.confirmation_token})});root.CobotOutputPanel?.follow(job);message(resultMessage(job));followJob(job,trigger);return job;}catch(error){setBusy(trigger,false);message('操作未完成，请核对状态：'+error.message,true);return null;}}
+ async function execute(operation,description,confirmed=false,secret=null){
+  const key=operation.component;
+  if(pendingRequests.has(key))return null;
+  pendingRequests.add(key);
+  const trigger=typeof document!=='undefined'?document.activeElement:null;
+  const say=(zh,en)=>root.CobotPreferences?.language==='en'?en:zh;
+  setBusy(trigger,true);
+  message(say('正在核对请求… 尚未开始机械臂运动。','Checking request… Robot motion has not started.'));
+  try{
+   const prepared=await jsonRequest('/api/console/devices/confirm',{method:'POST',body:JSON.stringify(operation)});
+   const warning=description+'\n\n该操作只使用登记的固定入口。确认现场状态安全后继续。';
+   if(!confirmed&&!root.confirm(root.CobotPreferences?.text?.(warning)||warning)){
+    setBusy(trigger,false);message(say('操作已取消。','Operation cancelled.'));return null;
+   }
+   message(say('请求已发送，等待任务接收…','Request submitted; waiting for task acceptance…'));
+   root.CobotOutputPanel?.follow({id:key,component:key});
+   const actionOperation=secret==null?operation:{...operation,sudo_password:secret};
+   const job=await jsonRequest('/api/console/devices/action',{method:'POST',body:JSON.stringify({operation:actionOperation,confirmation_token:prepared.confirmation_token})});
+   root.CobotOutputPanel?.follow(job);message(resultMessage(job));followJob(job,trigger);return job;
+  }catch(error){setBusy(trigger,false);message(say('操作未完成，请核对状态：','Operation not confirmed; check status: ')+error.message,true);return null;}
+  finally{pendingRequests.delete(key);}
+ }
  function passwordDialog(title){return new Promise(resolve=>{const dialog=document.createElement('dialog');dialog.className='sudo-dialog';const form=document.createElement('form');form.method='dialog';const heading=document.createElement('h3');heading.textContent=title;const note=document.createElement('p');note.className='subtle';note.textContent='密码仅用于本次 sudo 认证，不写入配置、任务状态或日志。';const input=document.createElement('input');input.type='password';input.autocomplete='current-password';input.required=true;input.placeholder='sudo 密码';input.setAttribute('aria-label','sudo 密码');const buttons=document.createElement('div');buttons.className='button-row sudo-dialog-actions';const cancel=document.createElement('button');cancel.type='button';cancel.className='ghost';cancel.textContent='取消';const submit=document.createElement('button');submit.type='submit';submit.textContent='继续';buttons.append(cancel,submit);form.append(heading,note,input,buttons);dialog.appendChild(form);document.body.appendChild(dialog);let settled=false;function finish(value){if(settled)return;settled=true;input.value='';dialog.close();dialog.remove();resolve(value);}cancel.addEventListener('click',()=>finish(null));dialog.addEventListener('cancel',event=>{event.preventDefault();finish(null);});form.addEventListener('submit',event=>{event.preventDefault();const value=input.value;if(value)finish(value);});dialog.showModal();input.focus();});}
  async function runCan(action){let password=await passwordDialog(action==='reset'?'CAN 重置认证':'CAN 配置认证');if(password==null)return;const operation={component:'can',action,target:'task2'};const description=action==='reset'?'将五臂 CAN 接口复位为 1 Mbps、restart-ms 100；完成后再点配置 CAN 检查链路':'配置 Task2 五臂 CAN；失败时自动复位接口并重试一次';try{await execute(operation,description,false,password);}finally{password=null;}}
  async function runRecover(target){const description=String(target).startsWith('gripper-')?'所选夹爪保持当前开度，执行一次失能清错和原位使能；不设零点、不张开或闭合':'所选机械臂可能短暂失能并恢复 CAN；发送队列堵塞时只自动复位目标接口并重试一次';return execute({component:'recover',action:'run',target},description);}
@@ -51,6 +73,14 @@
  ];
  function updateLifecycleControls(payload){
   const systems=payload?.systems||{},jobs=payload?.jobs||{};
+  for(const [arm,health] of Object.entries(systems.can_tx||{})){
+   const event=health.last_event;if(!event||canEvents.get(arm)===event.timestamp)continue;
+   canEvents.set(arm,event.timestamp);
+   if(Date.now()/1000-event.timestamp>30)continue;
+   const en=root.CobotPreferences?.language==='en',cleared=event.kind==='drained';
+   const text=cleared?(en?'CAN queue has drained; no motor Recover was sent. Check status before resuming.':'CAN 队列已排空；未发送电机 Recover。请核对状态后再继续。'):(en?'CAN transmit queue stalled. Pause control and inspect CAN diagnostics.':'CAN 发送队列持续堵塞，请暂停控制并查看 CAN 诊断。');
+   root.CobotWorkspaceUI?.report(arm+': '+text,cleared?'success':'error','CAN');
+  }
   for(const [component,startId,stopId,spatialStartId,spatialStopId] of lifecyclePairs){
    const phase=systems[component]?.phase,jobPhase=jobs[component]?.phase;
    const stopping=jobPhase==='stopping',starting=jobPhase==='running'&&phase!=='ready';

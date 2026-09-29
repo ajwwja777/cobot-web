@@ -54,3 +54,18 @@ test("deployment refresh keeps an active trial directory and disables recent swi
     assert.equal(w.document.getElementById("deployment-recent-directories").disabled,true);
   }finally{await tick();await tick();dom.window.close();}
 });
+
+test("explicit model selection applies its evaluation directory and polling preserves it",async()=>{
+ const {dom,w,calls,getState}=setup();
+ try{
+  await tick();await tick();
+  getState().models=[{id:"rlt-online",task:"plug",kind:"rlt",family:"RLT",available:true,checkpoint:"/weights/online",data_directories:{evaluation:"/data/evaluations/plug/online"}}];
+  await w.CobotDeploymentUI.poll();
+  const picker=w.document.getElementById("deployment-model");
+  picker.value="rlt-online";picker.dispatchEvent(new w.Event("change"));
+  await tick();await tick();
+  assert.equal(getState().data_root,"/data/evaluations/plug/online");
+  assert.equal(calls.at(-1).data_root,"/data/evaluations/plug/online");
+  await w.CobotDeploymentUI.poll();assert.equal(getState().data_root,"/data/evaluations/plug/online");
+ }finally{await tick();dom.window.close();}
+});

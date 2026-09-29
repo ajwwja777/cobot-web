@@ -23,3 +23,20 @@ Flux保持原生框架，历史部署归integrations/cobot；RLT保留methods与
 文件存在、进程启动、模型就绪、推理验证、真机验收分别记录。没有就绪协议的外部进程显示process_running；不支持的暂停明确禁用，不通过杀进程伪造。RLT分别记录Stage1索引、Learner步数、Actor版本。actor_snapshot是推理快照，续训还需要优化器、learner checkpoint与Replay。
 
 仅同架构、预处理/归一化、相机和动作定义兼容时，换权重可只登记配置。不同家族仍需模型代码和动作适配。
+
+## 场景/模型登记与训练扩展（2026-09-29）
+
+Cobot 物理能力归 cobot-control，采集/HIL/mask 归 cobot-dagger。
+相机顺序、动作维度、归一化、夹爪映射与 RTC 协议归所属模型适配器：
+vla-platform/integrations/cobot、rl-platform/integrations/cobot_runtime
+及 methods/openpi_rlt。web 读取登记并调用，不维护第二套算法或硬件规则。
+
+同一实现兼容的新权重可补登记。外部 sh 需明确环境、ready/stop 协议、
+PID 归属与能力；文件存在不等于支持暂停、HIL 或已通过真机验证。
+模型记录可增加 data_directories.collection/evaluation；现场默认映射在
+cobot-web/configs/model_directories.json，按稳定 model ID 关联。
+模型记录优先，{DATA} 来自本机配置，不从权重名猜目录，不搬迁资产。
+
+后续训练选择器应登记场景输入、cobot-dagger 转换入口、原生配置/环境、
+输出及能力。Flux 继续使用 configs/<family>/，RL 使用 configs/methods.json
+与各方法配置。任意模型一键转换/训练尚未实现；部署登记不能冒充训练支持。

@@ -8,7 +8,7 @@ MESSAGES = {
  "can": ("CAN 未连接或接口未启用", "CAN disconnected or interface down", "检查电源、USB/CAN 线，再配置 CAN。", "Check power and USB/CAN cables, then configure CAN."),
  "feedback": ("未收到机械臂反馈", "No arm feedback", "检查机械臂电源和对应 CAN 线；确认接口配置。", "Check arm power, its CAN cable and interface configuration."),
  "can_tx": ("CAN 发送队列堵塞，接收正常不代表能控制", "CAN transmit queue stalled; reception does not prove control",
-            "停止推理/示教并支撑机械臂，再对该臂执行恢复以复位其 CAN；不要连续发送动作。", "Stop policy/teaching and support the arm, then recover this arm to reset its CAN; do not keep sending commands."),
+            "暂停推理/示教，检查新增丢包和供电/CAN/USB。先使用 control 的 can_diagnose.py 留证；持续堵塞才受控重置目标链路，不要连续发送动作或因历史丢包执行电机 Recover。", "Pause policy/teaching; inspect new drops and power/CAN/USB. Run control can_diagnose.py first. Reset only a persistently stalled link under controlled conditions; historical drops alone do not require motor Recover."),
  "node": ("机械臂节点未启动", "Arm node offline", "启动机械臂节点；失败时查看机械臂输出。", "Start arm nodes; inspect Arms output if launch fails."),
  "hardware": ("机械臂报告保护或故障", "Arm reports protection or a fault", "查看错误码，排除碰撞或接线问题，再执行恢复。", "Inspect the error code, clear collision/wiring problems, then recover."),
  "disabled": ("关节未全部使能", "Not all joints enabled", "检查机械臂输出并恢复对应臂；不要重复 launch。", "Inspect Arms output and recover this arm; do not launch duplicate nodes."),

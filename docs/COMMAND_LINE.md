@@ -679,3 +679,48 @@ Replay 分布是显式生成的离线快照，不随页面轮询重算。在 Cob
 聚类使用状态和动作差，不能代替视觉场景分布。两条 PCA 轴显示解释方差；k-means 在14维标准化特征中完成。点击点查看相同 Replay episode_id 的代表chunk；它不是原始录像index，也不假造视频帧对应。图中动作可能包含HIL、探索与限幅。当前没有逐帧媒体关联。
 
 实现：web/app/backend/cobot_console/analysis.py 只做读取缓存与HTTP适配，领域聚合归 rl-platform/integrations/cobot_runtime/analysis.py；快照脚本归 rl-platform/scripts/analyze_replay.py。新机器从这两个Git项目部署，沿用在线环境的NumPy/PyYAML，不需要运行GPU模型即可分析。实际目录根为 /home/agilex/jiaan/project/；A6000主目录为 /data/LFT-W02_data/jiaan/jiaan/projects/。
+
+## RLT 分析、目录默认值与操作响应（2026-09-29）
+
+Training 看进度/发布与主要曲线；Analysis 看 Replay/实际 batch、
+版本回看、成功采样对照、梯度、图像遮挡和聚类。定义与复现：
+/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/DIAGNOSIS_20260929.md。
+
+~~~bash
+cd /home/agilex/jiaan/project/rl-platform
+envs/online/bin/python scripts/analyze_replay.py
+~~~
+
+只读 journal 并更新构成/PCA，不启动模型。真实每步 batch 身份从下次
+Learner 启动开始记录；旧历史留空。版本回看不是独立验证成功率。
+GPU 实验的运行条件见 RL 文档，不要与展示期间的推理同时运行。
+
+明确选择模型时，采集/部署分别采用 configs/model_directories.json 的
+collection/evaluation 默认路径，之后仍可手动改。活动轮次不切换，
+普通轮询不覆盖选择；刷新保留既有 test 默认约定，直到明确选模型。
+Warmup/Online 对应各自目录；部署使用 evaluations 下的对应目录。
+这不改变 Replay 入池语义：test 不是禁止学习的开关。
+
+模型登记可加以下字段（其余 id、权重、环境、归一化、能力仍需完整）：
+~~~json
+{
+  "data_directories": {
+    "collection": "{DATA}/datasets/plug_insertion/recordings/rl-platform/rlt/online",
+    "evaluation": "{DATA}/evaluations/plug_insertion/rl-platform/rlt/online"
+  }
+}
+~~~
+未登记默认目录的模型保留当前路径，不猜测。
+
+设备点击后立即显示核对/待接收，输出跟随对应任务；确认规则保留。
+control 创建任务先写接收消息，Python 无缓冲输出预检进展。
+接收不等于已运动；实际等待包括预检、控制权、反馈与轨迹。
+结果待确认时先查任务/PID，不要重复点 Home。
+
+~~~bash
+cd /home/agilex/jiaan/project/cobot-control
+python3 scripts/can_diagnose.py --seconds 2
+python3 scripts/control.py status
+~~~
+两条只读且不需要网页。堵塞/排空会提示，不自动恢复推理或发 motor Recover。
+完整 CAN 排障边界见 control/docs/DEPLOYMENT.md。

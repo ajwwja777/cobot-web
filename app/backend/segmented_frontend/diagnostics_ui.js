@@ -149,7 +149,7 @@
         for(const node of Object.values(hover))node.style.display='';
         let tip=svg.parentElement.querySelector('.chart-hover-tooltip');
         if(!tip){tip=document.createElement('div');tip.className='chart-hover-tooltip';svg.parentElement.append(tip);}
-        tip.textContent=`${best.group.label}  ·  ${current.x.label}: ${best.point.rawX.toFixed(0)}  ·  ${current.y.label}: ${best.point.rawY.toPrecision(5)}`;
+        tip.textContent=`${best.group.label}  ·  ${current.x.label}: ${current.x.format(best.point.rawX)}  ·  ${current.y.label}: ${best.point.rawY.toPrecision(5)}`;
         tip.style.left=Math.max(8,Math.min(box.width-180,event.clientX-box.left+12))+'px';
         tip.style.top=Math.max(5,event.clientY-box.top-35)+'px';tip.hidden=false;
       });

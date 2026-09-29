@@ -165,7 +165,11 @@
       selected=selection.modelId;
       $('#capture-model-select').value=selected;
       $('#capture-model-select').dispatchEvent(new Event('change'));
-      if(selection.model&&selection.source==='user')changeRuntime();
+      if(selection.model&&selection.source==='user'){
+        const path=selection.model.data_directories?.collection;
+        if(path&&!active()){const input=$('#collection-data-root');input.value=path;input.dataset.dirty='true';}
+        changeRuntime();
+      }
       else {render();root.updateButtons?.();}
     }});
     for(const [id,zh,en] of [['load','加载模型','Load model'],['unload','释放模型','Release model'],['session-start','开始 Session','Start session'],['session-stop','结束 Session','End session']]){

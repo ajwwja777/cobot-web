@@ -157,3 +157,17 @@ test("collection and deployment share scene filtering, disabled options and sele
     assert.equal($("deployment-model").disabled,true);
   } finally {await tick();dom.window.close();}
 });
+
+test("explicit model selection applies registered collection directory, not a weight-derived guess",async()=>{
+ const {dom,w,models}=setup();
+ try{
+  models[0].data_directories={collection:"/data/datasets/plug/warmup"};
+  const used=[];w.saveRltStorage=async()=>used.push(w.document.getElementById("rlt-data-root").value);
+  await tick();await w.refreshConsole();
+  const picker=w.document.getElementById("collection-model-select");
+  picker.value=models[0].id;picker.dispatchEvent(new w.Event("change"));
+  await tick();await tick();
+  assert.deepEqual(used,["/data/datasets/plug/warmup"]);
+  assert.equal(w.document.getElementById("collection-data-root").value,"/data/datasets/plug/warmup");
+ }finally{dom.window.close();}
+});

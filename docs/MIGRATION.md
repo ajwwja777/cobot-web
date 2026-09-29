@@ -465,3 +465,17 @@ Session始终stopped/policy_paused，模型保持加载，在独立 datasets/tes
 正式GET /api/analysis/rlt首读0.20秒：Learner11750、published step11500/Actor5750、Replay3917、179条有效标注日志；展示2400个确定性抽样点。历史run=0/1及最新段接口通过；5个HTTP静态文件SHA与A6000一致。当前日志心跳已停止，界面明确标历史快照，不宣称训练正在运行。最终项目记录提交与源代码SHA由.release.json记录。
 
 回执：A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/rlt-analysis-20260929/release.json；Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/rlt-analysis-20260929/release.json。聚类快照：Cobot /home/agilex/jiaan/project/rl-platform/outputs/rlt/plug_v3_yyshadow/analysis/replay_projection.json。生成命令已纳入命令行手册。
+
+## 2026-09-29: Replay audits, directory defaults and immediate device feedback
+
+Analysis now includes Replay/actual-batch composition, retained version audits, success sampling
+experiments, group gradients/input ablations and recorded-image sensitivity.
+Attention is not claimed; retrospective versions are explicitly not independent validation.
+Sampling is implemented in rl-platform, not duplicated in web.
+configs/model_directories.json and optional model-owned data_directories provide per-model collection/
+evaluation defaults. Explicit user selection applies them; polling preserves manual overrides and active
+sessions cannot switch. Weights/data are not moved. Device clicks show pending/accepted state immediately;
+CAN fault/drained events are visible. Same control semantics and confirmation remain.
+A6000: 53 selected Python tests, 50 Node tests passed. Read-only browser QA at1800/1200/760
+checks alignment, no horizontal overflow, no JS errors; offline screenshots in
+outputs/rlt-analysis-20260929. Final live release verification is recorded below after synchronization.

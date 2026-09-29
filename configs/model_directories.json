@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "models": {
+    "plug-v3-reference": {
+      "collection": "{DATA}/datasets/plug_insertion/recordings/rl-platform/rlt/warmup/three_camera_v3",
+      "evaluation": "{DATA}/evaluations/plug_insertion/rl-platform/rlt/reference_4999"
+    },
+    "plug-v3-warmup-5k": {
+      "collection": "{DATA}/datasets/plug_insertion/recordings/rl-platform/rlt/warmup/three_camera_v3",
+      "evaluation": "{DATA}/evaluations/plug_insertion/rl-platform/rlt/warmup_5000"
+    },
+    "plug-v3-warmup-20k": {
+      "collection": "{DATA}/datasets/plug_insertion/recordings/rl-platform/rlt/warmup/three_camera_v3",
+      "evaluation": "{DATA}/evaluations/plug_insertion/rl-platform/rlt/warmup_20000"
+    },
+    "plug_v3-online-latest": {
+      "collection": "{DATA}/datasets/plug_insertion/recordings/rl-platform/rlt/online",
+      "evaluation": "{DATA}/evaluations/plug_insertion/rl-platform/rlt/online"
+    },
+    "plug_v3-frozen-latest": {
+      "collection": "{DATA}/datasets/plug_insertion/recordings/rl-platform/rlt/online",
+      "evaluation": "{DATA}/evaluations/plug_insertion/rl-platform/rlt/online"
+    },
+    "pi05-in-the-pot-dagger": {
+      "collection": "{DATA}/datasets/in_the_pot/recordings/cobot-dagger/round_001",
+      "evaluation": "{DATA}/evaluations/in_the_pot/vla-platform/pi05/dagger_round_001"
+    },
+    "pi05-in-the-pot": {
+      "collection": "{DATA}/datasets/in_the_pot/recordings/cobot-dagger/round_001",
+      "evaluation": "{DATA}/evaluations/in_the_pot/vla-platform/pi05/reference_2000"
+    }
+  }
+}

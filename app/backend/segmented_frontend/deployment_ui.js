@@ -10,9 +10,16 @@
   const homeArms=()=>[...document.querySelectorAll("#deployment-home-arms input:checked")].map(input=>input.value);
   let homePoses={}, outputsBusy=false, statusBusy=false, recordRequest=0;
   let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null,directoryPicker=null;
-  const modelPicker=window.CobotModelPicker.create({container:$("deployment-model-picker"),modelSelect:$("deployment-model"),sceneId:"deployment-scene",onChange:selection=>{selectedModel=selection.modelId;selectedRecord="";describeModel();renderControls();refreshRecords();}});
+  const modelPicker=window.CobotModelPicker.create({container:$("deployment-model-picker"),modelSelect:$("deployment-model"),sceneId:"deployment-scene",onChange:selection=>{selectedModel=selection.modelId;selectedRecord="";describeModel();renderControls();if(selection.source==="user"&&selection.model?.data_directories?.evaluation)applyModelDirectory(selection.model.data_directories.evaluation);else refreshRecords();}});
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
   function notify(text,error=false,tone=null){transportMessage=false;$("deployment-message").textContent=text;$("deployment-message").classList.toggle("error",error);window.CobotWorkspaceUI?.report(text,tone||(error?"error":"success"),"部署");}
+  async function applyModelDirectory(path){
+    if(localBusy||state?.active||state?.operation)return;
+    localBusy=true;storageInitialized=true;$("deployment-storage").value=path;renderControls();
+    try{const result=await request("/api/deployment/storage",{data_root:path});state.data_root=result.data_root;recentDirectories?.remember(result.data_root);delete $("deployment-storage").dataset.dirty;selectedRecord="";await refreshRecords();notify("保存位置已更新："+result.data_root);}
+    catch(error){$("deployment-storage").dataset.dirty="true";notify(error.message,true);}
+    finally{localBusy=false;renderControls();}
+  }
   async function request(path, body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});let p;try{p=await r.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error("服务返回异常（HTTP "+r.status+"）");}if(!r.ok)throw new Error(typeof p.detail==="string"?p.detail:JSON.stringify(p.detail||p.error||r.status));return p;}catch(error){if(controller.signal.aborted||error.name==="AbortError"||error instanceof TypeError){const failure=new Error(controller.signal.aborted||error.name==="AbortError"?"请求超时（12 秒），正在重新连接":"连接中断，正在重新连接");failure.transport=true;throw failure;}throw error;}finally{clearTimeout(timer);}}
   function model(){return state?.models?.find(m=>m.id===selectedModel);}
   function describeModel(){const m=model(),facts=$("deployment-facts");if(!m){window.CobotModelPicker.renderDetails(facts,null);renderControls();return;}
