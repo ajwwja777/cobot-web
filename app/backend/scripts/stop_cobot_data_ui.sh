@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+CODE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_DIR="${COBOT_DATA_UI_RUNTIME_DIR:-/home/agilex/cobot_magic/task3/jiaan/runtime/cobot-data-console-v1}"
 PORT="${COBOT_DATA_UI_PORT:-8015}"
 PID_FILE="$RUNTIME_DIR/service.pid"
@@ -17,7 +18,7 @@ if ! tr '\0' ' ' < "/proc/$pid/cmdline" | grep -Fq -- "$APP"; then
   exit 1
 fi
 
-"$PYTHON" - "$PORT" <<'PY'
+"$PYTHON" - "$PORT" "$CODE_DIR" <<'PY'
 import json, sys, urllib.request
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 try:
@@ -27,8 +28,20 @@ except Exception as error:
     print("Cannot verify console idle state: %s" % type(error).__name__, file=sys.stderr)
     raise SystemExit(1)
 if payload.get("active_mode") is not None:
-    print("Console has active_mode=%s; finish or abort the active episode before stopping." % payload.get("active_mode"), file=sys.stderr)
-    raise SystemExit(1)
+    sys.path.insert(0, sys.argv[2])
+    from cobot_console.ui_shutdown import completed_orphan
+    def get(path):
+        with opener.open("http://127.0.0.1:%s%s" % (sys.argv[1], path), timeout=1.0) as response:
+            return json.load(response)
+    try:
+        safe = completed_orphan(payload, get("/api/deployment/status"),
+                                get("/api/rlt-recorder/api/status"))
+    except Exception:
+        safe = False
+    if not safe:
+        print("Console has active_mode=%s; finish or abort the active episode before stopping." % payload.get("active_mode"), file=sys.stderr)
+        raise SystemExit(1)
+    print("Completed recording, exited RLT runtime: stopping only the console; files/model retained.")
 PY
 
 kill -TERM "$pid"

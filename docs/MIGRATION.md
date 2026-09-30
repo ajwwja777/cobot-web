@@ -511,3 +511,5 @@ runtime/pending writer, retains same-checkpoint Stage1, rejects implicit weight
 reload and starts no episode. Recording recovery stays a separate action.
 A6000 source/tests/push precede selective Cobot sync. Release and live verification
 are recorded in the following deployment receipt; guide Git is not submitted.
+
+网页停止入口已识别“录制 stopped/complete/committed、RLT 运行进程及所属进程组已完全退出”的孤立占用标记；仅此情况下可正常 ui_down/up，保留完整录制与 Stage1。活 writer、未提交文件、状态过期、普通采集、评测或模型操作仍拒绝停止。检查实现位于 app/backend/cobot_console/ui_shutdown.py，停止脚本仍仅 SIGTERM 已登记的网页 PID，不杀模型/硬件。

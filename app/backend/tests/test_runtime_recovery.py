@@ -96,3 +96,22 @@ def test_orphan_writer_released_only_after_file_commit(tmp_path,committed):
         with pytest.raises(RuntimeError,match="pending_episode_finalization"):
             app.state.release_completed_writer()
         assert modes.snapshot().active_mode=="rlt"
+
+
+def test_ui_shutdown_allows_only_completed_orphan_and_verifies_processes(monkeypatch):
+    from cobot_console.ui_shutdown import completed_orphan
+    from cobot_console.deployment import ManagedRuntime
+    console={"active_mode":"rlt"}
+    model={"phase":"error","model":{"kind":"rlt"},"pid":123,"start_ticks":1}
+    recorder={"state":"stopped","publication_status":"committed","completion_state":"complete"}
+    monkeypatch.setattr(ManagedRuntime,"_alive",lambda self,state:False)
+    monkeypatch.setattr(ManagedRuntime,"_owned_members",lambda self,state:[])
+    assert completed_orphan(console,model,recorder)
+    for values in [{"state":"recording"},{"publication_status":"writing"},
+                   {"completion_state":"pending"},{"writer_thread_alive":True},
+                   {"acquisition_active":True}]:
+        assert not completed_orphan(console,model,{**recorder,**values})
+    assert not completed_orphan({"active_mode":"normal"},model,recorder)
+    assert not completed_orphan(console,{**model,"status_stale":True},recorder)
+    monkeypatch.setattr(ManagedRuntime,"_owned_members",lambda self,state:[555])
+    assert not completed_orphan(console,model,recorder)

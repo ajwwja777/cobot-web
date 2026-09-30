@@ -290,3 +290,5 @@ python3 scripts/console.py state model
 底层是 cobot_console/deployment.py:ManagedRuntime.recover_runtime，持有与加载相同的进程锁并调用原 scripts/deployment_run.sh → rl-platform/scripts/rlt_up.sh；设置 COBOT_RLT_REQUIRE_RESIDENT_STAGE1=1，保留 Stage1。就绪后手动开始 Session/新轮次。不要同时另起终端运行同一模型。
 
 若 RTC 超时重复出现，停止本轮并选原 plug-v3-credit-mc30（同步20 Hz，同候选权重/训练分支），再手动加载。故障进程完全退出且 Stage1 保留时，可在采集/部署卡改选 RLT 并加载，无需先释放 Stage1。不要仅降低发布 Hz 就认为 RTC 延迟窗口变大；四种发布频率的逻辑窗口相同。刷新页面只更新显示；ui_down/up 仅重启网页，不能复活已退出的 EnvDriver。完整真机延迟/争用验收仍待完成。
+
+网页停止入口已识别“录制 stopped/complete/committed、RLT 运行进程及所属进程组已完全退出”的孤立占用标记；仅此情况下可正常 ui_down/up，保留完整录制与 Stage1。活 writer、未提交文件、状态过期、普通采集、评测或模型操作仍拒绝停止。检查实现位于 app/backend/cobot_console/ui_shutdown.py，停止脚本仍仅 SIGTERM 已登记的网页 PID，不杀模型/硬件。
