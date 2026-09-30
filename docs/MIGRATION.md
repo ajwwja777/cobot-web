@@ -630,3 +630,5 @@ A6000 离线验证：前端 67 passed，相关 HTTP/模型/恢复/历史 83 pass
 本批同时发现 Stage1 清单已退回 USB；RL 清单恢复 /home/agilex/jiaan/data/rlt/plug_insertion/reference_4999，stage1_root 与在线 model_root 分开。没有重新复制／移动模型资产。
 
 离线：前端 69 passed；web 完整后端 734 passed、6 skipped；末次新增目录／训练指标及相关加载／恢复回归 60 passed、1 skipped；采集领域 78 passed；RL 执行与分支 24 passed；shell 语法通过。全部 CPU／临时数据，不运行生产 Episode、GPU 模型、真实在线更新或动作。真实 50 Hz 持续执行与在线分支真机验收仍待现场。发布与只读现场回执归 outputs/catalog-results-20261001/。
+
+现场发布事实：2026-10-01 代码已 push 并逐文件 SHA 同步；web 209 个运行文件、RL 6／dagger 2 个本批运行文件一致。仅重载 8015，网页 PID 970937；模型 offline、recorder idle、无 active writer／lease，9 个采样硬件／模型 PID 和 start_ticks 不变。实际 CPU preflight 使用 NVMe Stage1 路径且归一化 SHA 与发布清单一致；两个旧目录入口的 8 条历史标签 GET 通过，现场目录和标签响应的 DOM 结果通过。固定 5000 文件与原历史标签 SHA 不变。未运行现场在线分支、真实动作或连续 50 Hz；真实浏览器视觉验收未完成。回执：cobot-web/outputs/catalog-results-20261001/。
