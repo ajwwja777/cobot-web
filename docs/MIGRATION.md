@@ -537,3 +537,40 @@ contract remains strict. No algorithm, ROS/action contract or asset layout chang
 Operator procedure and code paths: cobot-web/docs/WEB_RECOVERY.md and
 rl-platform/docs/RUNBOOK.md, latest sections. Offline regression, Git publication,
 selective SHA sync and actual paused restart results follow in the release receipt.
+
+
+### 2026-09-30: actual keep-model recovery acceptance
+
+Source release: rl-platform3902fa8 / cobot-web6b84116, both pushed and13 selected
+source/doc files SHA-verified on Cobot before switching. Web full backend715
+passed/6 skipped, frontend58 passed, RL50 selected passed. Follow-up recorder
+mode-conflict handling returns409 mode_not_selected/writer_busy instead of a
+generic500; unknown start failures retain stable API codes and log their cause.
+Its API/recovery regression suite73 passed.
+
+At21:04 the failed runtime was rebuilt with Stage1 PID233064/start_ticks20025113
+retained. At21:06 a real 13-frame in-progress test recording was handed to the
+new general recovery endpoint; the owned runtime stopped, the writer committed48
+frames, its lease cleared, and the new runtime355612 became ready/disarmed with
+policy_paused=true and emitted_commands=0. No Session start/resume, homing or
+robot motion was requested. Seven sampled hardware PID/start-tick identities
+were unchanged. Replay remained3917 and Learner7000/Actor3500.
+
+Retained unlabeled test HDF5 (no labels sidecar, no Replay insertion):
+/media/agilex/Getea1/jiaan/data/datasets/test/runtime_recovery_20260930/episode_000001.hdf5
+(133151819 bytes; UUID43361fc7-485a-4590-a342-9bc683e806b0).
+The earlier operator episode_000035 reached its3000-frame ceiling and had already
+committed before the web restart; no label/deletion was applied by this task.
+The new pending-writer path was verified separately using the test episode.
+
+Receipts:
+- A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/pause-recovery-20260930/
+- Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/pause-recovery-20260930/
+
+This verifies actual process/recorder recovery without reloading Stage1.
+Pause/HIL timing faults are covered by injected offline races. Continuous live
+50Hz publication, real pause/resume/HIL cycles and insertion success still need
+operator acceptance; do not advertise them as passed from this non-motion test.
+The selected MC30 async_rtc50 profile is retained; faithful synchronous20 remains
+the documented rollback. Project handoff/concurrent-dialogue guidance now lives
+in each project AGENTS.md and the five laptop entry directories.

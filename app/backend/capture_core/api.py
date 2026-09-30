@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from capture_core.exact_labels import ExactEpisodeLabelStore
+from cobot_console.mode import ModeConflict
 
 import logging
 import os
@@ -528,7 +529,10 @@ def create_app(
                 raise
         except HTTPException:
             raise
+        except ModeConflict as error:
+            raise _http_error(409, str(error)) from error
         except RecorderError as error:
+            LOGGER.exception("RLT recorder start failed")
             raise _http_error(500, "recorder_start_failed") from error
         except FileExistsError as error:
             raise _http_error(409, "episode_already_exists") from error
@@ -539,6 +543,7 @@ def create_app(
             LOGGER.exception("RLT recorder invalid start request (%s)", type(error).__name__)
             raise _http_error(422, f"invalid_start_request: {type(error).__name__}") from error
         except Exception as error:
+            LOGGER.exception("Unexpected RLT recorder start failure")
             raise _http_error(500, "recorder_start_failed") from error
 
     @application.post("/api/episodes/stop")

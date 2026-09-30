@@ -200,3 +200,20 @@ def test_incorrect_stage1_group_blocks_signals(tmp_path, monkeypatch):
     rt.backend = type("Hung", (), {"request": lambda *args: (_ for _ in ()).throw(RltBackendError("hung"))})()
     with pytest.raises(DeploymentError, match="not_separate"):
         rt.stop_runtime_keep_model()
+
+def test_recorder_mode_conflict_is_actionable_409_not_generic_500(tmp_path):
+    from fastapi.testclient import TestClient
+    from capture_core.api import create_app
+    from capture_core.labels import LabelStore
+    from cobot_console.mode import RecorderModeCoordinator
+    from tests.test_console_api import FakeRecorder
+    recorder = FakeRecorder()
+    app = create_app(recorder=recorder, label_store=LabelStore(tmp_path),
+                     writer_coordinator=RecorderModeCoordinator(initial_mode="normal"),
+                     require_previous_labels=False)
+    response = TestClient(app).post("/api/episodes/start", json=dict(
+        data_root=str(tmp_path), task_id="test", model_id="rlt",
+        checkpoint_id="4999", dataset_round="online", storage_layout="flat"))
+    assert response.status_code == 409
+    assert response.json()["detail"] == "mode_not_selected"
+    assert recorder.state == "idle"
