@@ -9,20 +9,12 @@
   const familyOf = model => String(model?.family || model?.kind || "Unregistered");
   const sceneLabel = task => task;
   function stepLabel(model) {
-    const parts = [];
-    if (model.experiment_label) parts.push(model.experiment_label);
-    if (model.family === "RLT" || model.kind === "rlt") {
-      parts.push("Stage1 " + (model.stage1_step ?? model.base_step ?? "?"));
-      if (model.stage !== "stage1") parts.push((model.stage || "warmup") + " " + (model.publication_tracked ? "published " + (model.published_learner_step ?? "?") : (model.learner_step ?? model.step ?? "?")));
-      if (model.actor_version >= 0 && model.actor_version != null) parts.push("Actor " + model.actor_version);
-    } else if (model.parent_step != null) parts.push("DAgger " + model.parent_step + " + " + (model.step ?? "?"));
-    else parts.push(model.step == null ? "Steps unknown" : "Step " + model.step);
-    const status = available(model) ? "available" : ({
-      cli_only: "unavailable: CLI only", base_model: "base dependency",
-      missing_files: "unavailable: missing files", unregistered: "unavailable: unregistered"
-    }[model.availability] || "unavailable");
-    return parts.join(" · ") + " · " + status;
+    return String((model.kind === "rlt" || model.family === "RLT") ? (model.stage === "stage1" ? model.stage1_step ?? model.base_step ?? model.step ?? "?" : model.publication_tracked ? model.published_learner_step ?? "?" : model.learner_step ?? model.step ?? "?") : model.step ?? "?");
   }
+  function weightKey(model) {
+    return JSON.stringify([familyOf(model),taskOf(model),model.checkpoint||model.id,model.stage,model.runtime_profile]);
+  }
+
   function renderDetails(container, model) {
     if (!container) return;
     const rows = model ? [
@@ -38,7 +30,7 @@
       ["Actor version", model.publication_tracked ? null : model.actor_version],
       ["Training steps", model.publication_tracked ? null : model.step],
       ["Action publication rate", (model.execution_settings?.publish_hz ?? model.publish_hz ?? model.control_hz) ? (model.execution_settings?.publish_hz ?? model.publish_hz ?? model.control_hz) + " Hz" : null],
-      ["Logical control / Replay rate", model.kind === "rlt" ? (model.execution_settings?.logical_hz ?? model.control_hz ?? 20) + " Hz" : null],
+      ["Logical control / Replay rate", (model.kind === "rlt" || model.family === "RLT") ? (model.execution_settings?.logical_hz ?? model.control_hz ?? 20) + " Hz" : null],
       ["RTC", model.execution_settings ? (model.execution_settings.rtc ? "On" : "Off") : null],
       ["Causal smoothing", model.execution_settings ? (model.execution_settings.smoothing ? "On" : "Off") : null],
       ["Action mode", model.deterministic === true ? "Deterministic / no exploration" : model.kind === "pi05" ? "Original RTC inference" : null],
@@ -113,7 +105,8 @@
         }));
       }
       familySelect.value = family;
-      const matching = sceneModels.filter(model => familyOf(model) === family);
+      const variants = sceneModels.filter(model => familyOf(model) === family);
+      const matching = variants.filter(model => model === (variants.find(other => weightKey(other) === weightKey(model) && other.id === selected) || variants.find(other => weightKey(other) === weightKey(model) && !other.execution_profile) || variants.find(other => weightKey(other) === weightKey(model))));
       const labels = matching.map(stepLabel);
       const nextModelSignature = JSON.stringify([english(), matching, labels]);
       if (modelSignature !== nextModelSignature) {
@@ -123,11 +116,7 @@
         placeholder.value = "";
         placeholder.disabled = true;
         modelSelect.replaceChildren(placeholder, ...matching.map((model, index) => {
-          let title = labels[index];
-          if (labels.indexOf(title) !== labels.lastIndexOf(title)) {
-            title += " · " + (model.checkpoint?.split("/").slice(-3).join("/") || model.id);
-          }
-          const option = node("option", title);
+          const option = node("option", labels[index]);
           option.value = model.id;
           option.disabled = !available(model);
           option.title = [model.checkpoint, reason(model)].filter(Boolean).join("\n");

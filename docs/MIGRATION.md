@@ -609,3 +609,11 @@ RL相关79 passed。末次频率参数展示改动另通过34项模型/历史回
 ???????????/??/????????????????????/??????
 ???A6000 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/recording-defer-rate-20260930/?
 ??????????????????????DOM??62 passed?
+
+## 2026-10-01：精简步数、共用执行选项与历史结果选择
+
+模型下拉只显示真实步数；同一权重的 Hz/RTC preset 合为一个选项，路径、来源和状态留在详情/tooltip。采集与部署的 Hz、RTC、滤波为同一行，置于模型选择下方；删除原默认/加载配置说明。Hz 未勾选沿用模型发布频率，RTC/滤波独立选择，运行中锁定；RLT 空闲时保留 Stage1 重建应用，其他已加载模型重载后使用新选择。原生产默认配置未改。
+
+共用配置校验归 VLA，web 向各暂停适配器传递 COBOT_EXECUTION_OPTIONS。历史 Episode 仅显示成功/失败/未知选择并自动保存；原备注与训练许可保留，unknown 排除训练；CAS 防止覆盖另一人的标签，丢响应先 GET 确认，不自动重提 PUT。旧区间审核编辑器从此历史页面隐藏，采集/标注领域接口保留。
+
+A6000 离线验证：前端 67 passed，相关 HTTP/模型/恢复/历史 83 passed、1 skipped；RLT 21 passed；VLA 共用时钟/滤波/RTC 27 passed，G05 15 passed，XR1 暂停/过期结果 26 passed。只做 CPU/合成 I/O，未加载新 GPU 模型、未运行真实 Episode 或发送机器人动作。现场 SHA、8015 重载及 PID 复核见 outputs/execution-compact-20261001/ 最终回执；页面视觉与各模型连续真机发布率仍需现场观察。

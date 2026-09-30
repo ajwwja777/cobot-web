@@ -411,9 +411,9 @@ def create_app(
         from capture_core.labels import LabelStore, LabelNotFoundError, LabelValidationError, LabelConflictError
         if str(body.get('episode_uuid')) != str(episode_uuid):
             raise HTTPException(409, 'episode_uuid_mismatch')
-        if body.get('outcome') not in {'success', 'failure', 'unknown'} or type(body.get('keep_for_training')) is not bool:
+        if body.get('outcome') not in {'success', 'failure', 'unknown'} or ('keep_for_training' in body and type(body['keep_for_training']) is not bool):
             raise HTTPException(422, 'invalid_historical_label')
-        if not isinstance(body.get('operator_note'), str) or len(body['operator_note']) > 500:
+        if 'operator_note' in body and (not isinstance(body['operator_note'], str) or len(body['operator_note']) > 500):
             raise HTTPException(422, 'invalid_operator_note')
         if 'expected_label_updated_at' not in body:
             raise HTTPException(422, 'expected_label_updated_at_required')
@@ -428,8 +428,8 @@ def create_app(
                     'episode_uuid': str(episode_uuid), 'episode_outcome': outcome,
                     'episode_quality': 'good' if outcome == 'success' else 'bad' if outcome == 'failure' else 'uncertain',
                     'termination_reason': outcome if outcome in {'success','failure'} else 'operator_save',
-                    'keep_for_training': 'true' if body['keep_for_training'] and outcome != 'unknown' else 'false',
-                    'operator_note': body['operator_note'] or None,
+                    'keep_for_training': (('true' if body['keep_for_training'] else 'false') if 'keep_for_training' in body else current.get('keep_for_training', 'false')) if outcome != 'unknown' else 'false',
+                    'operator_note': (body['operator_note'] or None) if 'operator_note' in body else current.get('operator_note'),
                 }, expected_label_updated_at=current['label_updated_at'])
                 return {**saved, 'replay_modified': False}
         except LabelConflictError as error:

@@ -32,7 +32,7 @@ test("choosing a model from all scenes pairs its scene, retains weights path, an
     select.value="pot";select.dispatchEvent(new w.Event("change"));
     assert.equal(scene.value,"in_the_pot");
     assert.deepEqual([...select.options].map(o=>o.value),["","pot"]);
-    assert.match(select.selectedOptions[0].textContent,/DAgger 2000 \+ 3000/);
+    assert.equal(select.selectedOptions[0].textContent,"3000");
     assert(!select.selectedOptions[0].textContent.includes("/weights/"));
     assert.match(w.document.getElementById("model-path").textContent,/\/weights\/pi05/);
     assert.equal(changes.at(-1).modelId,"pot");
@@ -67,7 +67,7 @@ test("RLT picker shows published snapshot separately from learner and inference"
    publication_tracked:true,learner_step:6915,learner_actor_version:3457,
    published_learner_step:6500,published_actor_version:3250,actor_version:3250,
    last_inference_actor_version:3250,inference_episode_id:14,step:6500};
- assert.match(w.CobotModelPicker.stepLabel(model),/published 6500/);
+ assert.equal(w.CobotModelPicker.stepLabel(model),"6500");
  assert.doesNotMatch(w.CobotModelPicker.stepLabel(model),/6915/);
  const facts=w.document.querySelector("#facts");w.CobotModelPicker.renderDetails(facts,model);
  assert.match(facts.textContent,/Learner trained step6915/);
@@ -85,4 +85,10 @@ test('50 Hz publication is displayed separately from logical Replay20',()=>{
  assert.match(details.textContent,/Action publication rate50 Hz/);
  assert.match(details.textContent,/Logical control \/ Replay rate20 Hz/);
  assert(!details.textContent.includes('Control rate'));dom.window.close();
+});
+
+test('same checkpoint frequency presets occupy a single numeric steps option',()=>{
+ const {dom,w,picker,select}=setup();const rows=[{id:'base',kind:'rlt',family:'RLT',task:'plug',step:7000,checkpoint:'/same/actor.pkl',available:true},...[20,30,40,50].map(hz=>({id:'rtc'+hz,kind:'rlt',family:'RLT',task:'plug',step:7000,checkpoint:'/same/actor.pkl',execution_profile:'rtc'+hz,experiment_label:hz+' Hz',available:true}))];
+ picker.update(rows,'base');assert.deepEqual([...select.options].map(o=>o.textContent),['Choose steps','7000']);
+ picker.select('rtc50',{loaded:true});assert.equal(select.value,'rtc50');assert.deepEqual([...select.options].map(o=>o.textContent),['Choose steps','7000']);dom.window.close();
 });

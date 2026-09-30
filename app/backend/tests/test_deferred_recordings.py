@@ -107,3 +107,16 @@ def test_defer_never_releases_stuck_worker(tmp_path):
     started=client.post('/api/episodes/start',json={**identity,'storage_layout':'flat'})
     response=client.post('/api/episodes/defer',json={**identity,'episode_uuid':started.json()['episode_uuid']})
     assert response.status_code==409 and modes.snapshot().active_mode=='rlt'
+
+def test_minimal_outcome_autosave_preserves_existing_metadata(tmp_path,monkeypatch):
+    path,uuid=_write_episode(tmp_path)
+    store=LabelStore(tmp_path)
+    store.update_labels(uuid,{'episode_uuid':str(uuid),'operator_note':'existing note','keep_for_training':'true'})
+    client,backend,recorder,manager=fixture(tmp_path,monkeypatch)
+    route=f'/api/recordings/{uuid}/labels?data_root={tmp_path}'
+    current=client.get(route).json()
+    result=client.put(route,json=dict(episode_uuid=str(uuid),outcome='failure',expected_label_updated_at=current['label_updated_at']))
+    assert result.status_code==200,result.text
+    assert result.json()['operator_note']=='existing note'
+    assert result.json()['keep_for_training']=='true'
+    assert not backend.calls

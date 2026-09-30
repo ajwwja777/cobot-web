@@ -270,8 +270,12 @@ class ManagedRuntime:
         environment.pop("COBOT_CUSTOM_CHECKPOINT", None)
         environment.pop("COBOT_RLT_EXECUTION_PROFILE", None)
         environment.pop("COBOT_RLT_EXECUTION_OPTIONS", None)
+        environment.pop("COBOT_EXECUTION_OPTIONS", None)
+        environment['PYTHONPATH'] = str(PLATFORM.parent / 'vla-platform/integrations/cobot') + ':' + environment.get('PYTHONPATH', '')
         if model.get('execution_options', {}).get('enabled'):
-            environment['COBOT_RLT_EXECUTION_OPTIONS'] = json.dumps(model['execution_options'])
+            environment['COBOT_EXECUTION_OPTIONS'] = json.dumps(model['execution_options'])
+            if model['kind'] == 'rlt':
+                environment['COBOT_RLT_EXECUTION_OPTIONS'] = environment['COBOT_EXECUTION_OPTIONS']
         if model.get("retain_stage1_required"):
             environment["COBOT_RLT_REQUIRE_RESIDENT_STAGE1"] = "1"
         else:
