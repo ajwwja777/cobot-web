@@ -11,6 +11,8 @@
   let homePoses={}, outputsBusy=false, statusBusy=false, recordRequest=0;
   let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null,directoryPicker=null;
   const modelPicker=window.CobotModelPicker.create({container:$("deployment-model-picker"),modelSelect:$("deployment-model"),sceneId:"deployment-scene",onChange:selection=>{selectedModel=selection.modelId;selectedRecord="";describeModel();renderControls();if(selection.source==="user"&&selection.model?.data_directories?.evaluation)applyModelDirectory(selection.model.data_directories.evaluation);else refreshRecords();}});
+  const executionHost=el("section");$("deployment-model-picker").after(executionHost);
+  const executionOptions=window.CobotExecutionOptions?.create(executionHost);
   const runtimeHelp=el("section");$("deployment-load-state").after(runtimeHelp);
   const runtimeRecovery=window.CobotRuntimeRecovery?.create(runtimeHelp,{refresh:()=>poll()});
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -25,7 +27,7 @@
   async function request(path, body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});let p;try{p=await r.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error("服务返回异常（HTTP "+r.status+"）");}if(!r.ok)throw new Error(typeof p.detail==="string"?p.detail:JSON.stringify(p.detail||p.error||r.status));return p;}catch(error){if(controller.signal.aborted||error.name==="AbortError"||error instanceof TypeError){const failure=new Error(controller.signal.aborted||error.name==="AbortError"?"请求超时（12 秒），正在重新连接":"连接中断，正在重新连接");failure.transport=true;throw failure;}throw error;}finally{clearTimeout(timer);}}
   function model(){return state?.models?.find(m=>m.id===selectedModel);}
   function describeModel(){const m=model(),facts=$("deployment-facts");if(!m){window.CobotModelPicker.renderDetails(facts,null);renderControls();return;}
-    window.CobotModelPicker.renderDetails(facts,m);
+    window.CobotModelPicker.renderDetails(facts,state.model?.id===m.id?state.model:m);
     window.CobotFeaturePaths?.update("deployment",{model:m,state});
     $("deploy-home-pose").dataset.preferred=m.home_pose;renderHomePoses();renderControls();
   }
@@ -45,6 +47,7 @@
     $("deployment-recording-directory").textContent=state.data_root||"—";
     $("deploy-home").disabled=busy||uncertain||!$("deploy-home-pose").value;
     modelPicker.setDisabled(busy||active||state.phase==="loading");
+    executionOptions?.update(model(),state,busy||active||state.phase==='loading'||Boolean(state.session&&!['disarmed','ready','waiting_scene','stopped'].includes(state.session.phase)));
     $("deployment-gate").textContent=uncertain?"状态待确认":phaseName[state.phase]||state.phase;
     $("deployment-gate").dataset.tone=uncertain?"amber":state.phase==="error"?"red":loaded?"green":state.phase==="loading"?"amber":"gray";
     $("deployment-trial-state").textContent=uncertain?"重新连接中":active?(state.active.intervened?"人工介入 · ":"")+(phaseName[state.phase]||state.phase):loaded?(model()?.evaluation_allowed===false?"在线更新模型 · 请在采集页开始 Session":"待开始"):"等待加载";
@@ -91,7 +94,7 @@
     }
     renderStatus(next);
   }catch(error){connectionError=error.message;if(state)renderControls();else $("deployment-load-state").textContent=connectionError;}finally{statusBusy=false;}}
-  async function act(action){if(localBusy)return false;localBusy=true;renderControls();notify(action==="load"?window.CobotModelLoading(model()).zh:operationName[action]+"中",false,"running");try{let next=await request("/api/deployment/action",{action,model_id:selectedModel,trial_id:state?.active?.id||null});renderStatus(next);window.CobotOutputPanel?.follow({id:'deployment',component:'deployment'});for(let i=0;next.operation&&i<150;i++){await sleep(600);next=await request("/api/deployment/status");renderStatus(next);}if(next.operation)throw new Error("操作仍在进行，请到输出页查看进度");if(next.error)throw new Error(next.error);if(action!=="load")notify(operationName[action]+"完成");else if(!["ready","paused","running"].includes(next.phase))notify(window.CobotModelLoading(next.model||model()).zh);await refreshRecords();return true;}catch(error){if(error.transport){connectionError=error.message;notify(error.message+"；操作结果待确认，请勿重复点击。后台操作可能仍在执行。",true);transportMessage=true;}else notify(error.message,true);return false;}finally{localBusy=false;renderControls();}}
+  async function act(action){if(localBusy)return false;localBusy=true;renderControls();notify(action==="load"?window.CobotModelLoading(model()).zh:operationName[action]+"中",false,"running");try{let next=await request("/api/deployment/action",{action,model_id:selectedModel,trial_id:state?.active?.id||null,...(action==="load"&&executionOptions?.value?{execution_options:executionOptions.value}:{})});renderStatus(next);window.CobotOutputPanel?.follow({id:'deployment',component:'deployment'});for(let i=0;next.operation&&i<150;i++){await sleep(600);next=await request("/api/deployment/status");renderStatus(next);}if(next.operation)throw new Error("操作仍在进行，请到输出页查看进度");if(next.error)throw new Error(next.error);if(action!=="load")notify(operationName[action]+"完成");else if(!["ready","paused","running"].includes(next.phase))notify(window.CobotModelLoading(next.model||model()).zh);await refreshRecords();return true;}catch(error){if(error.transport){connectionError=error.message;notify(error.message+"；操作结果待确认，请勿重复点击。后台操作可能仍在执行。",true);transportMessage=true;}else notify(error.message,true);return false;}finally{localBusy=false;renderControls();}}
   async function home(confirmed=false){const pose=$("deploy-home-pose").value;if(!pose)return;if(state?.active){if(!await act("abort"))return;}return window.CobotDeviceUI?.execute({component:"home",action:"run",target:$("deploy-home-target").value,...($("deploy-home-target").value==="selection"?{arms:homeArms()}:{}),pose},"归位到 "+pose,confirmed);}
   async function terminal(action){if(await act(action)){if($("deploy-auto-home").checked)await home(true);}}
   async function refreshRecords(){if(!state)return;const token=++recordRequest;const key=selectedModel;try{const result=await request("/api/deployment/records?model_id="+encodeURIComponent(key));if(token!==recordRequest)return;records=result.records;$("deploy-total").textContent=result.total;$("deploy-success-count").textContent=result.success;$("deploy-failure-count").textContent=result.failure;$("deploy-rate").textContent=result.rate==null?"—":(result.rate*100).toFixed(1)+"%";$("deploy-autonomous").textContent="自主成功率 "+(result.autonomous_rate==null?"—":(result.autonomous_rate*100).toFixed(1)+"%");$("deploy-aborted").textContent="放弃 "+result.aborted;$("deployment-result-scope").textContent="当前模型";

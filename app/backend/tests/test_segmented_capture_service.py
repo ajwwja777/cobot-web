@@ -370,3 +370,24 @@ def test_real_writer_pauses_and_resumes_one_contiguous_hdf5(project_tmp) -> None
     assert deleted["episode_index"] == 1
     assert not hdf5_path.exists()
     assert not result.episode_root.exists()
+
+
+@pytest.mark.parametrize('stuck',[False,True])
+def test_defer_closes_writer_despite_failed_sidecar_but_refuses_live_worker(project_tmp,monkeypatch,stuck):
+    recorder=FakeRecorder()
+    service=SegmentedCaptureService(recorder=recorder,cache=ready_cache('manual:left'),
+        gate=CaptureGate(enabled=False),sidecar_root=project_tmp,clock=lambda:10.,monitor=False)
+    service.start(identity(),data_root=project_tmp)
+    snapshot=service.status()
+    def failed_stop():raise OSError('sidecar interruption')
+    monkeypatch.setattr(service,'stop',failed_stop)
+    status=recorder.status
+    recorder.status=lambda:{**status(),'writer_thread_alive':stuck}
+    if stuck:
+        with pytest.raises(SegmentedCaptureError,match='still_active'):service.defer()
+        assert service.status()['episode_uuid']==snapshot['episode_uuid']
+    else:
+        result=service.defer()
+        assert result['deferred'] and result['recording_retained']['episode_uuid']==snapshot['episode_uuid']
+        assert recorder.stopped and not service.active
+        assert not service.gate.is_open()

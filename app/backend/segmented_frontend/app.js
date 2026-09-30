@@ -315,7 +315,7 @@ const coreKeyZh = {
   "online BC / Q":'在线 BC / Q 权重',"reference dropout":'参考动作丢弃率',"warmup BC / Q":'预热 BC / Q 权重',
   "batch size":'批大小',"checkpoint interval":'检查点间隔',"publish interval":'发布间隔',
   "updates / cycle":'每轮更新步数',capacity:'容量',"actor pull interval":'策略拉取间隔',
-  "control rate":'控制频率',"executed horizon":'执行长度',"safe fallback":'安全回退',
+  "logical control / Replay rate":'逻辑步频 / Replay',"control rate":'逻辑步频 / Replay',"executed horizon":'执行长度',"safe fallback":'安全回退',
   "checkpoint step":'检查点步数',"FSDP devices":'FSDP 设备数',"global batch":'全局批大小',
   seed:'随机种子',"training steps":'训练步数',"steady inference":'稳定推理',
   "minimum replay":'最小回放量',"training budget":'训练预算'
@@ -990,7 +990,7 @@ function appendHistoryOptions(episodes, replace = false) {
     const summary = rltEpisodeSummaryByUuid.get(episode.episode_uuid) || {};
     const outcome = episode.episode_outcome || summary.outcome;
     const kind = (summary.hil || episode.has_hil) ? "HIL" : (episode.history_format === "rollout" ? "自主" : `${Number(episode.node_count || 0)} nodes`);
-    const state = episode.commit_state || episode.completion_state || "complete";
+    const state = episode.history_format==="deferred" ? "暂存待处理" : episode.commit_state || episode.completion_state || "complete";
     option.textContent = `episode ${index} · ${!outcome||outcome==='unknown'?"未标注":outcome} · ${kind} · ${frames} frames · ${state}`;
     select.append(option);
   }
@@ -1067,6 +1067,7 @@ async function preloadEpisodeMedia(token, episodes, isRlt) {
   const loadFrame = async () => {
     while (active() && nextFrame < episodes.length) {
       const episode = episodes[nextFrame++];
+      if(episode.history_format==="deferred")continue;
       const isRlt = episode.history_format === "rollout";
       try {
         let bases=[];
@@ -1138,16 +1139,42 @@ function resetReplay(preserveHistoryLayout=false) {
   if (replayTimeline) replayTimeline.setEpisode([], {});
 }
 function showLive() {
+  updateHistoryLabels(null);
   historyUuid = null; selectionToken++; currentReview = null;
   viewedEpisode = current; renderedGeneration = -1; resetReplay();
   $("#review-panel").classList.add("hidden");
   $("#node-preview").classList.add("hidden");
   render(current);
 }
+let historyLabels = null;
+function updateHistoryLabels(episode) {
+  if (!window.CobotHistoryLabels) return;
+  if (!historyLabels) {
+    const host=document.createElement('section');document.querySelector('#episode-browser-panel').append(host);
+    historyLabels=window.CobotHistoryLabels.create(host);
+  }
+  historyLabels.update(episode,historyDataRoot());
+}
+document.addEventListener('cobot:history-label-saved',event=>{
+  const uuid=event.detail.episode_uuid,episode=historyEpisodes.find(e=>e.episode_uuid===uuid);
+  if(episode)episode.episode_outcome=event.detail.labels.episode_outcome;
+  preloadedRltLabels.delete(episodeDetailKey(uuid));
+  preloadedEpisodeDetails.delete(episodeDetailKey(uuid));
+  appendHistoryOptions(historyEpisodes,true);
+});
 async function loadHistory(showFirstNode = true) {
   const episodeUuid = $("#episode-history").value;
   if (!episodeUuid) return;
   const token = ++selectionToken;
+  const metadata = historyEpisodes.find(e=>e.episode_uuid===episodeUuid);
+  updateHistoryLabels(metadata);
+  if(metadata?.history_format==='deferred'){
+    historyUuid=episodeUuid;currentReview=null;resetReplay();
+    $('#review-panel').classList.add('hidden');$('#timeline').replaceChildren();
+    $('#node-preview').classList.add('hidden');
+    historyMessage((window.CobotPreferences?.language==='en'?'Deferred recording: ':'暂存待处理：')+(metadata.archive_relative_path||metadata.relative_path),false);
+    return;
+  }
   historyUuid = episodeUuid; currentReview = null; resetReplay(true);
   window.CobotFeaturePaths?.update("history",{rlt:historyIsRlt(),dataRoot:historyDataRoot(),episode:historyEpisodes.find(e=>e.episode_uuid===episodeUuid)});
   $("#timeline").replaceChildren();
@@ -1330,7 +1357,8 @@ async function deleteHistory() {
   const replayNote = historyIsRlt() ? "\n已提交到 replay 的 transition 不会被回滚。" : "";
   if (!window.confirm(window.CobotPreferences.text(`永久删除 ${selectedText}？${replayNote}\n按 Enter / OK 确认。`))) return;
   try {
-    const deleted = await request(historyEndpoint(`/episodes/${episodeUuid}`), {
+    const deferred=historyEpisodes.find(e=>e.episode_uuid===episodeUuid)?.history_format==='deferred';
+    const deleted = await request(deferred?'/api/recordings/deferred/'+encodeURIComponent(episodeUuid)+'?'+dataRootQuery(historyDataRoot()):historyEndpoint(`/episodes/${episodeUuid}`), {
       method: "DELETE",
       ...(historyIsRlt() ? {body: JSON.stringify({episode_uuid: episodeUuid})} : {}),
     });

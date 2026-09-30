@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 from pydantic import BaseModel
+from typing import Optional, Dict
 
 from .deployment import DeploymentError
 
@@ -10,6 +11,7 @@ from .deployment import DeploymentError
 class CollectionModelAction(BaseModel):
     action: str
     model_id: str = ""
+    execution_options: Optional[Dict[str, object]] = None
 
 
 class CollectionModel:
@@ -73,6 +75,15 @@ def install_routes(app, manager):
             if request.action not in {"load", "unload", "session_start", "session_stop"}:
                 raise HTTPException(422, "unknown_collection_action")
             name = {"session_start": "collection_session_start", "session_stop": "collection_session_stop"}.get(request.action, request.action)
+            if request.execution_options is not None:
+                if name != 'load':
+                    raise HTTPException(422, 'execution_options_only_on_load')
+                from .execution_options import contract
+                try:
+                    options = contract()['normalize_options'](request.execution_options)
+                except (ValueError, TypeError) as error:
+                    raise HTTPException(422, str(error)) from error
+                return manager.submit(name, request.model_id or None, execution_options=options)
             return manager.submit(name, request.model_id or None)
         except DeploymentError as error:
             raise HTTPException(409, str(error)) from error

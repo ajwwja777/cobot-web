@@ -76,3 +76,13 @@ test("RLT picker shows published snapshot separately from learner and inference"
  assert.match(facts.textContent,/415 trained steps not yet published/);
  dom.window.close();
 });
+
+
+test('50 Hz publication is displayed separately from logical Replay20',()=>{
+ const {dom,w}=setup();const details=w.document.createElement('dl');
+ w.CobotModelPicker.renderDetails(details,{kind:'rlt',control_hz:20,publish_hz:50,
+   execution_settings:{publish_hz:50,logical_hz:20,rtc:true,smoothing:false}});
+ assert.match(details.textContent,/Action publication rate50 Hz/);
+ assert.match(details.textContent,/Logical control \/ Replay rate20 Hz/);
+ assert(!details.textContent.includes('Control rate'));dom.window.close();
+});

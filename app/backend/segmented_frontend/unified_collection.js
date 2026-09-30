@@ -1,7 +1,7 @@
 "use strict";
 (function(root){
   const $=s=>document.querySelector(s);
-  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null,recorderRecovery=null,runtimeRecovery=null;
+  let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null,recorderRecovery=null,runtimeRecovery=null,executionOptions=null,deferUncertain=false;
   const english=()=>root.CobotPreferences?.language==='en';
   const text=(zh,en)=>english()?en:zh;
   const useModel=()=>Boolean($('#capture-use-model')?.checked);
@@ -62,7 +62,8 @@
     if(next)context={...context,...next};if(!mounted)return;
     updateCatalog();
     const rlt=isRlt(),use=useModel(),chosen=selectedModel(),state=modelState();
-    root.CobotModelPicker.renderDetails($('#collection-model-details'),chosen);
+    root.CobotModelPicker.renderDetails($('#collection-model-details'),state.model?.id===chosen?.id?state.model:chosen);
+    executionOptions?.update(chosen,state,active()||changing||Boolean(context.busy)||!use);
     const processing=modelBusy||root.CobotCollectionModel?.busy;
     const loading=root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading';
     const locked=active()||changing||context.busy||processing||loading;
@@ -94,6 +95,8 @@
       const shortcuts={start:'→',pause:text('空格','Space'),resume:text('空格','Space'),save:text('→ 暂停后','→ when paused'),discard:'←',success:'↑',failure:'↓'};
       button.dataset.shortcut=result&&!labelResults()?'':(shortcuts[key]||'');
     }
+    const deferButton=$('#collection-defer');
+    if(deferButton){const p=context.session?.phase;deferButton.disabled=Boolean(context.busy||changing||processing)||(!deferUncertain&&(rlt?!['rollout','hil','paused','terminal_pending','fault'].includes(p)||(p==='fault'&&!String(context.session?.fault_reason||'').startsWith('task5_')):!context.capture?.episode_uuid||context.capture?.capture_state==='idle'));label(deferButton,deferUncertain?'检查暂存结果':'暂存并跳过本轮',deferUncertain?'Check deferral result':'Defer and skip episode');}
     const home=$('#capture-home-enabled').checked;
     label($('#collection-start'),use?'开始推理':'开始采集',use?'Start inference':'Start capture');
     label($('#collection-save'),home?'结束保存并复位':'结束并保存',home?'Save and home':'Finish and save');
@@ -177,6 +180,7 @@
     for(const [id,zh,en] of [['load','加载模型','Load model'],['unload','释放模型','Release model'],['session-start','开始 Session','Start session'],['session-stop','结束 Session','End session']]){
       const button=document.createElement('button');button.type='button';button.id='collection-'+id;label(button,zh,en);button.addEventListener('click',()=>modelAction(id));card.querySelector('.collection-model-actions').append(button);
     }
+    const executionHost=document.createElement('section');card.querySelector('.session-settings-body').append(executionHost);executionOptions=root.CobotExecutionOptions?.create(executionHost);
     const runtimeHelp=document.createElement('section');card.querySelector('.session-settings-body').append(runtimeHelp);runtimeRecovery=root.CobotRuntimeRecovery?.create(runtimeHelp,{refresh:()=>root.CobotCollectionModel?.refresh()});
     const recovery=document.createElement('details');recovery.className='recorder-recovery';card.querySelector('.session-settings-body').append(recovery);recorderRecovery=root.CobotRecorderRecovery?.create(recovery);
     const history=$('#episode-browser-operation');
@@ -185,6 +189,29 @@
     }
     root.CobotWorkspaceUI?.registerWorkspaceGrid?.(grid,'collection-workspace');
     panel.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="采集控制" data-en="Collection controls">采集控制</h3><strong class="state-badge" id="collection-state">—</strong></div><div class="mini-stats"><span><small data-zh="帧数" data-en="Frames">帧数</small><strong id="collection-frame-count">0</strong></span><span><small data-zh="节点" data-en="Markers">节点</small><strong id="collection-node-count">0</strong></span><span><small data-zh="版本" data-en="Version">版本</small><strong id="collection-generation">0</strong></span></div><div class="button-grid collection-episode-actions"></div><div class="collection-results"><label class="collection-result-toggle"><input type="checkbox" id="collection-label-results"/><span data-zh="启用成功 / 失败" data-en="Enable success / failure">启用成功 / 失败</span></label><div class="button-grid collection-result-actions"></div></div>');
+    const deferButton=document.createElement('button');deferButton.type='button';deferButton.id='collection-defer';deferButton.className='secondary';
+    label(deferButton,'暂存并跳过本轮','Defer and skip episode');panel.querySelector('.collection-episode-actions').append(deferButton);
+    deferButton.addEventListener('click',async()=>{
+      if(deferButton.disabled)return;
+      if(deferUncertain){
+        context.busy=true;render();
+        try{await root.CobotConsoleUI.parseApiResponse(await fetch(isRlt()?'/api/rlt/session':'/api/segmented-teach/status',{cache:'no-store'}));await root.refreshConsole();deferUncertain=false;}
+        catch(error){root.CobotWorkspaceUI?.report(error.message,'error');}
+        finally{context.busy=false;render();}return;
+      }
+      if(!root.confirm(text('保留录制，不标结果、不加入 Replay；保留模型任务，之后手动开始下一轮。','Retain recordings without labels or Replay insertion. Keep the model task and manually start the next episode.')))return;
+      context.busy=true;render();
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+      try{
+        const snapshot=isRlt()?context.session:context.capture;
+        const body=isRlt()?{episode_id:snapshot.episode_id,generation:snapshot.generation}:{episode_uuid:snapshot.episode_uuid,generation:snapshot.generation};
+        const response=await fetch(isRlt()?'/api/rlt/episode/skip':'/api/segmented-teach/defer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
+        await root.CobotConsoleUI.parseApiResponse(response);
+        root.CobotWorkspaceUI?.report(text('本轮已暂存；可手动开始下一轮。','Episode deferred; start the next episode manually.'),'success');
+        await root.refreshConsole();await root.refreshHistory?.({loadSelected:false});
+      }catch(error){deferUncertain=controller.signal.aborted||error instanceof TypeError;root.CobotWorkspaceUI?.report(deferUncertain?text('结果待确认，先检查状态，不重复提交。','Result uncertain; check status before resubmitting.'):error.message,'error');}
+      finally{clearTimeout(timer);context.busy=false;render();}
+    });
     const actions=[['start','开始采集','Start capture'],['pause','暂停并打节点','Pause + marker'],['resume','继续并打节点','Resume + marker'],['marker','只打节点','Add marker'],['save','结束并保存','Finish and save'],['discard','结束并放弃','Discard episode'],['success','成功并复位','Success and home'],['failure','失败并复位','Failure and home']];
     for(const [id,zh,en] of actions){
       const button=document.createElement('button');button.id='collection-'+id;button.type='button';label(button,zh,en);if(['discard','failure'].includes(id))button.className='danger';
@@ -210,6 +237,6 @@
     $('#collection-storage-use').addEventListener('click',()=>{const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;if(isRlt())target.dispatchEvent(new Event('input'));$(isRlt()?'#rlt-save-storage':'#prepare-storage').click();delete input.dataset.dirty;});
     document.querySelector('[data-view="operation"]')?.addEventListener('click',()=>{if(useModel()&&!active())changeRuntime();});$('#capture-home-enabled').addEventListener('change',()=>render());document.addEventListener('cobot:language',()=>render());render();
   }
-  root.CobotUnifiedCollection={mount,render,labelResults,active,changeRuntime,shortcutAction,updateCatalog,get mounted(){return mounted;},get changing(){return changing||modelBusy;},updateRecorder:state=>{context.recorder=state;render();}};
+  root.CobotUnifiedCollection={get executionOptions(){return executionOptions?.value;},mount,render,labelResults,active,changeRuntime,shortcutAction,updateCatalog,get mounted(){return mounted;},get changing(){return changing||modelBusy;},updateRecorder:state=>{context.recorder=state;render();}};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.CobotUnifiedCollection;
 })(typeof window!=='undefined'?window:globalThis);

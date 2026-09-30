@@ -64,7 +64,7 @@
     const label={load:'加载模型',unload:'释放模型',session_start:'开始 Session',session_stop:'结束 Session'}[name];
     root.CobotWorkspaceUI?.report(label+'…','running',label);
     try{
-      const response=await fetch('/api/collection/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:name,model_id:modelId||$('#capture-model-select').value})});
+      const response=await fetch('/api/collection/model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:name,model_id:modelId||$('#capture-model-select').value,...(name==='load'&&root.CobotUnifiedCollection?.executionOptions?{execution_options:root.CobotUnifiedCollection.executionOptions}:{})})});
       state=await root.CobotConsoleUI.parseApiResponse(response);
       root.CobotOutputPanel?.follow({id:"deployment",component:"deployment"});
     }catch(error){root.CobotWorkspaceUI?.report(error.message,'error',label);}

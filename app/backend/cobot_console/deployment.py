@@ -107,7 +107,8 @@ def catalog():
     from .site_options import registered_models, inventory_models
     definitions.extend(registered_models(definitions))
     definitions.extend(inventory_models(definitions))
-    return [describe(item) for item in definitions]
+    from .execution_options import configured_model
+    return [configured_model(describe(item)) for item in definitions]
 
 
 def process_identity(pid):
@@ -222,7 +223,7 @@ class ManagedRuntime:
         return {"runtime_stopped": True, "stage1_pid": stage1["pid"]}
 
     @serialized
-    def recover_runtime(self):
+    def recover_runtime(self, execution_options=None):
         saved = read_json(self.registry)
         if saved.get("model", {}).get("kind") != "rlt" or saved.get("phase") == "offline":
             raise DeploymentError("No failed RLT runtime to recover")
@@ -231,7 +232,11 @@ class ManagedRuntime:
         if not self.retained_stage1(saved["model"])["ready"]:
             raise DeploymentError("Stage1 is not retained; recovery will not reload weights")
         # Recheck in the script; do not reload if Stage1 disappears in between.
-        return self.load({**saved["model"], "retain_stage1_required": True})
+        model = {**saved["model"], "retain_stage1_required": True}
+        if execution_options is not None:
+            from .execution_options import configured_model
+            model = configured_model(model, execution_options)
+        return self.load(model)
 
     @serialized
     def load(self, model):
@@ -263,6 +268,10 @@ class ManagedRuntime:
         environment.update(runpy.run_path(str(vla_config))["runtime_environment"]())
         environment.pop("COBOT_DEPLOYMENT_ADAPTER", None)
         environment.pop("COBOT_CUSTOM_CHECKPOINT", None)
+        environment.pop("COBOT_RLT_EXECUTION_PROFILE", None)
+        environment.pop("COBOT_RLT_EXECUTION_OPTIONS", None)
+        if model.get('execution_options', {}).get('enabled'):
+            environment['COBOT_RLT_EXECUTION_OPTIONS'] = json.dumps(model['execution_options'])
         if model.get("retain_stage1_required"):
             environment["COBOT_RLT_REQUIRE_RESIDENT_STAGE1"] = "1"
         else:
@@ -568,7 +577,7 @@ class DeploymentManager:
             if acquired:
                 self.lock.release()
 
-    def submit(self, operation, model_id=None, trial_id=None):
+    def submit(self, operation, model_id=None, trial_id=None, execution_options=None):
         with self.lock:
             if self.operation:
                 raise DeploymentError("上一操作正在执行：" + self.operation)
@@ -578,7 +587,10 @@ class DeploymentManager:
             self.error = None
         def run():
             try:
-                self.perform(operation, model_id=model_id)
+                if execution_options is None:
+                    self.perform(operation, model_id=model_id)
+                else:
+                    self.perform(operation, model_id=model_id, execution_options=execution_options)
             except Exception as error:
                 with self.lock:
                     self.error = str(error)
@@ -626,7 +638,7 @@ class DeploymentManager:
             (self.directory / "active.json").unlink(missing_ok=True)
             self.active = None
 
-    def perform(self, operation, model_id=None):
+    def perform(self, operation, model_id=None, execution_options=None):
         if operation in {'load', 'start', 'collection_session_start'}:
             try:
                 require_storage(self.allowed_root, write=True)
@@ -657,9 +669,13 @@ class DeploymentManager:
             model = next((m for m in self.model_provider() if m["id"] == model_id), None)
             if not model or not model["available"]:
                 raise DeploymentError((model or {}).get("unavailable_reason") or "所选模型不可用")
+            from .execution_options import configured_model
+            model = configured_model(model, execution_options)
             current = self.runtime.status()
             if (current.get("model", {}).get("id") == model_id
                     and current.get("phase") in {"loading", "ready", "paused"}):
+                if execution_options is not None and current['model'].get('execution_options', {'enabled': False}) != execution_options:
+                    raise DeploymentError('apply_execution_options_with_retained_runtime_restart')
                 return  # Reuse the shared process; never reload the same weights.
             self.runtime.load(model)
             self.collection_session = False
@@ -792,6 +808,7 @@ class DeploymentAction(BaseModel):
     action: str
     model_id: Optional[str] = None
     trial_id: Optional[str] = None
+    execution_options: Optional[dict] = None
 
 
 class DeploymentStorage(BaseModel):
@@ -844,6 +861,15 @@ def install_routes(app, cameras, modes, devices):
         if request.action not in {"load", "unload", "start", "pause", "resume", "success", "failure", "abort"}:
             raise HTTPException(422, "unknown_deployment_action")
         try:
+            if request.execution_options is not None:
+                if request.action != 'load':
+                    raise HTTPException(422, 'execution_options_only_on_load')
+                from .execution_options import contract
+                try:
+                    options = contract()['normalize_options'](request.execution_options)
+                except (ValueError, TypeError) as error:
+                    raise HTTPException(422, str(error)) from error
+                return manager.submit(request.action, request.model_id, request.trial_id, execution_options=options)
             return manager.submit(request.action, request.model_id, request.trial_id)
         except DeploymentError as error:
             raise HTTPException(409, str(error)) from error

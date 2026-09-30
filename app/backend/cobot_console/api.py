@@ -1,6 +1,7 @@
 """Single-port composition of normal Task5 capture and RLT control."""
 
 from __future__ import annotations
+from uuid import UUID
 
 import os
 import json
@@ -374,8 +375,10 @@ def create_app(
                     data_root=target, task_id="recording", model_id="shared",
                     dataset_round="collection", storage_layout="flat")
             except (LabelValidationError, StoragePathError) as error:
+                from capture_core.deferred import latest_blocker
                 return {"status": "not_ready", "error_code": str(error),
-                        "detail": str(target), "data_root": str(target)}
+                        "detail": str(target), "data_root": str(target),
+                        "blocker": latest_blocker(target)}
             return {"status": "ok", "error_code": None, "data_root": str(target),
                     "next_episode_index": prepared.next_episode_index,
                     "latest_labels_complete": inspection["latest_labels_complete"],
@@ -383,6 +386,75 @@ def create_app(
         except PreflightError as error:
             return {"status": "not_ready", "error_code": error.code,
                     "detail": error.detail, "data_root": str(target)}
+
+    def deferred_root(value):
+        if not isinstance(value, str):
+            raise HTTPException(422, 'data_root_required')
+        target = Path(value).expanduser().resolve()
+        allowed = (allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve()
+        if target != allowed and allowed not in target.parents:
+            raise HTTPException(422, 'recording_path_outside_allowed_root')
+        return target
+
+    historical_label_lock = threading.RLock()
+
+    @application.get('/api/recordings/{episode_uuid}/labels')
+    def historical_labels(episode_uuid: UUID, data_root: str):
+        from capture_core.labels import LabelStore, LabelNotFoundError, LabelValidationError
+        try:
+            return LabelStore(deferred_root(data_root)).get_labels(episode_uuid)
+        except (LabelNotFoundError, LabelValidationError) as error:
+            raise HTTPException(409, 'recording_not_complete_or_labels_invalid') from error
+
+    @application.put('/api/recordings/{episode_uuid}/labels')
+    def label_historical_recording(episode_uuid: UUID, data_root: str, body: Dict[str, object]):
+        from capture_core.labels import LabelStore, LabelNotFoundError, LabelValidationError, LabelConflictError
+        if str(body.get('episode_uuid')) != str(episode_uuid):
+            raise HTTPException(409, 'episode_uuid_mismatch')
+        if body.get('outcome') not in {'success', 'failure', 'unknown'} or type(body.get('keep_for_training')) is not bool:
+            raise HTTPException(422, 'invalid_historical_label')
+        if not isinstance(body.get('operator_note'), str) or len(body['operator_note']) > 500:
+            raise HTTPException(422, 'invalid_operator_note')
+        if 'expected_label_updated_at' not in body:
+            raise HTTPException(422, 'expected_label_updated_at_required')
+        try:
+            with historical_label_lock:
+                store = LabelStore(deferred_root(data_root))
+                current = store.get_labels(episode_uuid)
+                if current.get('label_updated_at') != body['expected_label_updated_at']:
+                    raise HTTPException(409, 'labels_changed_reload_before_saving')
+                outcome = body['outcome']
+                saved = store.update_labels(episode_uuid, {
+                    'episode_uuid': str(episode_uuid), 'episode_outcome': outcome,
+                    'episode_quality': 'good' if outcome == 'success' else 'bad' if outcome == 'failure' else 'uncertain',
+                    'termination_reason': outcome if outcome in {'success','failure'} else 'operator_save',
+                    'keep_for_training': 'true' if body['keep_for_training'] and outcome != 'unknown' else 'false',
+                    'operator_note': body['operator_note'] or None,
+                }, expected_label_updated_at=current['label_updated_at'])
+                return {**saved, 'replay_modified': False}
+        except LabelConflictError as error:
+            raise HTTPException(409, str(error)) from error
+        except (LabelNotFoundError, LabelValidationError) as error:
+            raise HTTPException(409, 'recording_not_complete_or_labels_invalid') from error
+
+    @application.post('/api/rlt/defer-file')
+    def defer_closed_file(body: Dict[str, object]):
+        from capture_core.deferred import defer_file
+        target = deferred_root(body.get('data_root'))
+        if modes.snapshot().active_mode is not None or shared_recorder.status().get('state') not in {'idle', 'stopped'}:
+            raise HTTPException(409, 'finish_recording_before_deferring_file')
+        try:
+            return defer_file(target, body['expected'])
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            raise HTTPException(409, str(error)) from error
+
+    @application.delete('/api/recordings/deferred/{episode_uuid}')
+    def delete_deferred_recording(episode_uuid: UUID, data_root: str):
+        from capture_core.deferred import delete_deferred
+        try:
+            return delete_deferred(deferred_root(data_root), str(episode_uuid))
+        except (ValueError, OSError) as error:
+            raise HTTPException(409, str(error)) from error
 
     @application.post("/api/rlt/recorder-check")
     def check_rlt_recorder(body: Dict[str, object]):
@@ -403,6 +475,15 @@ def create_app(
             with operation(manager.runtime.directory):
                 state = manager.runtime.status()
                 options = body or {}
+                execution_options = options.get('execution_options')
+                if execution_options is not None:
+                    from .execution_options import configured_model
+                    try:
+                        configured_model(state.get('model', {}), execution_options)
+                    except (ValueError, TypeError) as error:
+                        raise HTTPException(422, str(error)) from error
+                    if state.get('session', {}).get('phase') not in {'disarmed', 'ready', 'waiting_scene', 'stopped'}:
+                        raise HTTPException(409, 'finish_episode_before_execution_options')
                 restart = options.get("restart_running") is True
                 if restart:
                     if state.get("model", {}).get("kind") != "rlt" or not state.get("runtime_recovery_available"):
@@ -426,7 +507,8 @@ def create_app(
                     rollout.state.release_completed_writer()
                 if modes.snapshot().active_mode is not None:
                     raise HTTPException(409, "pending_episode_finalization")
-                result = manager.runtime.recover_runtime()
+                result = (manager.runtime.recover_runtime(execution_options=execution_options)
+                          if execution_options is not None else manager.runtime.recover_runtime())
                 manager.collection_session = False
                 manager.error = None
                 return {**result, **retained, "model_retained": True, "manual_start_required": True}
@@ -856,6 +938,7 @@ def create_app(
         ("/api/rlt/session/prepare", "/api/session/prepare"),
         ("/api/rlt/episode/marker", "/api/episode/marker"),
         ("/api/rlt/episode/save", "/api/episode/save"),
+        ("/api/rlt/episode/skip", "/api/episode/skip"),
         ("/api/rlt/session/arm", "/api/session/arm"),
         ("/api/rlt/session/start", "/api/session/start"),
         ("/api/rlt/session/pause", "/api/session/pause"),

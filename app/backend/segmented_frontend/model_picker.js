@@ -36,7 +36,11 @@
       ["Inference episode", model.publication_tracked ? model.inference_episode_id : null],
       ["Publication status", model.publication_tracked ? (model.published_learner_step == null ? "Publication not verified" : model.learner_step > model.published_learner_step ? (model.learner_step - model.published_learner_step) + " trained steps not yet published" : "Published snapshot is up to date") : null],
       ["Actor version", model.publication_tracked ? null : model.actor_version],
-      ["Training steps", model.publication_tracked ? null : model.step], ["Control rate", model.control_hz ? model.control_hz + " Hz" : null],
+      ["Training steps", model.publication_tracked ? null : model.step],
+      ["Action publication rate", (model.execution_settings?.publish_hz ?? model.publish_hz ?? model.control_hz) ? (model.execution_settings?.publish_hz ?? model.publish_hz ?? model.control_hz) + " Hz" : null],
+      ["Logical control / Replay rate", model.kind === "rlt" ? (model.execution_settings?.logical_hz ?? model.control_hz ?? 20) + " Hz" : null],
+      ["RTC", model.execution_settings ? (model.execution_settings.rtc ? "On" : "Off") : null],
+      ["Causal smoothing", model.execution_settings ? (model.execution_settings.smoothing ? "On" : "Off") : null],
       ["Action mode", model.deterministic === true ? "Deterministic / no exploration" : model.kind === "pi05" ? "Original RTC inference" : null],
       ["Validation", model.validation], ["Availability", available(model) ? "Available" : reason(model)]
     ].filter(([,v]) => v != null && v !== "") : [];

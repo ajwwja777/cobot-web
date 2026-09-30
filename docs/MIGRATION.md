@@ -574,3 +574,21 @@ operator acceptance; do not advertise them as passed from this non-motion test.
 The selected MC30 async_rtc50 profile is retained; faithful synchronous20 remains
 the documented rollback. Project handoff/concurrent-dialogue guidance now lives
 in each project AGENTS.md and the five laptop entry directories.
+
+
+## 2026-09-30：可选运行配置、暂存跳过与历史补标签
+
+用户提出 50 Hz 模型显示 Control rate 20 Hz，以及录制中断不应结束整个模型任务。
+模型详情现区分动作发布频率与逻辑步频/Replay；登记 50 Hz preset 展示发布50、逻辑20。
+采集/部署统一模型加载支持可选运行配置：发布20/30/40/50 Hz、RTC、因果平滑。
+未勾选自定义使用所选模型默认值；配置变更在活动轮次被拒绝，空闲应用沿用保留Stage1的重建接口。
+录制暂存接口结束当前 owned writer，保留文件与模型任务；完整未标注记录可在历史补标签/重标注。
+不完整/损坏文件有待处理回执与显式删除；暂存不隐式标成功/失败或插入Replay，下一轮仍为手动开始。
+请求超时显示结果待确认，检查Session/采集状态后才允许再次操作；硬件/执行故障仍保留安全暂停与诊断。
+标签采用领域锁内版本校验，保持原HDF5、HIL区间与节点，不修改已经提交的Replay。
+
+隔离worktree验证：网页后端725 passed/6 skipped；前端62 passed；采集领域78 passed；
+RL相关79 passed。末次频率参数展示改动另通过34项模型/历史回归。
+浏览器连接工具无可用浏览器，真实浏览器视觉验收未完成；DOM交互回归通过。
+用户确认退出后现场只读核验：模型offline，recorder/capture idle，active_mode为空。
+源码部署与网页重载的实际结果另记；本次离线检查不等于真机50 Hz连续发布或成功率验收。

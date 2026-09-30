@@ -70,7 +70,7 @@ class ModelCatalog:
             _p("Online","publish interval",learner.get("push_actor_interval_steps"),"steps"),
             _p("Online","checkpoint interval",learner.get("checkpoint_interval_steps"),"steps"),
             _p("Replay","capacity",replay.get("capacity"),"transitions"),
-            _p("Runtime","control rate",env.get("control_frequency_hz"),"Hz"),
+            _p("Runtime","logical control / Replay rate",env.get("control_frequency_hz"),"Hz"),
             _p("Runtime","executed horizon",env.get("chunk_exec_horizon")),
             _p("Runtime","actor pull interval",actor.get("pull_params_interval_sec"),"s"),
             _p("Runtime","safe fallback",env.get("safe_fallback_to_ref")),

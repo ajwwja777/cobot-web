@@ -413,6 +413,25 @@ def create_app(
             raise HTTPException(status_code=500, detail="segmented_stop_failed") from error
         return final_response()
 
+    @application.post('/api/segmented-teach/defer')
+    def defer_episode(request: VersionRequest):
+        current = service.status()
+        if str(request.episode_uuid) != str(current.get('episode_uuid')) or request.generation != int(current.get('generation', 0)):
+            raise HTTPException(409, 'stale_capture_generation')
+        try:
+            if model_control():
+                model_control().action('stop')
+            result = service.defer()
+            lease = active_lease.get('value')
+            if writer_coordinator is not None and lease is not None:
+                writer_coordinator.release_writer(lease)
+                active_lease['value'] = None
+            if model_control():
+                model_control().finished()
+            return result
+        except Exception as error:
+            raise HTTPException(409, str(error)) from error
+
     @application.post("/api/segmented-teach/discard")
     def discard(request: VersionRequest) -> Dict[str, object]:
         current = service.status()

@@ -17,20 +17,28 @@
   };
   function explanation(code){const pair=advice[code];return pair?pair[en()?1:0]:text("查看输出中列出的原因，修复对应设备或目录后重新检查。","Check the reported cause and fix the device or destination before checking again.");}
   function create(container){
-    container.innerHTML='<summary></summary><p class="recorder-recovery-hint"></p><div class="button-row"><button type="button" class="recorder-check secondary"></button><button type="button" class="recorder-recover secondary"></button></div><p class="recorder-recovery-result" role="status"></p>';
+    container.innerHTML='<summary></summary><p class="recorder-recovery-hint"></p><div class="button-row"><button type="button" class="recorder-check secondary"></button><button type="button" class="recorder-recover secondary"></button><button type="button" class="recorder-skip secondary"></button><button type="button" class="recorder-defer-file secondary"></button></div><p class="recorder-recovery-result" role="status"></p>';
     const hint=container.querySelector(".recorder-recovery-hint"),check=container.querySelector(".recorder-check"),recover=container.querySelector(".recorder-recover"),result=container.querySelector(".recorder-recovery-result");
-    let state={},active=false,busy=false,last=null,lastError="",observedFault="";
+    const skip=container.querySelector('.recorder-skip'),deferFile=container.querySelector('.recorder-defer-file');
+    let state={},active=false,busy=false,last=null,lastError="",observedFault="",uncertain=false;
     function show(){
-      container.hidden=state.model?.kind!=="rlt"||state.phase==="offline"||Boolean(state.runtime_failure);
+      container.hidden=Boolean(state.runtime_failure);
+      const isRlt=state.model?.kind==='rlt';recover.hidden=skip.hidden=!isRlt;
       container.querySelector("summary").textContent=text("录制检查与恢复（保留模型）","Recording checks and recovery (keep model)");
       check.textContent=text("检查录制","Check recording");
       recover.textContent=text("恢复录制（保留模型）","Recover recording (keep model)");
       hint.textContent=state.session?.phase==="fault"
         ?text("录制 Session 异常，模型仍保留。检查原因后可恢复，不必释放权重。","Recording session needs recovery; weights stay loaded. Check the cause, then recover.")
         :text("录制遇到错误时先检查；恢复不会开始推理或释放模型。","Check here if recording fails. Recovery never starts inference or unloads the model.");
-      if(state.session?.fault_reason)hint.textContent+=" "+state.session.fault_reason;
-      check.disabled=busy||active||Boolean(state.operation);
-      recover.disabled=check.disabled||state.session?.policy_paused!==true||!["fault","stopped"].includes(state.session?.phase);
+      if(state.session?.fault_reason||state.session?.terminal_reason)hint.textContent+=" "+(state.session.fault_reason||state.session.terminal_reason);
+      skip.textContent=text('暂存并跳过本轮（保留任务）','Defer and skip episode (keep task)');
+      deferFile.textContent=text('暂存阻塞文件，稍后处理','Defer blocking file for later review');
+      const phase=state.session?.phase;
+      skip.disabled=busy||uncertain||Boolean(state.operation)||!['rollout','hil','paused','terminal_pending','fault'].includes(phase)||(phase==='fault'&&!String(state.session?.fault_reason||'').startsWith('task5_'));
+      deferFile.hidden=!last?.preflight?.blocker;
+      deferFile.disabled=busy||uncertain||active||Boolean(state.operation);
+      check.disabled=busy||Boolean(state.operation)||(active&&!uncertain);
+      recover.disabled=check.disabled||uncertain||active||state.session?.policy_paused!==true||!["fault","stopped"].includes(state.session?.phase);
       if(busy){result.textContent=text("正在检查/恢复…","Checking/recovering…");return;}
       if(lastError){result.textContent=lastError;return;}
       if(!last){result.textContent="";return;}
@@ -55,16 +63,34 @@
       if((repair?recover:check).disabled)return;
       busy=true;lastError="";show();
       try{
+        if(uncertain&&!repair){
+          await parse(await fetch('/api/rlt/session',{cache:'no-store'}));
+          uncertain=false;await root.CobotCollectionModel?.refresh();await root.refreshConsole?.();return;
+        }
         const data_root=root.document.querySelector("#collection-data-root")?.value.trim();
         last=await parse(await fetch(repair?"/api/rlt/recover-recorder":"/api/rlt/recorder-check",{
           method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({data_root,...(repair?{reset_fault_session:true}:{})})
         }));
+        uncertain=false;
         await root.CobotCollectionModel?.refresh();
         await root.refreshConsole?.();
       }catch(error){lastError=error.message;}
       finally{busy=false;show();}
     }
+    async function deferAction(file){
+      if((file?deferFile:skip).disabled)return;
+      if(!root.confirm(text('保留本轮文件为待处理，不标成功/失败、不写 Replay。只暂停并结束本轮，保留模型任务；随后手动开始新一轮。','Retain files for later review without success/failure labels or Replay insertion. Pause/end this episode, keep the model task, then start a new episode manually.')))return;
+      busy=true;lastError='';show();const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+      try{
+        const body=file?{data_root:last.preflight.data_root,expected:last.preflight.blocker}:{episode_id:state.session.episode_id,generation:state.session.generation};
+        const response=await fetch(file?'/api/rlt/defer-file':'/api/rlt/episode/skip',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
+        last=await parse(response);lastError=text('本轮已暂存，模型任务保留；可手动开始下一轮。到历史补标签或删除。','Episode deferred; model task retained. Start the next episode manually. Label or delete retained recordings in history.');
+        await root.CobotCollectionModel?.refresh();await root.refreshConsole?.();await root.refreshHistory?.({loadSelected:false});
+      }catch(error){uncertain=controller.signal.aborted||error instanceof TypeError;lastError=uncertain?text('结果待确认：先检查状态，不重复跳过。','Result uncertain: check status before skipping again.'):error.message;}
+      finally{clearTimeout(timer);busy=false;show();}
+    }
+    skip.addEventListener('click',()=>deferAction(false));deferFile.addEventListener('click',()=>deferAction(true));
     check.addEventListener("click",()=>act(false));recover.addEventListener("click",()=>act(true));
     return {update(next,isActive){
       state=next||{};active=Boolean(isActive);show();

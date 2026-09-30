@@ -216,6 +216,8 @@ def create_app(
     active_lease: Dict[str, object] = {"value": None}
     episode_mutation_lock = threading.RLock()
     discarded_replies: Dict[str, Dict[str, object]] = {}
+    recent_writers: Dict[str, Dict[str, object]] = {}
+    deferred_results: Dict[str, Dict[str, object]] = {}
 
     @asynccontextmanager
     async def lifespan(_application: FastAPI):
@@ -291,7 +293,7 @@ def create_app(
         )
 
     def acquire_writer() -> object:
-        lease = None
+        lease = object()
         if writer_coordinator is not None:
             lease = writer_coordinator.acquire_writer("rlt")
         if capture_gate is not None:
@@ -520,6 +522,15 @@ def create_app(
             active_lease["episode_relative_path"] = str(
                 (prepared.episode_directory / f"episode_{episode_index:06d}.hdf5").relative_to(prepared.data_root)
             )
+            recent_writers[str(identity.episode_uuid)] = {
+                'episode_uuid': str(identity.episode_uuid), 'episode_index': episode_index,
+                'data_root': str(prepared.data_root),
+                'task_id': request.task_id, 'model_id': request.model_id,
+                'checkpoint_id': request.checkpoint_id, 'dataset_round': request.dataset_round,
+                'path': str(prepared.episode_directory / f'episode_{episode_index:06d}.hdf5'),
+            }
+            while len(recent_writers) > 16:
+                recent_writers.pop(next(iter(recent_writers)))
             try:
                 return {**_public_status(active_recorder.start(recorder_request)),
                         "episode_uuid": str(identity.episode_uuid)}
@@ -563,6 +574,72 @@ def create_app(
             raise _http_error(500, "recorder_stop_failed") from error
         except Exception as error:
             raise _http_error(500, "recorder_stop_failed") from error
+
+    @application.post('/api/episodes/defer')
+    def defer_episode(body: Dict[str, object]):
+        with episode_mutation_lock:
+            root = Path(str(body.get('data_root'))).resolve()
+            uuid = str(body['episode_uuid']) if body.get('episode_uuid') else None
+            keys = ('task_id', 'model_id', 'checkpoint_id', 'dataset_round')
+            if uuid:
+                binding = recent_writers.get(uuid)
+                if not binding or Path(binding['data_root']).resolve() != root:
+                    raise _http_error(409, 'defer_episode_not_owned')
+            else:
+                matches = [row for row in recent_writers.values()
+                           if row['episode_index'] == body.get('episode_index')
+                           and Path(row['data_root']).resolve() == root
+                           and all(row[key] == body.get(key) for key in keys)]
+                binding = matches[0] if len(matches) == 1 else None
+                uuid = binding['episode_uuid'] if binding else None
+            if active_lease.get('value') is not None and uuid != active_lease.get('episode_uuid'):
+                raise _http_error(409, 'defer_episode_mismatch')
+            if uuid in deferred_results and deferred_results[uuid].get('deferred'):
+                return dict(deferred_results[uuid])
+            try:
+                if active_lease.get('value') is not None:
+                    result = finalize_for_runtime_recovery()
+                    deferred_results[uuid] = result
+                elif uuid in deferred_results:
+                    result = deferred_results[uuid]
+                elif binding:
+                    raw = active_recorder.status()
+                    if (raw.get('writer_thread_alive') or raw.get('acquisition_active')
+                            or raw.get('state') not in {'idle', 'stopped'}):
+                        raise RuntimeError('recorder_not_stopped')
+                    result = {'recording_retained': {**binding, 'training_label_added': False}}
+                else:
+                    raw = active_recorder.status()
+                    if (raw.get('writer_thread_alive') or raw.get('acquisition_active')
+                            or raw.get('state') not in {'idle', 'stopped'}):
+                        raise RuntimeError('recorder_owner_mismatch')
+                    # Preflight failed before an owned start; no file is changed.
+                    result = {'recording_retained': None}
+                retained = result.get('recording_retained')
+                if retained and retained.get('path'):
+                    from .deferred import metadata, defer_file, list_deferred
+                    path = Path(retained['path'])
+                    incomplete = Path(str(path) + '.incomplete')
+                    if not path.is_file() and incomplete.is_file():
+                        path = incomplete
+                    archived = [r for r in list_deferred(root) if r['episode_uuid'] == uuid]
+                    if archived:
+                        retained['deferred_file'] = archived[0]
+                    elif path.is_file() and (path.name.endswith('.incomplete') or not LabelStore(root).is_complete_episode_file(path)):
+                        expected = metadata(path)
+                        if expected.get('episode_uuid') not in {None, uuid}:
+                            raise ValueError('defer_episode_mismatch')
+                        expected['relative_path'] = str(path.relative_to(root))
+                        retained['deferred_file'] = defer_file(root, expected)
+                response = {**result, 'deferred': True, 'review_pending': True,
+                            'manual_start_required': True, 'replay_inserted': False}
+                if uuid:
+                    deferred_results[uuid] = response
+                    while len(deferred_results) > 16:
+                        deferred_results.pop(next(iter(deferred_results)))
+                return response
+            except (RuntimeError, ValueError, OSError) as error:
+                raise _http_error(409, str(error)) from error
 
     @application.post("/api/episodes/discard")
     def discard_episode(request: DeleteEpisodeRequest) -> Dict[str, object]:

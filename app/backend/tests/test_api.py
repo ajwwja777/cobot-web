@@ -259,6 +259,7 @@ def test_health_lifecycle_and_exact_route_surface(tmp_path: Path):
         "/api/episodes/start",
         "/api/episodes/stop",
         "/api/episodes/discard",
+        "/api/episodes/defer",
         "/api/episodes/capture/pause",
         "/api/episodes/capture/resume",
         "/api/episodes",

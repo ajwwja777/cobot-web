@@ -350,8 +350,12 @@
       if(!host)throw new Error("本机信息 HTTP "+responses[0].status);
       const disk=host.disk||{},paths=host.paths||{},scripts=host.scripts||{};
       facts("#host-runtime",[["主机",host.hostname],["网页进程",host.console_pid],["CPU 核数",host.cpu_count],["1 分钟负载",host.load_1m]]);
-      const control=(activeModel&&activeModel.parameters||[]).find(item=>item.group==="Runtime"&&item.key==="control rate");
-      facts("#host-frequencies",[["控制频率",control?control.value+" "+(control.unit||""):"当前模型未登记"],["三相机预览",camera.preview_fps==null?"—":camera.preview_fps+" FPS"],["预览上限",host.camera_preview_limit_fps+" FPS"],["相机同步",camera.status||"未核验"],["相机间偏差",camera.skew_ms==null?"—":Number(camera.skew_ms).toFixed(1)+" ms"]]);
+      const control=(activeModel&&activeModel.parameters||[]).find(item=>item.group==='Runtime'&&['logical control / Replay rate','control rate'].includes(item.key));
+      const collection=root.CobotCollectionModel?.state;
+      const runtime=collection&&collection.phase!=='offline'?collection:root.CobotDeploymentUI?.state;
+      const execution=runtime?.session?.execution||runtime?.model?.execution_settings;
+      const publish=runtime?.phase!=='offline'&&!runtime?.status_stale?(execution?.publish_hz??runtime?.model?.publish_hz??runtime?.model?.control_hz):null;
+      facts("#host-frequencies",[["动作发布频率",publish==null?"模型未加载或配置未核验":publish+" Hz"],["逻辑步频 / Replay",execution?.logical_hz?execution.logical_hz+" Hz":control?control.value+" "+(control.unit||""):"当前模型未登记"],["三相机预览",camera.preview_fps==null?"—":camera.preview_fps+" FPS"],["预览上限",host.camera_preview_limit_fps+" FPS"],["相机同步",camera.status||"未核验"],["相机间偏差",camera.skew_ms==null?"—":Number(camera.skew_ms).toFixed(1)+" ms"]]);
       facts("#host-paths",Object.entries(paths));facts("#host-scripts",Object.entries(scripts));
       const used=$("#host-disk-used"),label=$("#host-disk-label");if(used)used.style.width=Math.min(100,100*Number(disk.used_bytes||0)/Math.max(1,Number(disk.total_bytes||0)))+"%";
       if(label)label.textContent=`空余 ${size(disk.free_bytes)} / 总计 ${size(disk.total_bytes)} · ${disk.path||""}`;
