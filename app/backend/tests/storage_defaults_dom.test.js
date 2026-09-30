@@ -59,7 +59,7 @@ test("explicit model selection applies its evaluation directory and polling pres
  const {dom,w,calls,getState}=setup();
  try{
   await tick();await tick();
-  getState().models=[{id:"rlt-online",task:"plug",kind:"rlt",family:"RLT",available:true,checkpoint:"/weights/online",data_directories:{evaluation:"/data/evaluations/plug/online"}}];
+  getState().models=[{id:"rlt-online",task:"plug",kind:"rlt",family:"RLT",step:7000,available:true,checkpoint:"/weights/online",data_directories:{evaluation:"/data/evaluations/plug/online"}}];
   await w.CobotDeploymentUI.poll();
   const picker=w.document.getElementById("deployment-model");
   picker.value="rlt-online";picker.dispatchEvent(new w.Event("change"));

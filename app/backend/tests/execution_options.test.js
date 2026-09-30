@@ -63,3 +63,23 @@ test('late autosave response cannot replace newer episode selection',async()=>{
  await ui.update({episode_uuid:'a'},'/data');const select=node.querySelector('select');select.value='success';select.dispatchEvent(new w.Event('change'));
  await ui.update({episode_uuid:'b'},'/other');finish();await flush();assert.equal(select.value,'unknown');assert.equal(select.disabled,false);dom.window.close();
 });
+
+test('selected publication50 is reflected in details and active20 remains explicit until applied',()=>{
+ const [dom,w]=setup(),host=w.document.querySelector('#options');let changes=0;
+ w.eval(fs.readFileSync('segmented_frontend/model_picker.js','utf8'));
+ const ui=w.CobotExecutionOptions.create(host,{onChange:()=>changes++});
+ const model={id:'m',kind:'rlt',execution_settings:{publish_hz:20,logical_hz:20,rtc:false,smoothing:false}};
+ ui.update(model,{model,phase:'ready'});
+ const custom=host.querySelector('.execution-custom'),hz=host.querySelector('.execution-hz');custom.checked=true;custom.dispatchEvent(new w.Event('change'));hz.value='50';hz.dispatchEvent(new w.Event('change'));
+ const facts=w.document.createElement('dl');w.CobotModelPicker.renderDetails(facts,ui.describe());
+ assert.match(facts.textContent,/Action publication rate50 Hz/);assert.match(facts.textContent,/Active action publication rate20 Hz/);assert.equal(changes,2);
+ ui.update(model,{phase:'offline'});assert.equal(ui.describe().active_execution_settings,null);dom.window.close();
+});
+test('history starts from recorded result, then accepts authoritative GET and broadcasts root-bound changes',async()=>{
+ const [dom,w]=setup(),host=w.document.querySelector('#labels'),ui=w.CobotHistoryLabels.create(host);let finish;const events=[];
+ w.document.addEventListener('cobot:history-label-saved',event=>events.push(event.detail));
+ w.fetch=()=>new Promise(resolve=>finish=()=>resolve({ok:true,json:async()=>({episode_outcome:'failure',label_updated_at:'v'})}));
+ const pending=ui.update({episode_uuid:'u',episode_outcome:'success'},'/old');
+ assert.equal(host.querySelector('select').value,'success');finish();await pending;
+ assert.equal(host.querySelector('select').value,'failure');assert.equal(host.querySelector('select').disabled,false);assert.equal(events[0].data_root,'/old');dom.window.close();
+});

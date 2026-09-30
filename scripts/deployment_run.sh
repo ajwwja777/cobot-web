@@ -19,7 +19,7 @@ case "$MODEL_ENTRY" in
     if [[ "$MODEL_ENTRY" == plug-v3-reference ]]; then mode=reference
     elif [[ "$MODEL_ENTRY" == plug_v3-online-latest ]]; then mode=online
     else mode=frozen; fi
-    exec "$PLATFORM/scripts/rlt_v3_up.sh" "$mode"
+    exec "$PLATFORM/scripts/rlt_v3_up.sh" "${COBOT_RLT_LOAD_MODE:-$mode}"
     ;;
   pi05-in-the-pot|pi05-in-the-pot-dagger)
     export PI05_RUNTIME_STATE_ROOT="$COBOT_RUNTIME_ROOT/deployment/pi05"

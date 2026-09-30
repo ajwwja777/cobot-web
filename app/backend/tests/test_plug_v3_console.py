@@ -38,7 +38,7 @@ def test_model_catalog_exposes_validated_stage1_and_core_parameters(tmp_path, mo
     assert listing["current"]=="plug_v3-stage1-reference"
     assert listing["models"][0]["available"] is True
     params={row["key"]:row["value"] for row in listing["models"][0]["parameters"]}
-    assert params["gamma"]==.99 and params["minimum replay"]==600 and params["control rate"]==20
+    assert params["gamma"]==.99 and params["minimum replay"]==600 and params["logical control / Replay rate"]==20
     assert [item["id"] for item in listing["models"]] == [
         "plug_v3-stage1-reference", "plug_v3-frozen-latest", "plug_v3-online-latest"
     ]

@@ -26,7 +26,7 @@ test("choosing a model from all scenes pairs its scene, retains weights path, an
     picker.update(models,"plug");
     const scene=w.document.getElementById("scene");
     scene.value="";scene.dispatchEvent(new w.Event("change"));
-    assert.equal(select.options.length,3); // Steps are scoped to RLT.
+    assert.equal(select.options.length,2); // Steps are scoped to RLT.
     const family=w.document.getElementById("model-family");
     family.value="π0.5";family.dispatchEvent(new w.Event("change"));
     select.value="pot";select.dispatchEvent(new w.Event("change"));
@@ -41,7 +41,7 @@ test("choosing a model from all scenes pairs its scene, retains weights path, an
     assert.equal(scene.getAttribute("aria-label"),"Scene");
     assert.equal(select.getAttribute("aria-label"),"Steps");
     assert(!/[\u4e00-\u9fff]/u.test(w.document.getElementById("picker").textContent));
-    picker.update([...models,{id:"other",task:"new_scene",family:"New model",available:true}],"plug");
+    picker.update([...models,{id:"other",task:"new_scene",family:"New model",step:123,available:true}],"plug");
     assert.equal(select.value,"pot"); // Heartbeats and catalog growth preserve the user's choice.
     assert([...scene.options].some(o=>o.value==="new_scene"));
   }finally{dom.window.close();}
@@ -51,7 +51,7 @@ test("a removed or unavailable saved model cannot become a new loadable selectio
   try{
     picker.update(models,"pot");
     assert.equal(select.value,"plug");
-    assert.equal(select.querySelector('option[value="missing"]').disabled,true);
+    assert.equal(select.querySelector('option[value="missing"]'),null);
     picker.select("missing");
     assert.equal(select.value,"plug");
     picker.update(models.filter(m=>m.id!=="plug"));
@@ -91,4 +91,23 @@ test('same checkpoint frequency presets occupy a single numeric steps option',()
  const {dom,w,picker,select}=setup();const rows=[{id:'base',kind:'rlt',family:'RLT',task:'plug',step:7000,checkpoint:'/same/actor.pkl',available:true},...[20,30,40,50].map(hz=>({id:'rtc'+hz,kind:'rlt',family:'RLT',task:'plug',step:7000,checkpoint:'/same/actor.pkl',execution_profile:'rtc'+hz,experiment_label:hz+' Hz',available:true}))];
  picker.update(rows,'base');assert.deepEqual([...select.options].map(o=>o.textContent),['Choose steps','7000']);
  picker.select('rtc50',{loaded:true});assert.equal(select.value,'rtc50');assert.deepEqual([...select.options].map(o=>o.textContent),['Choose steps','7000']);dom.window.close();
+});
+
+test('methods preserve original and MC30 steps while hiding unknown assets and reference duplicates',()=>{
+ const {dom,w,picker,select}=setup();
+ const common={kind:'rlt',family:'RLT',task:'plug',available:true};
+ picker.update([{...common,id:'fixed',step:5000,checkpoint:'/fixed'},
+ {...common,id:'ref',step:4999,stage:'stage1',checkpoint:'/stage1'},
+ {...common,id:'junk',checkpoint:'/inventory'},
+ {...common,id:'frozen',step:11500,stage:'frozen',checkpoint:'/online'},
+ {...common,id:'online',step:11500,stage:'online',training_enabled:true,checkpoint:'/online'},
+ {...common,id:'mc30',step:7480,runtime_profile:'credit_mc30',checkpoint:'/mc30'}],'fixed');
+ assert.deepEqual([...select.options].map(o=>o.textContent),['Choose steps','5000','11500']);
+ const method=w.document.getElementById('model-method');
+ assert.deepEqual([...method.options].map(o=>o.value),['original','mc30']);
+ method.value='mc30';method.dispatchEvent(new w.Event('change'));
+ assert.deepEqual([...select.options].map(o=>o.textContent),['Choose steps','7480']);
+ select.value='mc30';select.dispatchEvent(new w.Event('change'));
+ picker.update([{...common,id:'fixed',step:5000,checkpoint:'/fixed'}, {...common,id:'mc30',step:7500,runtime_profile:'credit_mc30',checkpoint:'/mc30'}]);
+ assert.equal(select.value,'mc30');assert.equal(select.selectedOptions[0].textContent,'7500');dom.window.close();
 });

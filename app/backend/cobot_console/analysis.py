@@ -23,7 +23,9 @@ class AnalysisReader:
             record = read_json(RUNTIME_ROOT/"deployment/process.json")
             model = record.get("model", {})
             profile_error = None
-            if model.get("runtime_profile"):
+            if model.get('online_run_root') and model.get('online_config'):
+                root, config = model['online_run_root'], model['online_config']
+            elif model.get("runtime_profile"):
                 from integrations.cobot_runtime.experiment_profiles import resolve
                 try:
                     profile = resolve(model.get("id"), RLT)

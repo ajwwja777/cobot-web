@@ -12,7 +12,7 @@
   let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null,directoryPicker=null;
   const modelPicker=window.CobotModelPicker.create({container:$("deployment-model-picker"),modelSelect:$("deployment-model"),sceneId:"deployment-scene",onChange:selection=>{selectedModel=selection.modelId;selectedRecord="";describeModel();renderControls();if(selection.source==="user"&&selection.model?.data_directories?.evaluation)applyModelDirectory(selection.model.data_directories.evaluation);else refreshRecords();}});
   const executionHost=el("section");$("deployment-model-picker").after(executionHost);
-  const executionOptions=window.CobotExecutionOptions?.create(executionHost);
+  const executionOptions=window.CobotExecutionOptions?.create(executionHost,{onChange:describeModel});
   const runtimeHelp=el("section");$("deployment-load-state").after(runtimeHelp);
   const runtimeRecovery=window.CobotRuntimeRecovery?.create(runtimeHelp,{refresh:()=>poll()});
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -27,7 +27,8 @@
   async function request(path, body){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(path,{cache:"no-store",signal:controller.signal,...(body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{})});let p;try{p=await r.json();}catch(error){if(controller.signal.aborted)throw error;throw new Error("服务返回异常（HTTP "+r.status+"）");}if(!r.ok)throw new Error(typeof p.detail==="string"?p.detail:JSON.stringify(p.detail||p.error||r.status));return p;}catch(error){if(controller.signal.aborted||error.name==="AbortError"||error instanceof TypeError){const failure=new Error(controller.signal.aborted||error.name==="AbortError"?"请求超时（12 秒），正在重新连接":"连接中断，正在重新连接");failure.transport=true;throw failure;}throw error;}finally{clearTimeout(timer);}}
   function model(){return state?.models?.find(m=>m.id===selectedModel);}
   function describeModel(){const m=model(),facts=$("deployment-facts");if(!m){window.CobotModelPicker.renderDetails(facts,null);renderControls();return;}
-    window.CobotModelPicker.renderDetails(facts,state.model?.id===m.id?state.model:m);
+    executionOptions?.update(m,state,localBusy||Boolean(state.operation)||Boolean(state.active));
+    window.CobotModelPicker.renderDetails(facts,executionOptions?.describe(state.model?.id===m.id&&state.phase!=='offline'?state.model:m)||m);
     window.CobotFeaturePaths?.update("deployment",{model:m,state});
     $("deploy-home-pose").dataset.preferred=m.home_pose;renderHomePoses();renderControls();
   }
@@ -36,7 +37,7 @@
   function renderControls(){if(!state)return;const uncertain=Boolean(connectionError||state.status_stale),busy=localBusy||Boolean(state.operation),loaded=["ready","paused","running"].includes(state.phase),active=Boolean(state.active),same=state.model?.id===selectedModel;
     $("deploy-load").disabled=busy||uncertain||(state.phase!=="offline"&&!(state.phase==="error"&&state.runtime_failure?.recoverable&&model()?.kind==="rlt"))||!window.CobotModelPicker.available(model());
     $("deploy-unload").disabled=busy||state.phase==="offline";
-    $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running"||model()?.evaluation_allowed===false||model()?.capabilities?.start===false;
+    $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running"||state.model?.evaluation_allowed===false||model()?.capabilities?.start===false;
     $("deploy-pause").disabled=busy||!active||state.phase!=="running"||model()?.capabilities?.pause===false;
     $("deploy-resume").disabled=busy||uncertain||!active||state.phase!=="paused"||model()?.capabilities?.resume===false;
     for(const name of ["success","failure"]){$("deploy-"+name).disabled=busy||uncertain||!active||!loaded;}
@@ -50,7 +51,7 @@
     executionOptions?.update(model(),state,busy||active||state.phase==='loading'||Boolean(state.session&&!['disarmed','ready','waiting_scene','stopped'].includes(state.session.phase)));
     $("deployment-gate").textContent=uncertain?"状态待确认":phaseName[state.phase]||state.phase;
     $("deployment-gate").dataset.tone=uncertain?"amber":state.phase==="error"?"red":loaded?"green":state.phase==="loading"?"amber":"gray";
-    $("deployment-trial-state").textContent=uncertain?"重新连接中":active?(state.active.intervened?"人工介入 · ":"")+(phaseName[state.phase]||state.phase):loaded?(model()?.evaluation_allowed===false?"在线更新模型 · 请在采集页开始 Session":"待开始"):"等待加载";
+    $("deployment-trial-state").textContent=uncertain?"重新连接中":active?(state.active.intervened?"人工介入 · ":"")+(phaseName[state.phase]||state.phase):loaded?(state.model?.evaluation_allowed===false?"在线更新模型 · 请在采集页开始 Session":"待开始"):"等待加载";
     const detail=state.error||state.detail;
     const loading=state.phase==="loading"||state.operation==="load";
     const text=uncertain?(connectionError||"状态更新延迟，正在核对模型状态"):state.error||(loading?window.CobotModelLoading(state.model||model()).zh:loaded?"模型加载成功："+(state.model?.label||""):detail||(state.phase==="offline"?"未加载":state.phase==="error"?"模型运行异常，请查看输出":"正在核对模型状态"));

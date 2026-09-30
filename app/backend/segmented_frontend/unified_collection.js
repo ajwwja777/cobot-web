@@ -62,8 +62,8 @@
     if(next)context={...context,...next};if(!mounted)return;
     updateCatalog();
     const rlt=isRlt(),use=useModel(),chosen=selectedModel(),state=modelState();
-    root.CobotModelPicker.renderDetails($('#collection-model-details'),state.model?.id===chosen?.id?state.model:chosen);
     executionOptions?.update(chosen,state,active()||changing||Boolean(context.busy)||!use);
+    root.CobotModelPicker.renderDetails($('#collection-model-details'),executionOptions?.describe(state.model?.id===chosen?.id&&state.phase!=='offline'?state.model:chosen)||chosen);
     const processing=modelBusy||root.CobotCollectionModel?.busy;
     const loading=root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading';
     const locked=active()||changing||context.busy||processing||loading;
@@ -180,7 +180,7 @@
     for(const [id,zh,en] of [['load','加载模型','Load model'],['unload','释放模型','Release model'],['session-start','开始 Session','Start session'],['session-stop','结束 Session','End session']]){
       const button=document.createElement('button');button.type='button';button.id='collection-'+id;label(button,zh,en);button.addEventListener('click',()=>modelAction(id));card.querySelector('.collection-model-actions').append(button);
     }
-    const executionHost=document.createElement('section');card.querySelector('.collection-model-row').after(executionHost);executionOptions=root.CobotExecutionOptions?.create(executionHost);
+    const executionHost=document.createElement('section');card.querySelector('.collection-model-row').after(executionHost);executionOptions=root.CobotExecutionOptions?.create(executionHost,{onChange:render});
     const runtimeHelp=document.createElement('section');card.querySelector('.session-settings-body').append(runtimeHelp);runtimeRecovery=root.CobotRuntimeRecovery?.create(runtimeHelp,{refresh:()=>root.CobotCollectionModel?.refresh()});
     const recovery=document.createElement('details');recovery.className='recorder-recovery';card.querySelector('.session-settings-body').append(recovery);recorderRecovery=root.CobotRecorderRecovery?.create(recovery);
     const history=$('#episode-browser-operation');

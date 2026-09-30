@@ -45,3 +45,20 @@ def test_catalog_distinguishes_learner_and_published_actor(tmp_path, monkeypatch
         assert row["learner_actor_version"] == 3457
         assert row["step"] == row["published_learner_step"] == 6500
         assert row["actor_version"] == 3250
+
+
+def test_training_telemetry_uses_selected5000_branch_not_old_native_run(tmp_path,monkeypatch):
+    import json
+    from cobot_console import analysis
+    from integrations.cobot_runtime import analysis as domain
+    monkeypatch.setattr(analysis,'RUNTIME_ROOT',tmp_path)
+    monkeypatch.setattr(analysis,'runtime_package',lambda:None)
+    record=tmp_path/'deployment/process.json';record.parent.mkdir()
+    record.write_text(json.dumps(dict(model=dict(id='new',online_run_root='/owned/branch/run',online_config='/owned/branch/config.yaml'))))
+    calls=[]
+    def snapshot(root,config,run):
+        calls.append((root,config,run));return dict(config={})
+    monkeypatch.setattr(domain,'snapshot',snapshot)
+    result=analysis.AnalysisReader().snapshot()
+    assert calls==[('/owned/branch/run','/owned/branch/config.yaml',-1)]
+    assert result['run_root']=='/owned/branch/run'

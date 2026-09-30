@@ -120,3 +120,20 @@ def test_minimal_outcome_autosave_preserves_existing_metadata(tmp_path,monkeypat
     assert result.json()['operator_note']=='existing note'
     assert result.json()['keep_for_training']=='true'
     assert not backend.calls
+
+def test_historical_alias_matches_history_root_and_saves_only_real_sidecar(tmp_path,monkeypatch):
+    from cobot_console import paths
+    actual=tmp_path/'new'; actual.mkdir()
+    source,uuid=_write_episode(actual)
+    store=LabelStore(actual); store.set_outcome(uuid,'success')
+    digest=hashlib.sha256(source.read_bytes()).hexdigest()
+    old=tmp_path/'old'
+    monkeypatch.setitem(paths.SETTINGS,'data_root_aliases',{str(old):str(actual)})
+    client,_,_,_=fixture(tmp_path,monkeypatch)
+    route=f'/api/recordings/{uuid}/labels?data_root={old}'
+    initial=client.get(route);assert initial.status_code==200,initial.text
+    assert initial.json()['episode_outcome']=='success'
+    saved=client.put(route,json=dict(episode_uuid=str(uuid),outcome='failure',expected_label_updated_at=initial.json()['label_updated_at']))
+    assert saved.status_code==200,saved.text
+    assert store.get_labels(uuid)['episode_outcome']=='failure'
+    assert not old.exists() and hashlib.sha256(source.read_bytes()).hexdigest()==digest

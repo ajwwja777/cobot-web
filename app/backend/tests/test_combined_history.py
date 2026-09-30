@@ -15,3 +15,14 @@ def test_mixed_directory_deduplicates_normal_hdf5_and_preserves_readers(tmp_path
     assert result["episodes"][1]["episode_uuid"] == str(raw_id)
     assert combined_history(tmp_path, service, limit=1, offset=1)["episodes"] == result["episodes"][1:]
     assert before == {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in before}
+
+def test_normal_nodes_keep_actual_label_and_labelability(tmp_path):
+    from capture_core.labels import LabelStore
+    _, uuid = _write_episode(tmp_path, index=3)
+    store = LabelStore(tmp_path)
+    store.set_outcome(uuid, 'success')
+    service = SimpleNamespace(list_episodes=lambda **kw:[dict(episode_uuid=str(uuid),episode_index=3,node_count=2)])
+    row = combined_history(tmp_path, service)['episodes'][0]
+    assert row['episode_outcome']=='success' and row['labelable'] and row['has_labels']
+    store.set_outcome(uuid, 'failure')
+    assert combined_history(tmp_path, service)['episodes'][0]['episode_outcome']=='failure'

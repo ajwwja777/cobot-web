@@ -97,9 +97,35 @@ def catalog():
             **item, "kind": "rlt", "mode": item["start_target"],
             "base_checkpoint": base, "control_hz": 20, "home_pose": "plug2",
             "training_enabled": online, "evaluation_allowed": not online,
+            "collection_adapter": "plug_v3-online-latest",
             "deterministic": not online,
             "entry": str(PLATFORM / "scripts/deployment_run.sh"),
         })
+    # Branch creation occurs only on an explicit collection load. Catalog reads
+    # the latest branch publication without opening executable weight content.
+    import runpy
+    branch_module=RLT / 'integrations/cobot_runtime/online_seed.py'
+    branch = runpy.run_path(str(branch_module))['latest_branch'](RLT_MODELS) if branch_module.is_file() else None
+    if branch:
+        from .rlt_progress import published_actor
+        publication = published_actor(branch['checkpoint'])
+        if publication.get('published_learner_step') is not None:
+            seed = next((item for item in definitions if item['id']=='plug-v3-warmup-5k'), None)
+            if seed:
+                learner=read_json(Path(branch['run_root'])/'online/metrics/learner_status.json')
+                definitions.append({**seed, **publication,
+                    'id':'plug-v3-from-5000-'+branch['branch_id'],
+                    'checkpoint':branch['checkpoint'],'mode':'online','stage':'online',
+                    'step':publication['published_learner_step'],
+                    'learner_step':learner.get('global_step',publication['published_learner_step']),
+                    'learner_actor_version':learner.get('actor_version'),
+                    'actor_version':publication['published_actor_version'],
+                    'publication_tracked':True,'training_enabled':True,
+                    'evaluation_allowed':False,'online_seed_available':False,
+                    'capabilities':{**seed['capabilities'],'train':True},
+                    'resumable_training':True,'custom':True,'adapter_id':'plug_v3-online-latest',
+                    'online_config':branch['config_target'],'online_run_root':branch['run_root'],
+                    'source_step':5000,'training_method':'original'})
     from .model_metadata import vla_models, describe
     definitions.extend(vla_models())
     from .registry import external_models
@@ -109,6 +135,37 @@ def catalog():
     definitions.extend(inventory_models(definitions))
     from .execution_options import configured_model
     return [configured_model(describe(item)) for item in definitions]
+
+
+def model_for_use(model, use):
+    """Resolve deployment/collection purpose while retaining selected provenance."""
+    if use is None or model.get('kind')!='rlt':return model
+    if use not in {'collection','evaluation'}:raise DeploymentError('invalid_model_load_use')
+    model={**model}
+    if use=='evaluation':
+        model.update(mode='reference' if model.get('mode')=='reference' else 'frozen',
+                     training_enabled=False,evaluation_allowed=True,deterministic=True)
+        model['capabilities']={**model.get('capabilities',{}),'train':False}
+        if model['mode']=='frozen':model.update(custom=True,adapter_id='plug-v3-warmup-5k')
+    elif model.get('online_seed_available'):
+        seed=Path(model['checkpoint']).parent.parent
+        if not (seed/'checkpoints/latest.pkl').is_file():
+            raise DeploymentError('Selected step has no complete training checkpoint')
+        branch_id=uuid4().hex
+        destination=RLT_MODELS/'online_from_5000'/branch_id
+        run=RUN/'branches'/branch_id
+        model.update(id='plug-v3-from-5000-'+branch_id,source_model_id=model['id'],
+                     source_step=5000,online_seed=str(seed),online_seed_destination=str(destination),
+                     online_config=str(run/'online.yaml'),online_run_root=str(run),
+                     checkpoint=str(destination/'actor_snapshot/actor_snapshot.pkl'),
+                     mode='online',stage='online',training_enabled=True,evaluation_allowed=False,
+                     deterministic=False,custom=True,adapter_id='plug_v3-online-latest')
+        model['capabilities']={**model.get('capabilities',{}),'train':True}
+    elif model.get('collection_adapter'):
+        model.update(mode='online',training_enabled=True,evaluation_allowed=False,
+                     deterministic=False,custom=True,adapter_id=model['collection_adapter'])
+        model['capabilities']={**model.get('capabilities',{}),'train':True}
+    return model
 
 
 def process_identity(pid):
@@ -283,6 +340,13 @@ class ManagedRuntime:
         if model["kind"] == "vla":
             environment["COBOT_MODEL_GATE_STATE"] = str(self.directory / "vla-gate.json")
             atomic_json(self.directory / "vla-gate.json", {"ready": False, "paused": True})
+        for variable,key in [('COBOT_RLT_ONLINE_SEED','online_seed'),
+                             ('COBOT_RLT_SEED_DESTINATION','online_seed_destination'),
+                             ('COBOT_RLT_BRANCH_CONFIG','online_config'),
+                             ('COBOT_RLT_BRANCH_RUN','online_run_root')]:
+            environment.pop(variable,None)
+            if model.get('mode')=='online' and model.get(key):environment[variable]=model[key]
+        environment['COBOT_RLT_LOAD_MODE']=model.get('mode','')
         if model.get("custom"):
             environment["COBOT_DEPLOYMENT_ADAPTER"] = model["adapter_id"]
             environment["COBOT_CUSTOM_CHECKPOINT"] = model["checkpoint"]
@@ -379,7 +443,7 @@ class ManagedRuntime:
         if session.get("phase") not in BETWEEN_EPISODES:
             raise DeploymentError("请先结束当前 Episode，再切换采集或评测")
         if use == "evaluation" and state["model"].get("training_enabled"):
-            raise DeploymentError("在线更新已启用；评测请选择同路径的冻结模型")
+            raise DeploymentError("请先释放当前模型，再在部署页加载所选步数进行评测")
         atomic_json(self.directory / "session-use.json", {"use": use})
 
     @serialized
@@ -581,7 +645,7 @@ class DeploymentManager:
             if acquired:
                 self.lock.release()
 
-    def submit(self, operation, model_id=None, trial_id=None, execution_options=None):
+    def submit(self, operation, model_id=None, trial_id=None, execution_options=None, load_use=None):
         with self.lock:
             if self.operation:
                 raise DeploymentError("上一操作正在执行：" + self.operation)
@@ -591,10 +655,10 @@ class DeploymentManager:
             self.error = None
         def run():
             try:
-                if execution_options is None:
-                    self.perform(operation, model_id=model_id)
-                else:
-                    self.perform(operation, model_id=model_id, execution_options=execution_options)
+                kwargs={}
+                if execution_options is not None:kwargs['execution_options']=execution_options
+                if load_use is not None:kwargs['load_use']=load_use
+                self.perform(operation, model_id=model_id, **kwargs)
             except Exception as error:
                 with self.lock:
                     self.error = str(error)
@@ -642,7 +706,7 @@ class DeploymentManager:
             (self.directory / "active.json").unlink(missing_ok=True)
             self.active = None
 
-    def perform(self, operation, model_id=None, execution_options=None):
+    def perform(self, operation, model_id=None, execution_options=None, load_use=None):
         if operation in {'load', 'start', 'collection_session_start'}:
             try:
                 require_storage(self.allowed_root, write=True)
@@ -661,6 +725,8 @@ class DeploymentManager:
             if state.get("model", {}).get("kind") == "rlt":
                 starting = operation == "collection_session_start"
                 if starting:
+                    if (state['model'].get('online_seed_available') or state['model'].get('collection_adapter')) and not state['model'].get('training_enabled'):
+                        raise DeploymentError('请先释放当前模型，再在采集页加载所选步数以启用在线更新')
                     self.runtime.select_use("collection")
                 self.runtime._session_action("/api/session/prepare" if starting else "/api/session/stop")
             else:
@@ -678,12 +744,16 @@ class DeploymentManager:
             current = self.runtime.status()
             if (current.get("model", {}).get("id") == model_id
                     and current.get("phase") in {"loading", "ready", "paused"}):
+                if ((load_use=='evaluation' and current['model'].get('training_enabled'))
+                        or (load_use=='collection' and (model.get('online_seed_available') or model.get('collection_adapter')) and not current['model'].get('training_enabled'))):
+                    raise DeploymentError('请先释放当前模型，再在对应页面加载所选步数')
                 if execution_options is not None and current['model'].get('execution_options', {'enabled': False}) != execution_options:
                     raise DeploymentError('apply_execution_options_with_retained_runtime_restart')
                 return  # Reuse the shared process; never reload the same weights.
+            model = model_for_use(model, load_use)
             self.runtime.load(model)
             self.collection_session = False
-            self.settings["model_id"] = model_id
+            self.settings["model_id"] = model['id']
             atomic_json(self.directory / "settings.json", self.settings)
             return
         if operation == "unload":
@@ -707,7 +777,7 @@ class DeploymentManager:
             if state["phase"] not in ("ready", "paused"):
                 raise DeploymentError("请先等待模型加载成功")
             if state.get("model", {}).get("training_enabled"):
-                raise DeploymentError("在线更新已启用；评测请选择同路径的冻结模型")
+                raise DeploymentError("请先释放当前模型，再在部署页加载所选步数进行评测")
             select_use = getattr(self.runtime, "select_use", None)
             if select_use:
                 select_use("evaluation")
@@ -873,8 +943,8 @@ def install_routes(app, cameras, modes, devices):
                     options = contract()['normalize_options'](request.execution_options)
                 except (ValueError, TypeError) as error:
                     raise HTTPException(422, str(error)) from error
-                return manager.submit(request.action, request.model_id, request.trial_id, execution_options=options)
-            return manager.submit(request.action, request.model_id, request.trial_id)
+                return manager.submit(request.action, request.model_id, request.trial_id, execution_options=options, load_use='evaluation')
+            return manager.submit(request.action, request.model_id, request.trial_id, **({'load_use':'evaluation'} if request.action=='load' else {}))
         except DeploymentError as error:
             raise HTTPException(409, str(error)) from error
 

@@ -9,8 +9,8 @@ function setup() {
     {url:"http://localhost", runScripts:"outside-only", pretendToBeVisual:true});
   const w = dom.window, requests = [];
   const models = [
-    {id:"plug-v3-warmup-5k", family:"RLT", task:"plug_insertion", kind:"rlt", mode:"frozen", checkpoint:"/models/actor_snapshot.pkl", available:true},
-    {id:"pi05-in-the-pot-dagger", family:"π0.5", task:"in_the_pot", kind:"pi05", checkpoint:"/models/pi05/step_3000", available:true}
+    {id:"plug-v3-warmup-5k", family:"RLT", task:"plug_insertion", kind:"rlt", mode:"frozen", step:5000, checkpoint:"/models/actor_snapshot.pkl", available:true},
+    {id:"pi05-in-the-pot-dagger", family:"π0.5", task:"in_the_pot", kind:"pi05", step:3000, checkpoint:"/models/pi05/step_3000", available:true}
   ];
   let state = {phase:"offline", models, data_root:"/data/evaluations", status_stale:false};
   let mode = "rlt";
@@ -104,7 +104,7 @@ test("collection and deployment share scene filtering, disabled options and sele
   const {dom,w,requests,models,setState}=setup();
   try {
     models.push(
-      {id:"missing-plug",kind:"rlt",family:"RLT",task:"plug_insertion",available:false,availability:"missing_files",checkpoint:"/missing/actor.pkl"},
+      {id:"missing-plug",kind:"rlt",family:"RLT",task:"plug_insertion",step:6000,available:false,availability:"missing_files",checkpoint:"/missing/actor.pkl"},
       {id:"cli-book",kind:"vla",family:"π0.5",task:"lift_book",available:false,availability:"cli_only",checkpoint:"/models/book"},
       {id:"no-load",kind:"external",family:"External",task:"plug_insertion",available:true,capabilities:{load:false},checkpoint:"/models/no-load"}
     );
@@ -115,7 +115,7 @@ test("collection and deployment share scene filtering, disabled options and sele
     for(const id of ["collection-model-select","deployment-model"]){
       assert.equal($(id).querySelector('option[value="missing-plug"]').disabled,true);
       assert.equal($(id).querySelector('option[value="no-load"]'),null); // Different family.
-      assert([...$(id+"-family").options].some(o=>o.value==="External"));
+      assert(![...$(id+"-family").options].some(o=>o.value==="External"));
       assert.equal([...$(id).options].some(o=>o.value==="pi05-in-the-pot-dagger"),false);
       assert(!$(id).selectedOptions[0].textContent.includes("/models/"));
     }
@@ -134,15 +134,12 @@ test("collection and deployment share scene filtering, disabled options and sele
     assert.equal(requests.length,0); // Filtering/selecting never loads or starts a Session.
     $("deployment-scene").value="plug_insertion";
     $("deployment-scene").dispatchEvent(new w.Event("change"));
-    $("deployment-model-family").value="External";
-    $("deployment-model-family").dispatchEvent(new w.Event("change"));
-    assert.equal($("deployment-model").querySelector('option[value="no-load"]').disabled,true);
-    assert.equal($("collection-model-select-family").value,"External");
-    assert.equal($("deploy-load").disabled,true);
+    assert(![...$("deployment-model-family").options].some(o=>o.value==='External'));
+
     $("deployment-scene").value="lift_book";
     $("deployment-scene").dispatchEvent(new w.Event("change"));
     assert.equal($("deployment-model").value,"");
-    assert.equal($("deployment-model").querySelector('option[value="cli-book"]').disabled,true);
+    assert.equal($("deployment-model").querySelector('option[value="cli-book"]'),null);
     assert.equal($("deploy-load").disabled,true);
     assert.equal($("collection-load").disabled,true);
     $("deployment-model").value="cli-book";

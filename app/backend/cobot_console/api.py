@@ -37,7 +37,7 @@ from segmented_capture.api import (
 from segmented_capture.capture_service import SegmentedCaptureService
 from segmented_capture.ports import CaptureGate
 
-from .paths import CONTROL, RUNTIME_ROOT, RLT, RLT_MODELS, LEGACY_DATA, SETTINGS
+from .paths import CONTROL, RUNTIME_ROOT, RLT, RLT_MODELS, LEGACY_DATA, SETTINGS, migrated_data_path
 from .mode import ModeConflict, RecorderModeCoordinator
 from .diagnostics import ConsoleDiagnostics
 from .rlt_proxy import RltBackendClient, RltBackendError, RltLifecycleRegistry
@@ -390,7 +390,7 @@ def create_app(
     def deferred_root(value):
         if not isinstance(value, str):
             raise HTTPException(422, 'data_root_required')
-        target = Path(value).expanduser().resolve()
+        target = Path(migrated_data_path(value)).expanduser().resolve()
         allowed = (allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve()
         if target != allowed and allowed not in target.parents:
             raise HTTPException(422, 'recording_path_outside_allowed_root')

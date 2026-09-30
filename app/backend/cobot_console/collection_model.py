@@ -83,7 +83,7 @@ def install_routes(app, manager):
                     options = contract()['normalize_options'](request.execution_options)
                 except (ValueError, TypeError) as error:
                     raise HTTPException(422, str(error)) from error
-                return manager.submit(name, request.model_id or None, execution_options=options)
-            return manager.submit(name, request.model_id or None)
+                return manager.submit(name, request.model_id or None, execution_options=options, load_use='collection')
+            return manager.submit(name, request.model_id or None, **({'load_use':'collection'} if name=='load' else {}))
         except DeploymentError as error:
             raise HTTPException(409, str(error)) from error

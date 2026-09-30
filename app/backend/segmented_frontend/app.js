@@ -1156,8 +1156,12 @@ function updateHistoryLabels(episode) {
   historyLabels.update(episode,historyDataRoot());
 }
 document.addEventListener('cobot:history-label-saved',event=>{
+  if(event.detail.data_root!==historyDataRoot())return;
   const uuid=event.detail.episode_uuid,episode=historyEpisodes.find(e=>e.episode_uuid===uuid);
   if(episode)episode.episode_outcome=event.detail.labels.episode_outcome;
+  const summary=rltEpisodeSummaryByUuid.get(uuid);if(summary)summary.outcome=event.detail.labels.episode_outcome;
+  if(viewedEpisode?.episode_uuid===uuid)viewedEpisode.episode_outcome=event.detail.labels.episode_outcome;
+  window.CobotDeploymentUI?.poll();
   preloadedRltLabels.delete(episodeDetailKey(uuid));
   preloadedEpisodeDetails.delete(episodeDetailKey(uuid));
   appendHistoryOptions(historyEpisodes,true);
