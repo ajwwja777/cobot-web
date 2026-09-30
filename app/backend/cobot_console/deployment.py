@@ -181,6 +181,47 @@ class ManagedRuntime:
                 "log_path": saved.get("log_path")}
 
     @serialized
+    def stop_runtime_keep_model(self):
+        """Stop only the registered RLT process group; Stage1 is independent."""
+        saved = read_json(self.registry)
+        if saved.get("model", {}).get("kind") != "rlt" or saved.get("phase") == "offline":
+            raise DeploymentError("no_rlt_runtime_to_recover")
+        stage1 = self.retained_stage1(saved["model"])
+        if not stage1["ready"]:
+            raise DeploymentError("stage1_not_retained")
+        if self._owned_members(saved):
+            # A Session timeout must not prevent stopping its verified process
+            # group. No outcome/stop request: recovery never labels an episode.
+            try:
+                response = self.backend.request("GET", "/api/session")
+                session = response.payload
+                if response.status == 200:
+                    self.backend.request("POST", "/api/session/pause", {
+                        "episode_id": session["episode_id"], "generation": session["generation"]})
+            except (RltBackendError, KeyError):
+                pass
+            if os.getpgid(stage1["pid"]) == saved["pid"]:
+                raise DeploymentError("stage1_process_group_not_separate")
+            for sig, grace in ((signal.SIGINT, min(45, max(8, float(
+                    saved["model"].get("shutdown_grace_seconds", 8))))), (signal.SIGTERM, 5)):
+                if not self._owned_members(saved):
+                    break
+                try:
+                    os.killpg(saved["pid"], sig)
+                except ProcessLookupError:
+                    pass
+                deadline = time.monotonic() + grace
+                while self._owned_members(saved) and time.monotonic() < deadline:
+                    if self.process:
+                        self.process.poll()
+                    time.sleep(.1)
+            if self._owned_members(saved):
+                raise DeploymentError("owned_runtime_still_stopping")
+        if not self.retained_stage1(saved["model"])["ready"]:
+            raise DeploymentError("stage1_not_retained")
+        return {"runtime_stopped": True, "stage1_pid": stage1["pid"]}
+
+    @serialized
     def recover_runtime(self):
         saved = read_json(self.registry)
         if saved.get("model", {}).get("kind") != "rlt" or saved.get("phase") == "offline":
@@ -247,6 +288,11 @@ class ManagedRuntime:
         if self.process is not None:
             self.process.poll()
         output = tail(saved.get("log_path", ""))
+        if saved.get("model", {}).get("kind") == "rlt" and saved.get("phase") != "offline":
+            retained = self.retained_stage1(saved["model"])
+            saved["runtime_recovery_available"] = retained["ready"]
+            saved["stage1_ready"] = retained["ready"]
+
         if not self._alive(saved):
             failure = (self.runtime_failure(saved, output)
                        if saved.get("phase") != "offline" and saved.get("model", {}).get("kind") == "rlt" else None)

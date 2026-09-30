@@ -115,3 +115,88 @@ def test_ui_shutdown_allows_only_completed_orphan_and_verifies_processes(monkeyp
     assert not completed_orphan(console,{**model,"status_stale":True},recorder)
     monkeypatch.setattr(ManagedRuntime,"_owned_members",lambda self,state:[555])
     assert not completed_orphan(console,model,recorder)
+
+def test_explicit_general_recovery_stops_only_runtime_before_restart(tmp_path, monkeypatch):
+    client, backend, recorder, manager = fixture(tmp_path, monkeypatch)
+    manager.runtime.status = lambda: {"phase": "paused", "model": {"kind": "rlt"},
+                                     "runtime_recovery_available": True}
+    calls = []
+    manager.runtime.stop_runtime_keep_model = lambda: calls.append("stop-owned-runtime")
+    manager.runtime.recover_runtime = lambda: calls.append("restart") or {"phase": "loading"}
+    response = client.post("/api/rlt/recover-runtime",
+                           json={"restart_running": True, "finalize_pending": True})
+    assert response.status_code == 200, response.text
+    assert calls == ["stop-owned-runtime", "restart"]
+    assert response.json()["manual_start_required"]
+    assert backend.calls == []
+
+@pytest.mark.parametrize("stuck", [False, True])
+def test_recovery_finalizes_owned_recording_without_label_or_delete(tmp_path, stuck):
+    from fastapi.testclient import TestClient
+    from capture_core.api import create_app
+    from capture_core.labels import LabelStore
+    from cobot_console.mode import RecorderModeCoordinator
+    from tests.test_console_api import FakeRecorder
+    modes = RecorderModeCoordinator(initial_mode="rlt")
+    recorder = FakeRecorder()
+    recorder.check_ready = lambda root: Path(root)
+    committed = []
+    recorder.status = lambda: {"state": recorder.state,
+        "publication_status": "committed" if committed else "open",
+        "writer_thread_alive": stuck and bool(committed), "completion_state": "complete"}
+    def stop():
+        recorder.state = "stopped"
+        committed.append(True)
+    recorder.stop = stop
+    app = create_app(recorder=recorder, label_store=LabelStore(tmp_path),
+                     writer_coordinator=modes, require_previous_labels=False)
+    client = TestClient(app)
+    r = client.post("/api/episodes/start", json=dict(
+        data_root=str(tmp_path), task_id="test", model_id="rlt",
+        checkpoint_id="4999", dataset_round="online", storage_layout="flat"))
+    assert r.status_code == 200, r.text
+    if stuck:
+        with pytest.raises(RuntimeError, match="recorder_worker_still_active"):
+            app.state.finalize_for_runtime_recovery()
+        assert modes.snapshot().active_mode == "rlt"
+    else:
+        result = app.state.finalize_for_runtime_recovery()
+        assert result["recording_retained"]["training_label_added"] is False
+        assert result["recording_retained"]["episode_uuid"]
+        assert modes.snapshot().active_mode is None
+    # This fixture never writes a file; recovery must not create labels/files.
+    assert not list(tmp_path.rglob("*.labels.json"))
+
+def test_general_recovery_never_releases_stage1_or_unrelated_processes(tmp_path, monkeypatch):
+    import cobot_console.deployment as module
+    rt = ManagedRuntime(tmp_path)
+    atomic_json(rt.registry, {"pid": 123, "start_ticks": 1, "model": {"kind": "rlt"}})
+    members = [123, 124]
+    monkeypatch.setattr(rt, "_owned_members", lambda state: list(members))
+    monkeypatch.setattr(rt, "retained_stage1", lambda model: {"ready": True, "pid": 999})
+    monkeypatch.setattr(module.os, "getpgid", lambda pid: 999)
+    calls = []
+    def signal_group(pid, sig):
+        calls.append((pid, sig))
+        members.clear()
+    monkeypatch.setattr(module.os, "killpg", signal_group)
+    from cobot_console.rlt_proxy import RltBackendError
+    class HungSession:
+        def request(self, *args): raise RltBackendError("not responding")
+    rt.backend = HungSession()
+    monkeypatch.setattr(rt, "unload", lambda: pytest.fail("Must retain Stage1"))
+    assert rt.stop_runtime_keep_model()["runtime_stopped"]
+    assert len(calls) == 1 and calls[0][0] == 123
+
+def test_incorrect_stage1_group_blocks_signals(tmp_path, monkeypatch):
+    import cobot_console.deployment as module
+    rt = ManagedRuntime(tmp_path)
+    atomic_json(rt.registry, {"pid": 123, "start_ticks": 1, "model": {"kind": "rlt"}})
+    monkeypatch.setattr(rt, "_owned_members", lambda state: [123])
+    monkeypatch.setattr(rt, "retained_stage1", lambda model: {"ready": True, "pid": 999})
+    monkeypatch.setattr(module.os, "getpgid", lambda pid: 123)
+    monkeypatch.setattr(module.os, "killpg", lambda *args: pytest.fail("Must not signal shared Stage1 group"))
+    from cobot_console.rlt_proxy import RltBackendError
+    rt.backend = type("Hung", (), {"request": lambda *args: (_ for _ in ()).throw(RltBackendError("hung"))})()
+    with pytest.raises(DeploymentError, match="not_separate"):
+        rt.stop_runtime_keep_model()

@@ -392,7 +392,7 @@ def create_app(
         return {**recorder_details(), "preflight": result}
 
     @application.post("/api/rlt/recover-runtime")
-    def recover_rlt_runtime():
+    def recover_rlt_runtime(body: Optional[Dict[str, object]] = None):
         manager = application.state.deployment_manager
         with manager.lock:
             if manager.operation or manager.active:
@@ -402,23 +402,34 @@ def create_app(
             from .runtime_lock import operation
             with operation(manager.runtime.directory):
                 state = manager.runtime.status()
-                if state.get("phase") != "error" or not (state.get("runtime_failure") or {}).get("recoverable"):
+                options = body or {}
+                restart = options.get("restart_running") is True
+                if restart:
+                    if state.get("model", {}).get("kind") != "rlt" or not state.get("runtime_recovery_available"):
+                        raise HTTPException(409, "stage1_not_retained")
+                elif state.get("phase") != "error" or not (state.get("runtime_failure") or {}).get("recoverable"):
                     raise HTTPException(409, "runtime_not_recoverable_with_retained_model")
                 snapshot, raw = modes.snapshot(), shared_recorder.status()
                 if snapshot.active_mode not in (None, "rlt"):
                     raise HTTPException(409, "normal_recording_owns_writer")
-                if (raw.get("active") or raw.get("writer_thread_alive") or raw.get("acquisition_active")
+                finalize = options.get("finalize_pending") is True
+                if not finalize and (raw.get("active") or raw.get("writer_thread_alive") or raw.get("acquisition_active")
                         or raw.get("state") not in ("idle", "stopped")
                         or raw.get("completion_state") not in (None, "complete")):
                     raise HTTPException(409, "pending_episode_finalization")
-                # No deletion, relabeling or implicit Replay insertion.
-                rollout.state.release_completed_writer()
+                if restart:
+                    manager.runtime.stop_runtime_keep_model()
+                # Stop the verified owner first, then the independent writer.
+                # Saving here never labels success/failure or writes to Replay.
+                retained = (rollout.state.finalize_for_runtime_recovery() if finalize else {})
+                if not finalize:
+                    rollout.state.release_completed_writer()
                 if modes.snapshot().active_mode is not None:
                     raise HTTPException(409, "pending_episode_finalization")
                 result = manager.runtime.recover_runtime()
                 manager.collection_session = False
                 manager.error = None
-                return {**result, "model_retained": True, "manual_start_required": True}
+                return {**result, **retained, "model_retained": True, "manual_start_required": True}
         except HTTPException:
             raise
         except Exception as error:

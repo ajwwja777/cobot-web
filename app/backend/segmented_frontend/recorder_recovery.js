@@ -80,6 +80,7 @@
     const names={
       rtc_delay_exceeded:["RTC 执行超时","RTC execution timed out"],
       execution_clock_late:["控制发布超时","Control publication missed its deadline"],
+      recorder_health_timeout:["录制状态检查超时","Recorder health check timed out"],
       observation_stale:["实时反馈过期","Live observations are stale"],
       gpu_out_of_memory:["GPU 显存不足","GPU memory exhausted"],
       execution_failed:["执行进程异常","Execution failed"],
@@ -93,35 +94,44 @@
   function createRuntime(container,{refresh}={}){
     container.classList.add("runtime-recovery");
     container.setAttribute("role","status");
-    container.innerHTML='<strong class="runtime-fault-title"></strong><p class="runtime-fault-cause"></p><p class="runtime-fault-advice"></p><div class="button-row"><button type="button" class="runtime-check secondary"></button><button type="button" class="runtime-recover secondary"></button><button type="button" class="runtime-output secondary"></button></div><p class="runtime-recovery-result"></p>';
+    container.innerHTML='<strong class="runtime-fault-title"></strong><p class="runtime-fault-cause"></p><p class="runtime-fault-advice"></p><div class="button-row"><button type="button" class="runtime-check secondary"></button><button type="button" class="runtime-recover secondary"></button><button type="button" class="runtime-restart secondary"></button><button type="button" class="runtime-output secondary"></button></div><p class="runtime-recovery-result"></p>';
     const title=container.querySelector(".runtime-fault-title"),cause=container.querySelector(".runtime-fault-cause"),adviceNode=container.querySelector(".runtime-fault-advice");
-    const check=container.querySelector(".runtime-check"),repair=container.querySelector(".runtime-recover"),output=container.querySelector(".runtime-output"),result=container.querySelector(".runtime-recovery-result");
+    const check=container.querySelector(".runtime-check"),repair=container.querySelector(".runtime-recover"),restart=container.querySelector(".runtime-restart"),output=container.querySelector(".runtime-output"),result=container.querySelector(".runtime-recovery-result");
     let state={},busy=false,message="";
     function show(){
       const f=state.runtime_failure;
-      container.hidden=!f;
-      title.textContent=runtimeSummary(state);
+      container.hidden=!f&&(state.model?.kind!=="rlt"||state.phase==="offline");
+      title.textContent=runtimeSummary(state)||text("运行恢复（保留模型）","Runtime recovery (keep model)");
       cause.textContent=f?.cause||"";
-      const timing=["rtc_delay_exceeded","execution_clock_late"].includes(f?.code);
-      adviceNode.textContent=timing
-        ?text("新动作未在时间窗口内就绪，执行已停止。先检查输出中的延迟；可保留模型恢复运行进程。若重复发生，停止本轮并切回原同步 20 Hz 配置，不要反复开始。","New actions missed the timing window; execution stopped. Check latency in the output, then recover the runtime while keeping the model. If this repeats, end the episode and return to the original synchronous 20 Hz profile rather than repeatedly starting.")
-        :text("检查具体原因后恢复。此按钮仅恢复运行进程，不释放 Stage1、不开始推理、不归位，也不会处理未完成的数据。","Check the cause before recovery. This button restores runtime processes; it does not unload Stage1, start inference, home arms or finalize pending recordings.");
+      const steps=text("恢复会结束当前轮次，将录制保留为未标注，不加入 Replay；重建运行进程后等待手动开始。不会释放 Stage1、归位或自动推理。","Recovery ends the current episode and retains its recording without a success/failure label or Replay insertion. The rebuilt runtime waits for manual start. Stage1 stays loaded; no homing or automatic inference.");
+      adviceNode.textContent=(f?.code==="execution_clock_late"
+        ?text("发布时钟超时；暂停/示教衔接已修复。若正常推理仍超时，查看 late_ms 和发布频率，改用同步 20 Hz。","Publication clock overrun; pause/HIL clock handling has been corrected. If active inference still overruns, inspect late_ms and publication Hz, then use synchronous 20 Hz.")
+        :f?.code==="rtc_delay_exceeded"
+        ?text("新动作超过 RTC 时间预算。查看 model_ms 和 recorder_check_ms；若重复发生，使用同步 20 Hz。","New actions exceeded the RTC time budget. Check model_ms and recorder_check_ms; use synchronous 20 Hz if this repeats.")
+        :text("Session、录制或运行进程卡住时可重启当前 RLT 运行组件；硬件故障和存储掉线需先处理对应设备。","Restart current RLT runtime components if the Session, recorder or runtime is stuck. Hardware faults and disconnected storage require device repair."))+" "+steps;
       check.textContent=text("重新检查状态","Check status");
-      repair.textContent=text("恢复运行进程（保留模型）","Recover runtime (keep model)");
+      repair.textContent=text("收尾录制并恢复运行进程","Finish recording and recover runtime");
+      restart.textContent=text("重启运行组件（保留模型）","Restart runtime components (keep model)");
+      repair.hidden=!f;
       output.textContent=text("查看输出","View output");
-      check.disabled=busy;repair.disabled=busy||Boolean(state.operation)||Boolean(state.active)||Boolean(state.status_stale)||!f?.recoverable;
+      check.disabled=busy;
+      const blocked=busy||Boolean(state.operation)||Boolean(state.active)||Boolean(state.status_stale);
+      repair.disabled=blocked||!f?.recoverable;
+      restart.disabled=blocked||!(state.runtime_recovery_available||f?.recoverable);
+      if(state.active)adviceNode.textContent+=text(" 先结束当前评测轮次，再恢复运行组件。"," Finish the active evaluation trial before restarting runtime components.");
       result.textContent=message;
     }
-    async function act(recover){
-      if((recover?repair:check).disabled)return;
+    async function act(recover,general=false){
+      if((general?restart:recover?repair:check).disabled)return;
       busy=true;message=text("正在处理…","Working…");show();
-      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),recover?90000:12000);
       try{
-        const response=await fetch(recover?"/api/rlt/recover-runtime":"/api/deployment/status",{cache:"no-store",signal:controller.signal,...(recover?{method:"POST"}:{})});
+        const response=await fetch(recover?"/api/rlt/recover-runtime":"/api/deployment/status",{cache:"no-store",signal:controller.signal,...(recover?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({finalize_pending:true,...(general?{restart_running:true}:{})})}:{})});
         const payload=await response.json();
         if(!response.ok)throw new Error(typeof payload.detail==="string"?payload.detail:JSON.stringify(payload.detail||payload));
         if(recover){
           message=text("恢复已启动，Stage1 保留。等待运行进程就绪后，手动开始 Session；不会自动推理。","Recovery started; Stage1 retained. Wait for the runtime to become ready, then start the session manually. Inference will not start automatically.");
+          if(payload.recording_retained?.path)message+="\n"+text("保留录制：","Retained recording: ")+payload.recording_retained.path;
           root.CobotWorkspaceUI?.report(message,"success",text("运行恢复","Runtime recovery"));
           root.CobotOutputPanel?.follow({id:"deployment",component:"deployment"});
         }else{state=payload;message=runtimeSummary(state)||text("运行状态已更新","Runtime status updated");}
@@ -131,13 +141,17 @@
           state={...state,status_stale:true};
           message=text("连接超时或中断，操作结果待确认。先重新检查状态，不要重复恢复。","Connection timed out or was interrupted; the outcome is uncertain. Check status before recovering again.");
         }else message=error.message==="pending_episode_finalization"
-          ?text("仍有待收尾的录制，未重启运行进程，也未删除数据。先处理当前录制并查看输出。","A recording is pending. Runtime was not restarted and data was not deleted. Finish the recording and inspect output first.")
+          ?text("录制尚未安全完成，数据已保留。查看输出；存储或写入线程恢复后再次操作。","Recording could not finish safely; data is retained. Check output, then retry after storage or the writer recovers.")
           :error.message==="runtime_not_recoverable_with_retained_model"
           ?text("当前不能保留模型恢复：运行进程可能尚未退出，或 Stage1 已退出。请重新检查状态。","Cannot recover with the retained model: runtime processes may still exist, or Stage1 has exited. Check status again.")
+          :["recorder_worker_still_active","owned_runtime_still_stopping"].includes(error.message)
+          ?text("组件尚未完全停止，未启动重复进程；查看输出与设备/存储状态，恢复后重试。","Components have not fully stopped; no duplicate runtime was started. Check output and device/storage health before retrying.")
+          :error.message==="stage1_not_retained"
+          ?text("Stage1 已退出，无法保留模型恢复；修复原因后重新加载模型。","Stage1 has exited; recovery cannot retain it. Fix the cause, then reload the model.")
           :error.message;
       }finally{clearTimeout(timer);busy=false;show();}
     }
-    check.addEventListener("click",()=>act(false));repair.addEventListener("click",()=>act(true));
+    check.addEventListener("click",()=>act(false));repair.addEventListener("click",()=>act(true));restart.addEventListener("click",()=>act(true,true));
     output.addEventListener("click",()=>root.CobotOutputPanel?.follow({id:"deployment",component:"deployment"}));
     return {update(next){state=next||{};show();}};
   }

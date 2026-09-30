@@ -331,6 +331,51 @@ def create_app(
             close_capture_gate()
             release_writer()
 
+    def finalize_for_runtime_recovery():
+        """After the owner runtime stops, retain this recording without labels."""
+        with episode_mutation_lock:
+            raw = active_recorder.status()
+            # Never finalize someone else's episode or a stale historical file.
+            if active_lease.get("value") is None:
+                if (raw.get("writer_thread_alive") or raw.get("acquisition_active")
+                        or raw.get("state") in {"starting", "recording", "stopping"}):
+                    raise RuntimeError("recorder_owner_mismatch")
+                if raw.get("state") in {"error", "fatal"}:
+                    active_recorder.recover_error()
+                return {"recording_retained": None}
+            expected = Path(active_lease["data_root"]) / active_lease["episode_relative_path"]
+            if raw.get("path") and Path(raw["path"]) not in {expected, Path(str(expected) + ".incomplete")}:
+                raise RuntimeError("recorder_owner_mismatch")
+            identity = {"episode_uuid": active_lease.get("episode_uuid"),
+                        "data_root": str(active_lease.get("data_root")),
+                        "path": raw.get("path"), "training_label_added": False}
+            close_capture_gate()
+            if raw.get("state") in {"starting", "recording", "stopping"}:
+                active_recorder.stop()
+            deadline = time.monotonic() + 8
+            while (active_recorder.status().get("state") == "stopping"
+                    and time.monotonic() < deadline):
+                time.sleep(.05)
+            raw = active_recorder.status()
+            identity["path"] = raw.get("path")
+            if raw.get("writer_thread_alive") or raw.get("acquisition_active"):
+                raise RuntimeError("recorder_worker_still_active")
+            if raw.get("state") in {"error", "fatal"}:
+                # Domain recorder refuses reset while publishing/worker alive.
+                active_recorder.recover_error()
+                release_writer()
+                identity["completion_state"] = "error"
+            elif (raw.get("state") == "stopped" and raw.get("completion_state") == "cancelled"
+                    and raw.get("publication_status") not in {"finalizing", "commit_in_progress"}):
+                release_writer()
+                identity["completion_state"] = "cancelled"
+            else:
+                release_completed_writer()
+                identity["completion_state"] = raw.get("completion_state")
+            return {"recording_retained": identity}
+
+    application.state.finalize_for_runtime_recovery = finalize_for_runtime_recovery
+
     application.state.release_completed_writer = release_completed_writer
 
     application.state.recover_failed_recorder=recover_failed_recorder

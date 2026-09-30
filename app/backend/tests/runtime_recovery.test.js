@@ -30,5 +30,25 @@ test("checking status never invokes recovery and cause uses text only",async()=>
 });
 test("locale changes title and recovery labels",()=>{
  const {dom,w,node,ui}=setup();w.CobotPreferences.language="zh";ui.update(failed);
- assert.match(node.textContent,/恢复运行进程/);assert.doesNotMatch(node.textContent,/RTC execution timed out/);dom.window.close();
+ assert.match(node.textContent,/收尾录制/);assert.doesNotMatch(node.textContent,/RTC execution timed out/);dom.window.close();
+});
+
+
+test("general restart remains available for a stuck live Session",async()=>{
+ const {dom,calls,node,ui}=setup();
+ ui.update({phase:"paused",model:{kind:"rlt"},runtime_recovery_available:true});
+ assert.equal(node.hidden,false);
+ assert.equal(node.querySelector(".runtime-recover").hidden,true);
+ assert.equal(node.querySelector(".runtime-restart").disabled,false);
+ node.querySelector(".runtime-restart").click();await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(JSON.parse(calls[0][1].body),{finalize_pending:true,restart_running:true});
+ assert.match(node.textContent,/start the session manually/);
+ dom.window.close();
+});
+test("targeted recovery explicitly finalizes pending recording without labeling",async()=>{
+ const {dom,calls,node,ui}=setup();ui.update(failed);
+ node.querySelector(".runtime-recover").click();await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(JSON.parse(calls[0][1].body),{finalize_pending:true});
+ assert.match(node.textContent,/without a success\/failure label/);
+ dom.window.close();
 });

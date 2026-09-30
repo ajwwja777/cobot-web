@@ -526,3 +526,14 @@ timing contention still need operator validation. Receipt on A6000:
 projects/cobot-web/outputs/rtc-runtime-recovery-20260930/{release,live-verification}.json
 under /data/LFT-W02_data/jiaan/jiaan; Cobot:
  /home/agilex/jiaan/project/cobot-web/runtime/verification/rtc-runtime-recovery-20260930/.
+
+## 2026-09-30: pause-clock and pending-recording recovery follow-up
+
+A6000 source changes: pause/HIL cancels obsolete publication deadlines; optional
+async execution moves recorder HTTP off inference critical path with bounded
+monitoring and generation guards. Web adds explicit finalization and scoped
+runtime restart, preserving Stage1 and unlabeled recordings. Zero-option API
+contract remains strict. No algorithm, ROS/action contract or asset layout change.
+Operator procedure and code paths: cobot-web/docs/WEB_RECOVERY.md and
+rl-platform/docs/RUNBOOK.md, latest sections. Offline regression, Git publication,
+selective SHA sync and actual paused restart results follow in the release receipt.
