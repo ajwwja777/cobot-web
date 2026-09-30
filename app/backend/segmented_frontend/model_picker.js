@@ -21,7 +21,7 @@
   function renderDetails(container, model) {
     if (!container) return;
     const rows = model ? [
-      ["Model", familyOf(model)], ["Method", methodLabel(methodOf(model))], ["Task", taskOf(model)], ["Base model", model.base_checkpoint],
+      ["Model", familyOf(model)], ["Method", methodLabel(methodOf(model))], ["Task", taskOf(model)],
       ["Training lineage", model.training_lineage], ["Training origin step", model.source_step], ["Launch command", model.cli_command], ["Stage1 checkpoint", model.stage1_step],
       ["Learner trained step", model.learner_step],
       ["Learner internal Actor", model.publication_tracked ? model.learner_actor_version : null],
@@ -141,8 +141,11 @@
       }
       if (modelSelect.value !== selected) modelSelect.value = selected;
       const chosen = current();
-      const pathText = chosen?.checkpoint || "";
-      setText(path, pathText ? text("权重路径：", "Weights: ") + pathText : "");
+      const pathText = [
+        chosen?.checkpoint ? text("权重路径：", "Weights: ") + chosen.checkpoint : "",
+        chosen?.base_checkpoint ? "Base model: " + chosen.base_checkpoint : ""
+      ].filter(Boolean).join("\n");
+      setText(path, pathText);
       path.title = pathText;
       path.hidden = !pathText;
       setText(hint, chosen && !available(chosen) ? reason(chosen)

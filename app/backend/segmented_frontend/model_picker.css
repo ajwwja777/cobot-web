@@ -4,7 +4,7 @@
 .model-picker-pair select{width:100%;max-width:100%;min-width:0;height:38px;text-overflow:ellipsis}
 .model-picker-pair option:disabled{color:var(--muted)}
 .model-picker-pair>.model-selection-path,.model-picker-pair>.model-selection-hint{grid-column:1/-1;min-width:0;margin:0;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
-.model-picker-pair>.model-selection-path{display:block;color:var(--muted);user-select:text;background:none!important;border:0!important;padding:0!important;border-radius:0}
+.model-picker-pair>.model-selection-path{display:block;white-space:pre-line;color:var(--muted);user-select:text;background:none!important;border:0!important;padding:0!important;border-radius:0}
 .model-picker-pair>.model-selection-hint{color:var(--muted)}
 .model-picker-pair>[hidden]{display:none!important}
 .collection-model-row{display:flex;flex-direction:column;align-items:stretch;gap:12px}
