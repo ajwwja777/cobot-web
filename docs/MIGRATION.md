@@ -513,3 +513,16 @@ A6000 source/tests/push precede selective Cobot sync. Release and live verificat
 are recorded in the following deployment receipt; guide Git is not submitted.
 
 网页停止入口已识别“录制 stopped/complete/committed、RLT 运行进程及所属进程组已完全退出”的孤立占用标记；仅此情况下可正常 ui_down/up，保留完整录制与 Stage1。活 writer、未提交文件、状态过期、普通采集、评测或模型操作仍拒绝停止。检查实现位于 app/backend/cobot_console/ui_shutdown.py，停止脚本仍仅 SIGTERM 已登记的网页 PID，不杀模型/硬件。
+
+Live release verified: rl-platform d4c798f and cobot-web4f5db63 pushed;18 selected
+source/docs files match Cobot SHA256. Full web backend709 passed/6 skipped,56 DOM
+checks passed,40 selected RL checks passed; additional orphan-shutdown/CLI32 passed.
+Only the idle/completed orphan web service was restarted: Stage1 PID233064 and
+14 hardware process identities/start_ticks unchanged. Formal8015 reports
+rtc_delay_exceeded, retained Stage1 and recovery allowed, but whole runtime is
+not ready. No recovery POST, Session start, inference or motion was performed.
+The recovery mechanism is covered offline; end-to-end runtime restart and RTC
+timing contention still need operator validation. Receipt on A6000:
+projects/cobot-web/outputs/rtc-runtime-recovery-20260930/{release,live-verification}.json
+under /data/LFT-W02_data/jiaan/jiaan; Cobot:
+ /home/agilex/jiaan/project/cobot-web/runtime/verification/rtc-runtime-recovery-20260930/.
