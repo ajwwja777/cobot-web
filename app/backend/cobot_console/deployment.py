@@ -160,6 +160,38 @@ class ManagedRuntime:
                 pass
         return members
 
+    def retained_stage1(self, model):
+        state = read_json(RUN / "model-server/process.json")
+        ready = (self._alive(state) and state.get("checkpoint") == model.get("base_checkpoint")
+                 and "MODEL_READY" in tail(state.get("log_path") or state.get("log") or ""))
+        return {"ready": bool(ready), "pid": state.get("pid"),
+                "checkpoint": state.get("checkpoint")}
+
+    def runtime_failure(self, saved, output):
+        import runpy
+        try:
+            diagnose = runpy.run_path(str(RLT / "integrations/cobot_runtime/runtime_diagnostics.py"))["classify_failure"]
+            failure = diagnose(output)
+        except (OSError, KeyError):
+            failure = {"code": "runtime_process_exited",
+                       "cause": "Runtime exited; RLT diagnostics component is missing. Check deployment files."}
+        stage1 = self.retained_stage1(saved["model"])
+        return {**failure, "stage1_retained": stage1["ready"],
+                "stage1_pid": stage1["pid"], "recoverable": stage1["ready"] and not self._owned_members(saved),
+                "log_path": saved.get("log_path")}
+
+    @serialized
+    def recover_runtime(self):
+        saved = read_json(self.registry)
+        if saved.get("model", {}).get("kind") != "rlt" or saved.get("phase") == "offline":
+            raise DeploymentError("No failed RLT runtime to recover")
+        if self._alive(saved) or self._owned_members(saved):
+            raise DeploymentError("Runtime processes are still present; inspect output before recovery")
+        if not self.retained_stage1(saved["model"])["ready"]:
+            raise DeploymentError("Stage1 is not retained; recovery will not reload weights")
+        # Recheck in the script; do not reload if Stage1 disappears in between.
+        return self.load({**saved["model"], "retain_stage1_required": True})
+
     @serialized
     def load(self, model):
         from .device_control import _default_process_finder
@@ -190,6 +222,10 @@ class ManagedRuntime:
         environment.update(runpy.run_path(str(vla_config))["runtime_environment"]())
         environment.pop("COBOT_DEPLOYMENT_ADAPTER", None)
         environment.pop("COBOT_CUSTOM_CHECKPOINT", None)
+        if model.get("retain_stage1_required"):
+            environment["COBOT_RLT_REQUIRE_RESIDENT_STAGE1"] = "1"
+        else:
+            environment.pop("COBOT_RLT_REQUIRE_RESIDENT_STAGE1", None)
         if model["kind"] == "vla":
             environment["COBOT_MODEL_GATE_STATE"] = str(self.directory / "vla-gate.json")
             atomic_json(self.directory / "vla-gate.json", {"ready": False, "paused": True})
@@ -212,8 +248,14 @@ class ManagedRuntime:
             self.process.poll()
         output = tail(saved.get("log_path", ""))
         if not self._alive(saved):
+            failure = (self.runtime_failure(saved, output)
+                       if saved.get("phase") != "offline" and saved.get("model", {}).get("kind") == "rlt" else None)
             return {**saved, "phase": "offline" if saved.get("phase") == "offline" else "error",
-                    "detail": saved.get("detail") or output[-1200:] or "模型进程已退出", "log_tail": output}
+                    "process_started": False, "model_ready": False,
+                    "stage1_ready": bool(failure and failure["stage1_retained"]),
+                    "runtime_failure": failure,
+                    "detail": failure["cause"] if failure else saved.get("detail") or output[-1200:] or "Model process exited",
+                    "log_tail": output}
         saved.update(process_started=True, model_ready=bool(saved.get("ready_confirmed")), inference_verified=False)
         model = saved["model"]
         if time.time() - saved["started_at"] > 1800 and not saved.get("ready_confirmed"):
@@ -465,7 +507,7 @@ class DeploymentManager:
                 if model.get("publication_tracked") and model.get("id") == (state.get("model") or {}).get("id"):
                     model["last_inference_actor_version"] = session.get("actor_version")
                     model["inference_episode_id"] = session.get("episode_id")
-            collection_session = (session.get("session_use") == "collection" and session.get("phase") not in ("disarmed", "stopped")) if session else self.collection_session
+            collection_session = (session.get("session_use") == "collection" and session.get("phase") not in ("disarmed", "stopped")) if session else (self.collection_session and state.get("phase") not in {"error", "offline"})
             self.last_status = {**state, "session_active": collection_session, "operation": self.operation, "error": self.error,
                     "data_root": self.settings.get("data_root") or str(self.allowed_root / "evaluations"),
                     "default_data_root": str(self.allowed_root / "evaluations/test"),

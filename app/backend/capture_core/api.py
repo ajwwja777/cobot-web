@@ -318,6 +318,21 @@ def create_app(
             release_writer()
             return result
 
+    def release_completed_writer():
+        """Release an orphan lease only after the recorder committed its file."""
+        with episode_mutation_lock:
+            if active_lease.get("value") is None:
+                return
+            raw = active_recorder.status()
+            if (raw.get("state") not in {"idle", "stopped"} or raw.get("active")
+                    or raw.get("writer_thread_alive") or raw.get("acquisition_active")
+                    or raw.get("publication_status") != "committed"):
+                raise RuntimeError("pending_episode_finalization")
+            close_capture_gate()
+            release_writer()
+
+    application.state.release_completed_writer = release_completed_writer
+
     application.state.recover_failed_recorder=recover_failed_recorder
 
     def release_writer_if_finalized(episode_uuid) -> None:

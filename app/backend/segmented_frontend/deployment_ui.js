@@ -11,6 +11,8 @@
   let homePoses={}, outputsBusy=false, statusBusy=false, recordRequest=0;
   let connectionError="",transportMessage=false,storageInitialized=false,recentDirectories=null,directoryPicker=null;
   const modelPicker=window.CobotModelPicker.create({container:$("deployment-model-picker"),modelSelect:$("deployment-model"),sceneId:"deployment-scene",onChange:selection=>{selectedModel=selection.modelId;selectedRecord="";describeModel();renderControls();if(selection.source==="user"&&selection.model?.data_directories?.evaluation)applyModelDirectory(selection.model.data_directories.evaluation);else refreshRecords();}});
+  const runtimeHelp=el("section");$("deployment-load-state").after(runtimeHelp);
+  const runtimeRecovery=window.CobotRuntimeRecovery?.create(runtimeHelp,{refresh:()=>poll()});
   const sleep = ms=>new Promise(resolve=>setTimeout(resolve,ms));
   function notify(text,error=false,tone=null){transportMessage=false;$("deployment-message").textContent=text;$("deployment-message").classList.toggle("error",error);window.CobotWorkspaceUI?.report(text,tone||(error?"error":"success"),"部署");}
   async function applyModelDirectory(path){
@@ -30,7 +32,7 @@
   function renderHomePoses(){const select=$("deploy-home-pose"),target=$("deploy-home-target").value;const previous=select.value,arms=homeArms(),values=target==="selection"?(arms.length?arms.reduce((shared,arm)=>shared.filter(pose=>(homePoses[arm]||[]).includes(pose)),homePoses[arms[0]]||[]):[]):homePoses[target]||[];
     $("deployment-home-arms").hidden=target!=="selection";const preferred=select.dataset.preferred;select.replaceChildren(...values.map(v=>{const o=el("option",v);o.value=v;return o;}));select.value=values.includes(preferred)?preferred:values.includes(previous)?previous:(values[0]||"");if(values.length)delete select.dataset.preferred;}
   function renderControls(){if(!state)return;const uncertain=Boolean(connectionError||state.status_stale),busy=localBusy||Boolean(state.operation),loaded=["ready","paused","running"].includes(state.phase),active=Boolean(state.active),same=state.model?.id===selectedModel;
-    $("deploy-load").disabled=busy||uncertain||state.phase!=="offline"||!window.CobotModelPicker.available(model());
+    $("deploy-load").disabled=busy||uncertain||(state.phase!=="offline"&&!(state.phase==="error"&&state.runtime_failure?.recoverable&&model()?.kind==="rlt"))||!window.CobotModelPicker.available(model());
     $("deploy-unload").disabled=busy||state.phase==="offline";
     $("deploy-start").disabled=busy||uncertain||active||!loaded||!same||state.phase==="running"||model()?.evaluation_allowed===false||model()?.capabilities?.start===false;
     $("deploy-pause").disabled=busy||!active||state.phase!=="running"||model()?.capabilities?.pause===false;
@@ -49,7 +51,8 @@
     const detail=state.error||state.detail;
     const loading=state.phase==="loading"||state.operation==="load";
     const text=uncertain?(connectionError||"状态更新延迟，正在核对模型状态"):state.error||(loading?window.CobotModelLoading(state.model||model()).zh:loaded?"模型加载成功："+(state.model?.label||""):detail||(state.phase==="offline"?"未加载":state.phase==="error"?"模型运行异常，请查看输出":"正在核对模型状态"));
-    $("deployment-load-state").textContent=text;
+    $("deployment-load-state").textContent=state.runtime_failure?window.CobotRuntimeRecovery.summary(state):text;
+    runtimeRecovery?.update(state);
     $("deployment-load-state").classList.toggle("error",!uncertain&&(state.phase==="error"||Boolean(state.error)));
     $("deploy-load").classList.remove("is-loading");
   }

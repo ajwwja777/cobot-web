@@ -496,3 +496,18 @@ has no horizontal overflow. No full robot collection/deployment acceptance is cl
 ## 2026-09-30: credit experiments / action comparison
 
 Added a compact profile/episode action comparison panel with seven dimension-specific curves; 21-run results are expandable. Analysis reads rl-platform JSON only. Registered experimental runtimes resolve configuration, publication and live telemetry by project-owned profile; original entries stay available. Selected files developed/tested/pushed on A6000 then SHA256-synced to Cobot. Tests: 51 Node checks; 22 selected Python checks passed, one environment-dependent test skipped; responsive read-only preview at 1800/1200/760 px has no JS errors or workspace overflow. No robot inference initiated. Candidate process/algorithm evidence and remaining physical/RTC acceptance are in rl-platform/docs/EXPERIMENTS_20260930.md.
+
+## 2026-09-30: RTC runtime failure and retained-model recovery
+
+Investigated the actual19:50:31 log: MC30 async_rtc50 EnvDriver rejected a late
+RTC result; final supervisor traceback was a consequence. Stage1 remained
+PID233064; recorder reported stopped/complete/committed. No recovery, inference,
+robot action, asset deletion or re-labeling was performed during diagnosis.
+
+RLT owns stdlib root-cause classification and detailed actual/allowed timing.
+Web collection/deployment share runtime-failure display and guarded explicit
+/api/rlt/recover-runtime. It uses the original launcher, verifies no live owned
+runtime/pending writer, retains same-checkpoint Stage1, rejects implicit weight
+reload and starts no episode. Recording recovery stays a separate action.
+A6000 source/tests/push precede selective Cobot sync. Release and live verification
+are recorded in the following deployment receipt; guide Git is not submitted.

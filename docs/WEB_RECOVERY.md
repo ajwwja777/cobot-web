@@ -269,3 +269,24 @@ cat runtime/deployment/pi05-gate.json
 旧版本在含人工示范或其他模型记录的目录开始 RLT 时，可能将已完成但未标注的历史记录当作阻塞。新版统一 flat 采集允许这些记录继续保留，不自动补成功/失败或加入训练。独立 legacy 录制接口维持原标签门禁。
 
 网页采集控制中打开“录制检查与恢复（保留模型）”，先“检查录制”；若 Session fault，点击“恢复录制（保留模型）”，通过后手动开始 Session/采集。结果会显示实际检查目录，不能只凭“模型已加载”判断录制可用。若提示 latest_episode_incomplete 或 latest_episode_invalid，保留原文件，等待原写入完成或选择另一保存目录后重查；不要删除未知记录或反复开始。恢复不会执行机器人运动或重载 GPU 权重。
+
+## RLT runtime exited / RTC 执行超时（2026-09-30）
+
+采集与部署的模型卡会显示具体故障、Stage1 是否仍保留，以及“重新检查状态”“恢复运行进程（保留模型）”“查看输出”。运行进程退出时不再把最终 Supervisor traceback 当作模型加载失败，也不会把它归成录制故障。Stage1 保留不等于 Actor/Session 就绪；页面只有运行进程恢复就绪后才允许手动开始。
+
+本次 19:50:31 的直接错误为 RTCActionStateError: actual delay exceeded predicted delay；所选 plug-v3-credit-mc30-rtc50 的 RTC 窗口是 4 个 20 Hz 逻辑步（200 ms），不是 50 Hz 发布步。超过窗口时拒绝安装迟到动作，暂停策略并退出 EnvDriver；Supervisor 随后停止 Learner、Actor 和 Replay。Learner 保存了 step7000，Stage1 PID233064 仍在。旧日志没有完整的端到端分项耗时，不能确定是模型、录制 HTTP、调度还是其他负载导致。新日志记录实际/允许延迟及模型和录制检查耗时；没有放宽窗口或修改算法。
+
+先点“重新检查状态”，再查看输出。确认故障原因后可点“恢复运行进程（保留模型）”：复用同 checkpoint 的已登记 Stage1，只重建本模型运行进程。恢复不会开始 Session/推理、归位、删除录制、补标签或隐式提交 Replay。旧运行进程仍存在、Stage1 不在、存在评测轮次、录制仍在写入或待收尾时拒绝恢复。孤立 writer lease 只有在录制已经 committed 后才释放。Stage1 在检查后掉线，启动脚本也拒绝重读权重。
+
+终端与按钮对应的调用：
+
+~~~bash
+cd /home/agilex/jiaan/project/cobot-web
+python3 scripts/console.py state model
+python3 scripts/console.py api POST /api/rlt/recover-runtime
+python3 scripts/console.py state model
+~~~
+
+底层是 cobot_console/deployment.py:ManagedRuntime.recover_runtime，持有与加载相同的进程锁并调用原 scripts/deployment_run.sh → rl-platform/scripts/rlt_up.sh；设置 COBOT_RLT_REQUIRE_RESIDENT_STAGE1=1，保留 Stage1。就绪后手动开始 Session/新轮次。不要同时另起终端运行同一模型。
+
+若 RTC 超时重复出现，停止本轮并选原 plug-v3-credit-mc30（同步20 Hz，同候选权重/训练分支），再手动加载。故障进程完全退出且 Stage1 保留时，可在采集/部署卡改选 RLT 并加载，无需先释放 Stage1。不要仅降低发布 Hz 就认为 RTC 延迟窗口变大；四种发布频率的逻辑窗口相同。刷新页面只更新显示；ui_down/up 仅重启网页，不能复活已退出的 EnvDriver。完整真机延迟/争用验收仍待完成。

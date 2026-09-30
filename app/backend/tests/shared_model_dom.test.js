@@ -38,7 +38,7 @@ function setup() {
   };
   w.localStorage.setItem("cobot-capture-use-model","true");
   // No saved model and no legacy RLT catalog: the shared catalog must suffice.
-  for(const file of ["console_ui.js","model_picker.js","unified_collection.js","collection_model_ui.js"])
+  for(const file of ["console_ui.js","model_picker.js","recorder_recovery.js","unified_collection.js","collection_model_ui.js"])
     w.eval(fs.readFileSync("segmented_frontend/"+file,"utf8"));
   w.CobotCollectionModel.mount(); w.CobotUnifiedCollection.mount();
   return {dom,w,requests,models,setState:value=>{state={...state,...value};}};
@@ -170,4 +170,28 @@ test("explicit model selection applies registered collection directory, not a we
   assert.deepEqual(used,["/data/datasets/plug/warmup"]);
   assert.equal(w.document.getElementById("collection-data-root").value,"/data/datasets/plug/warmup");
  }finally{dom.window.close();}
+});
+
+
+test("collection and deployment show runtime fault separately from recording recovery",async()=>{
+ const {dom,w,models,setState,requests}=setup();
+ try{
+  await tick();await w.refreshConsole();
+  const failure={code:"rtc_delay_exceeded",cause:"actual delay exceeded predicted delay",stage1_retained:true,recoverable:true};
+  setState({phase:"error",model:models[0],started_at:2,runtime_failure:failure});
+  await w.CobotCollectionModel.refresh();
+  w.eval(fs.readFileSync("segmented_frontend/deployment_ui.js","utf8"));await tick();
+  const blocks=[...w.document.querySelectorAll(".runtime-recovery")];
+  assert.equal(blocks.length,2);
+  for(const block of blocks){
+   assert.equal(block.hidden,false);assert.match(block.textContent,/RTC execution timed out/);
+   assert.equal(block.querySelector(".runtime-recover").disabled,false);
+  }
+  assert.equal(w.document.querySelector(".recorder-recovery").hidden,true);
+  assert.match(w.document.getElementById("collection-model-state").textContent,/Stage1 weights remain loaded/);
+  assert.match(w.document.getElementById("deployment-load-state").textContent,/RTC execution timed out/);
+  assert.equal(w.document.getElementById("deploy-start").disabled,true);
+  assert.equal(w.document.getElementById("deploy-load").disabled,false);
+  assert.equal(requests.length,0);
+ }finally{await tick();dom.window.close();}
 });

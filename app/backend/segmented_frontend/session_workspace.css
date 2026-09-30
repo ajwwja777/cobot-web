@@ -77,3 +77,10 @@
 .recorder-recovery .button-row{flex-wrap:wrap}
 .recorder-recovery .recorder-recovery-result{margin:8px 0 0;color:var(--muted);white-space:pre-wrap}
 .recorder-recovery summary{cursor:pointer;font-size:12px;margin-bottom:8px}
+
+.runtime-recovery{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;}
+.runtime-recovery[hidden]{display:none;}
+.runtime-recovery .runtime-fault-title{color:var(--amber);}
+.runtime-recovery p{margin:8px 0;font-size:.78rem;line-height:1.5;overflow-wrap:anywhere;}
+.runtime-recovery .runtime-fault-cause{font-family:monospace;color:var(--muted);}
+.runtime-recovery .button-row{flex-wrap:wrap;}

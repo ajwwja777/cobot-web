@@ -391,6 +391,43 @@ def create_app(
         result = check_recorder(body.get("data_root"))
         return {**recorder_details(), "preflight": result}
 
+    @application.post("/api/rlt/recover-runtime")
+    def recover_rlt_runtime():
+        manager = application.state.deployment_manager
+        with manager.lock:
+            if manager.operation or manager.active:
+                raise HTTPException(409, "finish_model_operation_before_recovery")
+            manager.operation = "runtime_recovery"
+        try:
+            from .runtime_lock import operation
+            with operation(manager.runtime.directory):
+                state = manager.runtime.status()
+                if state.get("phase") != "error" or not (state.get("runtime_failure") or {}).get("recoverable"):
+                    raise HTTPException(409, "runtime_not_recoverable_with_retained_model")
+                snapshot, raw = modes.snapshot(), shared_recorder.status()
+                if snapshot.active_mode not in (None, "rlt"):
+                    raise HTTPException(409, "normal_recording_owns_writer")
+                if (raw.get("active") or raw.get("writer_thread_alive") or raw.get("acquisition_active")
+                        or raw.get("state") not in ("idle", "stopped")
+                        or raw.get("completion_state") not in (None, "complete")):
+                    raise HTTPException(409, "pending_episode_finalization")
+                # No deletion, relabeling or implicit Replay insertion.
+                rollout.state.release_completed_writer()
+                if modes.snapshot().active_mode is not None:
+                    raise HTTPException(409, "pending_episode_finalization")
+                result = manager.runtime.recover_runtime()
+                manager.collection_session = False
+                manager.error = None
+                return {**result, "model_retained": True, "manual_start_required": True}
+        except HTTPException:
+            raise
+        except Exception as error:
+            raise HTTPException(409, str(error)) from error
+        finally:
+            manager.refresh()
+            with manager.lock:
+                manager.operation = None
+
     @application.post("/api/rlt/recover-recorder")
     def recover_rlt_recorder(body: Dict[str, object]):
         # Coordinate with load/unload and episode requests. Recovery never calls
