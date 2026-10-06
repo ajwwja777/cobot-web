@@ -1,4 +1,4 @@
-"""Synchronized, bounded three-camera previews outside the control path."""
+"""Bounded camera previews; synchronized evidence and independent console streams."""
 from __future__ import annotations
 
 import math
@@ -46,6 +46,10 @@ class SynchronizedCameraPreview:
         self._shapes: Dict[str, tuple[int, int]] = {}
         self._generation_times = deque(maxlen=60)
         self._state: Dict[str, Any] = {'status':'unavailable','generation':0,'error_code':'camera_unavailable'}
+        self._preview = IndependentCameraPreview(
+            cache, clock=clock, encoder=encoder, max_skew_seconds=max_skew_seconds,
+            freeze_seconds=freeze_seconds, preview_fps=preview_fps)
+
 
     def _base(self, snapshot, now: float) -> Dict[str, Any]:
         sequences = {key: snapshot.sequence(key) for key in CAMERA_KEYS}
@@ -137,3 +141,109 @@ class SynchronizedCameraPreview:
             if value is None:
                 raise CameraFrameUnavailable('camera frame unavailable')
             return value
+
+
+    def preview_state(self) -> Dict[str, Any]:
+        return self._preview.state()
+
+    def preview_image(self, key: str, *, generation=None, camera_generation=None) -> bytes:
+        return self._preview.image(key, generation=generation, camera_generation=camera_generation)
+
+
+class IndependentCameraPreview:
+    """Each console stream advances independently; never substitutes a stale frame."""
+    def __init__(self, cache, *, clock=time.monotonic, encoder=_jpeg,
+                 max_skew_seconds=.05, freeze_seconds=1.0, preview_fps=20.0):
+        self._cache, self._clock, self._encoder = cache, clock, encoder
+        self._max_skew, self._freeze = float(max_skew_seconds), float(freeze_seconds)
+        self._period = 1.0 / float(preview_fps)
+        self._lock = RLock()
+        self._generation = 0
+        self._streams = {key: dict(generation=0, sequence=0, last_advance=None,
+            last_attempt=None, image=None, shape=None, times=deque(maxlen=60),
+            status='unavailable', error_code='camera_unavailable') for key in CAMERA_KEYS}
+
+    def state(self) -> Dict[str, Any]:
+        with self._lock:
+            now = float(self._clock())
+            snapshot = self._cache.snapshot(now)
+            cameras, updated = {}, False
+            for key, stream in self._streams.items():
+                sequence = snapshot.sequence(key)
+                arrival = snapshot.arrival_timestamp(key)
+                age = None if not math.isfinite(arrival) else max(0.0, now-arrival)
+                if sequence == 0:
+                    stream.update(status='unavailable', error_code='camera_unavailable')
+                elif not snapshot.is_fresh(key):
+                    stream.update(status='stale', error_code='camera_stale')
+                elif (sequence == stream['sequence'] and stream['last_advance'] is not None
+                      and now-stream['last_advance'] >= self._freeze):
+                    stream.update(status='frozen', error_code='camera_frozen')
+                elif sequence != stream['sequence']:
+                    attempt = stream['last_attempt']
+                    if attempt is None or now-attempt >= self._period:
+                        stream['last_attempt'] = now
+                        try:
+                            image = snapshot.get(key)
+                            if (not isinstance(image, np.ndarray) or image.dtype != np.uint8
+                                    or image.ndim != 3 or image.shape[-1] != 3):
+                                raise ValueError('invalid camera image')
+                            encoded = self._encoder(image)
+                        except Exception:
+                            stream.update(status='unavailable', error_code='camera_encode_failed')
+                        else:
+                            stream.update(image=encoded, shape=[int(image.shape[1]), int(image.shape[0])],
+                                sequence=sequence, generation=stream['generation']+1,
+                                last_advance=now, status='ready', error_code=None)
+                            times = stream['times']
+                            if times and now-times[-1] > 1.0:
+                                times.clear()
+                            times.append(now)
+                            updated = True
+                else:
+                    stream.update(status='ready', error_code=None)
+                times = stream['times']
+                fps = 0.0 if len(times) < 2 or times[-1] <= times[0] else (len(times)-1)/(times[-1]-times[0])
+                cameras[key] = dict(status=stream['status'], error_code=stream['error_code'],
+                    generation=stream['generation'], sequence=sequence, age_sec=age,
+                    preview_fps=round(fps, 1) if stream['status'] == 'ready' else 0.0,
+                    resolution=stream['shape'], last_advance_age_sec=None if stream['last_advance'] is None
+                    else max(0.0, now-stream['last_advance']))
+            if updated:
+                self._generation += 1
+            ready = [key for key in CAMERA_KEYS if cameras[key]['status'] == 'ready']
+            skew, clock = None, None
+            if len(ready) == len(CAMERA_KEYS):
+                timestamps = [snapshot.source_timestamp(key) for key in CAMERA_KEYS]
+                clock = 'source'
+                if not all(math.isfinite(value) for value in timestamps):
+                    timestamps = [snapshot.arrival_timestamp(key) for key in CAMERA_KEYS]
+                    clock = 'arrival'
+                skew = max(timestamps)-min(timestamps)
+            status = ('ready' if math.isfinite(skew) and skew <= self._max_skew else 'desynced') if skew is not None else ('degraded' if ready else 'unavailable')
+            advances = [s['last_advance'] for s in self._streams.values() if s['last_advance'] is not None]
+            return dict(status=status, generation=self._generation, cameras=cameras,
+                error_code=None if status == 'ready' else {'degraded':'camera_partial',
+                    'unavailable':'camera_unavailable','desynced':'camera_desynced'}[status],
+                sequences={key:cameras[key]['sequence'] for key in CAMERA_KEYS},
+                age_sec={key:cameras[key]['age_sec'] for key in CAMERA_KEYS},
+                stale_keys=[key for key in CAMERA_KEYS if key not in ready],
+                available_keys=ready, preview_fps=max((cameras[key]['preview_fps'] for key in ready), default=0.0),
+                jpeg_quality=JPEG_QUALITY,
+                resolution={key:cameras[key]['resolution'] for key in CAMERA_KEYS},
+                skew_ms=None if skew is None else skew*1000.0, timestamp_clock=clock,
+                last_advance_age_sec=None if not advances else max(0.0, now-max(advances)))
+
+    def image(self, key, *, generation=None, camera_generation=None):
+        if key not in CAMERA_KEYS:
+            raise CameraFrameUnavailable('invalid camera key')
+        with self._lock:
+            stream = self._streams[key]
+            if generation is not None and int(generation) != self._generation:
+                raise CameraFrameUnavailable('camera generation is no longer current')
+            if camera_generation is not None and int(camera_generation) != stream['generation']:
+                raise CameraFrameUnavailable('camera generation is no longer current')
+            if (stream['status'] != 'ready' or stream['image'] is None
+                    or not self._cache.snapshot(float(self._clock())).is_fresh(key)):
+                raise CameraFrameUnavailable('camera frame unavailable')
+            return stream['image']

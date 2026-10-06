@@ -467,3 +467,9 @@ main[data-camera-dock=bottom] .page.active { order: 1; }
 .deploy-history-choice { width: 100%; min-height: 32px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--text); text-align: left; font-size: .67rem; }
 .deploy-history-choice.selected, .deploy-history-choice:hover { border-color: var(--accent-hover); }
 .workbench-grid label select { display: block; max-width: 100%; margin-top: 6px; }
+
+/* An unavailable stream cannot present its last frame as live video. */
+.camera-grid figure:has(img[data-camera]) { position: relative; }
+.camera-unavailable-message { position: absolute; inset: 0 0 27px; display: grid; place-items: center; padding: 12px; color: #e6edf3; background: #15191f; border: 1px solid var(--line); border-radius: 11px; font-size: .8rem; text-align: center; }
+.camera-unavailable-message[hidden] { display: none; }
+.camera-grid figure[data-camera-status]:not([data-camera-status="ready"]) img[data-camera] { visibility: hidden; }

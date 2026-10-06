@@ -682,7 +682,7 @@ def create_app(
 
     @application.get("/api/console/cameras")
     def console_cameras() -> Dict[str, object]:
-        return camera_preview.state()
+        return getattr(camera_preview, "preview_state", camera_preview.state)()
 
     @application.get("/api/console/cameras/{camera_key}.jpg")
     def console_camera_image(camera_key: str, generation: int) -> Response:
@@ -690,7 +690,8 @@ def create_app(
         if camera_key not in CAMERA_KEYS:
             raise HTTPException(status_code=404, detail="camera_not_found")
         try:
-            payload = camera_preview.image(camera_key, generation=generation)
+            image = getattr(camera_preview, "preview_image", camera_preview.image)
+            payload = image(camera_key, generation=generation)
         except CameraFrameUnavailable as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         return Response(payload, media_type="image/jpeg", headers={"Cache-Control":"no-store"})
@@ -707,13 +708,17 @@ def create_app(
                 # JPEG encoding can take long enough to block the single ASGI
                 # event loop when three MJPEG clients request frames together.
                 loop = asyncio.get_running_loop()
-                state = await loop.run_in_executor(None, camera_preview.state)
-                generation = int(state.get("generation", 0))
-                if generation > 0 and generation != last_generation:
+                state_reader = getattr(camera_preview, "preview_state", camera_preview.state)
+                state = await loop.run_in_executor(None, state_reader)
+                camera = state.get("cameras", {}).get(camera_key)
+                generation = int((camera or state).get("generation", 0))
+                if generation > 0 and generation != last_generation and (camera is None or camera.get("status") == "ready"):
                     try:
-                        frame = await loop.run_in_executor(
-                            None, lambda: camera_preview.image(camera_key, generation=generation)
-                        )
+                        def read_frame():
+                            if camera is not None:
+                                return camera_preview.preview_image(camera_key, camera_generation=generation)
+                            return camera_preview.image(camera_key, generation=generation)
+                        frame = await loop.run_in_executor(None, read_frame)
                     except CameraFrameUnavailable:
                         frame = None
                     if frame:

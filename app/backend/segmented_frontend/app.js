@@ -1833,7 +1833,7 @@ function syncCameraStreams() {
       });
       image.dataset.streamRetryBound='true';
     }
-    if(shouldStream){
+    if(shouldStream&&(!image.dataset.cameraStatus||image.dataset.cameraStatus==='ready')){
       const expected=`/api/console/cameras/${image.dataset.camera}.mjpg?v=${Date.now()}`;
       if(!image.dataset.streaming&&Date.now()>=Number(image.dataset.retryAt||0)){
         image.src=expected;image.dataset.streaming='true';image.dataset.blankSince=String(Date.now());
@@ -1843,11 +1843,11 @@ function syncCameraStreams() {
     }
   }
 }
-function repairBlankCameraStreams(status) {
-  if(status!=='ready') return;
+function repairBlankCameraStreams(state) {
   const activePage=document.querySelector('[data-page].active');
   const now=Date.now();
   for(const image of $$('img[data-camera]')){
+    if(window.CobotCameraSyncUI.cameraStatus(state,image.dataset.camera)!=='ready') continue;
     const dock=document.querySelector('#camera-dock');
     if(dock&&dock.contains(image)?!(window.CobotWorkspaceUI&&window.CobotWorkspaceUI.cameraVisible()):(!activePage||!activePage.contains(image))) continue;
     if(image.naturalWidth>0){delete image.dataset.blankSince;continue;}
@@ -1905,14 +1905,17 @@ async function refreshCameraTriplet() {
       label.dataset.status = status;
       if (!textSelectionActive()) label.textContent = warning;
     }
+    window.CobotCameraSyncUI.renderHealth(document,state);
     for (const node of $$('[data-camera-health]')) {
+      const camera=state.cameras&&state.cameras[node.dataset.cameraHealth];
       const age = state.age_sec && state.age_sec[node.dataset.cameraHealth];
       const resolution=state.resolution&&state.resolution[node.dataset.cameraHealth];
       const size=Array.isArray(resolution)?resolution.join('×'):'—';
-      const fps=Number(state.preview_fps||0).toFixed(1);
-      node.textContent = `${fps} FPS · ${size} · Q${state.jpeg_quality||'—'} · ${age==null?'—':Math.round(Number(age)*1000)+' ms'}`;
+      const fps=Number(camera?camera.preview_fps:state.preview_fps||0).toFixed(1);
+      node.textContent = camera&&camera.status!=='ready'?'未更新 · '+(age==null?'等待连接':Number(age).toFixed(1)+' s'):`${fps} FPS · ${size} · Q${state.jpeg_quality||'—'} · ${age==null?'—':Math.round(Number(age)*1000)+' ms'}`;
     }
-    repairBlankCameraStreams(status);
+    repairBlankCameraStreams(state);
+    syncCameraStreams();
     cameraFailures = 0;
   } catch (error) {
     cameraFailures += 1;
