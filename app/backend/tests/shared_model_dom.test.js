@@ -212,3 +212,38 @@ test('both loaded status panels show actual Frozen identity and keep Online sele
   assert.equal(requests.length,0);
  }finally{await tick();dom.window.close();}
 });
+
+
+test('released same model with historical PID can be loaded again',async()=>{
+ const {dom,w,models,setState,requests}=setup();
+ try {
+  await tick();await w.refreshConsole();
+  setState({phase:'offline',model:models[0],pid:2054513,process_started:false,model_ready:false,operation:null,session_active:false,session:null});
+  await w.CobotCollectionModel.refresh();await w.refreshConsole();
+  const button=w.document.getElementById('collection-load');
+  assert.equal(button.disabled,false);
+  button.click();await tick();await tick();
+  assert.equal(requests.length,1);
+  assert.equal(requests[0].body.action,'load');
+  assert.equal(requests[0].body.model_id,models[0].id);
+ }finally{await tick();dom.window.close();}
+});
+
+test('release must be verified before unlocking load; live and stale states stay blocked',async()=>{
+ const {dom,w,models,setState,requests}=setup();
+ try {
+  await tick();await w.refreshConsole();
+  for(const status of [
+   {phase:'offline',process_started:false,status_stale:true},
+   {phase:'offline',process_started:true,status_stale:false},
+   {phase:'loading',process_started:true,status_stale:false},
+   {phase:'paused',process_started:true,status_stale:false},
+   {phase:'error',process_started:true,status_stale:false}
+  ]){
+   setState({...status,model:models[0],pid:2054513,operation:null});
+   await w.CobotCollectionModel.refresh();await w.refreshConsole();
+   assert.equal(w.document.getElementById('collection-load').disabled,true,JSON.stringify(status));
+  }
+  assert.equal(requests.length,0);
+ }finally{await tick();dom.window.close();}
+});

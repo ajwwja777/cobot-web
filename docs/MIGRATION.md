@@ -660,3 +660,10 @@ A6000 独立 worktree 验证：743 Python 测试通过、6 既有跳过；69 前
 用户无法从纯数字步数识别模式。选择器原先按同方法同一步数合并冻结与 Online，且隐藏登记标签；本次保留不同模式／权重的条目，仅继续合并同权重同模式执行 preset。RLT 选项显示步数、冻结／Online 和登记 Actor；详情显示 ID、模式及已报告的 Learner 开关。两页已加载状态另显示实际模型身份、Learner／最近推理 Actor；没有实际版本观测时明确标记登记值，不冒充运行证据。进入采集页不隐式改变已加载模型的学习模式。
 
 72 项完整前端回归通过；使用实际现场目录的 DOM 检查确认新 7k 冻结与 Online 两个 ID 均可选，加载冻结时仍明确 Learner 关闭。只改变静态显示与缓存版本，不改模型资产、算法、HTTP 启停或运动协议。现场同步回执、实际目录快照与测试日志位于 outputs/model-mode-identity-20261007/；源码同步不等于 Online 更新或真机验收通过。
+
+
+### 2026-10-07：释放后历史 PID 误锁采集加载按钮
+
+用户释放后选择同一个7000 Online，采集页加载按钮仍灰。实际状态offline、process_started/model_ready=false、无Session/操作/active_mode，录制stopped/committed，但登记保留历史PID2054513。UnifiedCollection错误地用PID字段存在作为仍在运行的依据。现用实际process_started与phase判断，明确已释放时不被历史PID阻塞；状态过期或真正仍运行时继续锁定。未删除历史进程信息，不改变启动协议、权重或Replay。
+
+新增回归在修复前复现失败，修复后完整前端74 passed；实际现场目录/状态DOM核对7000 Online选择保留且加载按钮可用。仅同步unified_collection.js及HTML缓存版本，不重启网页/模型、不发启动POST或运动。证据与静态发布回执：outputs/model-mode-identity-20261007/load-disabled/。

@@ -74,7 +74,7 @@
     const backendOnline=state.model&&!['offline'].includes(state.phase);
     recorderRecovery?.update(state,active()||changing||Boolean(context.busy));
     runtimeRecovery?.update(state);
-    $('#collection-load').disabled=!use||!root.CobotModelPicker.available(chosen)||locked||modelLoaded()||(state.model?.id===chosen?.id&&Boolean(state.pid))||!routeReady;
+    $('#collection-load').disabled=Boolean(state.status_stale)||!use||!root.CobotModelPicker.available(chosen)||locked||modelLoaded()||(state.model?.id===chosen?.id&&(state.process_started===true||(state.process_started!==false&&state.phase!=='offline'&&Boolean(state.pid))))||!routeReady;
     $('#collection-unload').disabled=!use||active()||changing||processing||!backendOnline;
     const ready=modelLoaded();
     const estimate=root.CobotModelLoading(chosen);
