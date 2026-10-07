@@ -653,3 +653,10 @@ A6000 离线验证：前端 67 passed，相关 HTTP/模型/恢复/历史 83 pass
 A6000 独立 worktree 验证：743 Python 测试通过、6 既有跳过；69 前端测试通过。实际隔离 HTTP/MJPEG 合成输入验证右相机掉线后左/顶部各持续输出 8 张不同 JPEG，右路返回不可用并在恢复后就绪；同步证据检查在掉线时仍为 stale。Chromium 验证只隐藏异常画面、正常两路可见并显示掉线提示。未通过拔线或机器人动作制造故障。
 
 验证与发布回执：`/data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/independent-camera-preview/validation/`、项目 `outputs/deployments/`；现场启停结果以实际发布回执为准。
+
+
+## 2026-10-07：模型选择明确冻结、Online 与版本身份
+
+用户无法从纯数字步数识别模式。选择器原先按同方法同一步数合并冻结与 Online，且隐藏登记标签；本次保留不同模式／权重的条目，仅继续合并同权重同模式执行 preset。RLT 选项显示步数、冻结／Online 和登记 Actor；详情显示 ID、模式及已报告的 Learner 开关。两页已加载状态另显示实际模型身份、Learner／最近推理 Actor；没有实际版本观测时明确标记登记值，不冒充运行证据。进入采集页不隐式改变已加载模型的学习模式。
+
+72 项完整前端回归通过；使用实际现场目录的 DOM 检查确认新 7k 冻结与 Online 两个 ID 均可选，加载冻结时仍明确 Learner 关闭。只改变静态显示与缓存版本，不改模型资产、算法、HTTP 启停或运动协议。现场同步回执、实际目录快照与测试日志位于 outputs/model-mode-identity-20261007/；源码同步不等于 Online 更新或真机验收通过。

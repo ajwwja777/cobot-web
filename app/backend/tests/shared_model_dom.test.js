@@ -192,3 +192,23 @@ test("collection and deployment show runtime fault separately from recording rec
   assert.equal(requests.length,0);
  }finally{await tick();dom.window.close();}
 });
+
+
+test('both loaded status panels show actual Frozen identity and keep Online selectable',async()=>{
+ const {dom,w,models,setState,requests}=setup();
+ try {
+  models[0].learner_step=7000;models[0].actor_version=3500;models[0].training_enabled=false;
+  models.push({...models[0],id:'plug-online',mode:'online',training_enabled:true});
+  await tick();await w.refreshConsole();
+  setState({phase:'ready',model:models[0],started_at:2,session:{evaluation_only:true,actor_version:3500,learner_version:7000}});
+  await w.CobotCollectionModel.refresh();
+  w.eval(fs.readFileSync('segmented_frontend/deployment_ui.js','utf8'));await tick();
+  for(const id of ['collection-model-select','deployment-model']) {
+   assert([...w.document.getElementById(id).options].some(o=>o.value==='plug-online'));
+   assert.match(w.document.getElementById(id).selectedOptions[0].textContent,/Frozen/);
+  }
+  for(const id of ['collection-model-state','deployment-load-state'])
+   assert.match(w.document.getElementById(id).textContent,/Loaded: Frozen.*Learner disabled.*Learner 7000.*Last inference Actor 3500/);
+  assert.equal(requests.length,0);
+ }finally{await tick();dom.window.close();}
+});

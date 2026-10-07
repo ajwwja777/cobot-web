@@ -14,6 +14,7 @@
     const parts=compact?[model.family||model.kind||model.id]:[path,model.family||model.kind||'',model.task||''];
     const step=model.step??null,unknown=en?'steps unknown':'步数待核验';
     if(model.family==='RLT'||model.kind==='rlt'){
+      parts.push(root.CobotModelPicker?.modeLabel(model) || (model.mode==='online'?'Online':model.mode==='frozen'?(en?'Frozen':'冻结'):(en?'Mode unverified':'模式待核验')));
       parts.push('stage1-'+(model.stage1_step??model.base_step??'?'));
       if(model.stage!=='stage1')parts.push((model.stage||'warmup')+'-'+(step??'?'));
       if(model.actor_version!=null&&model.actor_version>=0)parts.push('actor-'+model.actor_version);
@@ -41,7 +42,7 @@
     $('#capture-model-unload').disabled=locked||busy||Boolean(state.operation)||!state.model||state.phase==='offline';
     $('#capture-session-start').disabled=locked||!ready()||Boolean(state.session_active);
     $('#capture-session-stop').disabled=locked||busy||Boolean(state.operation)||!state.session_active;
-    $('#capture-model-state').textContent=!use?(english()?'Manual capture':'纯示教'):state.operation?(english()?'Working…':'正在处理…'):ready()?(english()?'Model ready':'模型已加载'):state.phase==='loading'?(english()?'Loading model…':'模型加载中…'):state.error||(english()?'Load model to start':'等待加载模型');
+    $('#capture-model-state').textContent=!use?(english()?'Manual capture':'纯示教'):state.operation?(english()?'Working…':'正在处理…'):ready()?(english()?'Model ready':'模型已加载')+' · '+(root.CobotModelPicker?.runtimeIdentity(state)||''):state.phase==='loading'?(english()?'Loading model…':'模型加载中…'):state.error||(english()?'Load model to start':'等待加载模型');
     const start=$('#start');if(start){start.dataset.zh=use?'开始推理':'开始采集';start.dataset.en=use?'Start inference':'Start capture';start.textContent=english()?start.dataset.en:start.dataset.zh;}
     root.CobotUnifiedCollection?.render();
   }

@@ -55,7 +55,7 @@
     const detail=state.error||state.detail;
     const loading=state.phase==="loading"||state.operation==="load";
     const text=uncertain?(connectionError||"状态更新延迟，正在核对模型状态"):state.error||(loading?window.CobotModelLoading(state.model||model()).zh:loaded?"模型加载成功："+(state.model?.label||""):detail||(state.phase==="offline"?"未加载":state.phase==="error"?"模型运行异常，请查看输出":"正在核对模型状态"));
-    $("deployment-load-state").textContent=state.runtime_failure?window.CobotRuntimeRecovery.summary(state):text;
+    $("deployment-load-state").textContent=state.runtime_failure?window.CobotRuntimeRecovery.summary(state):text+(loaded?" · "+(window.CobotModelPicker.runtimeIdentity(state)||""):"");
     runtimeRecovery?.update(state);
     $("deployment-load-state").classList.toggle("error",!uncertain&&(state.phase==="error"||Boolean(state.error)));
     $("deploy-load").classList.remove("is-loading");

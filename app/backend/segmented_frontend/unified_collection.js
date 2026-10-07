@@ -79,6 +79,7 @@
     const ready=modelLoaded();
     const estimate=root.CobotModelLoading(chosen);
     label($('#collection-model-state'),!use?'纯示教':loading?estimate.zh:processing?'正在处理…':ready?'模型加载成功':'等待加载模型',!use?'Manual capture':loading?estimate.en:processing?'Working…':ready?'Model loaded successfully':'Load model to start');
+    if (use && ready) $('#collection-model-state').textContent += ' · ' + (root.CobotModelPicker.runtimeIdentity(state) || '');
     const failure=use&&(state.error||(state.phase==='error'?(state.detail||'模型加载失败'):null));
     if(state.runtime_failure)label($('#collection-model-state'),root.CobotRuntimeRecovery.summary(state),root.CobotRuntimeRecovery.summary(state));
     else if(failure)label($('#collection-model-state'),state.model_ready&&state.session?.phase==='fault'?'模型已加载；录制需要恢复（见下方）':String(failure),state.model_ready&&state.session?.phase==='fault'?'Model loaded; recording needs recovery (below)':root.CobotPreferences?.text(String(failure))||String(failure));

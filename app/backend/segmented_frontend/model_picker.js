@@ -14,14 +14,41 @@
   const methodOf=model=>String(model?.training_method || ((model.kind==='rlt'||model.family==='RLT')?(model.runtime_profile==='credit_mc30'?'mc30':'original'):model.parent_step!=null?'dagger':'original'));
   const methodLabel=method=>method==='original'?text('原版','Original'):method==='mc30'?text('MC30 优化','MC30 optimized'):method==='dagger'?'DAgger':method;
   const visible=model=>/^\d+$/.test(stepLabel(model))&&model?.capabilities?.load!==false&&!['unregistered','base_model','cli_only'].includes(model.availability)&&!((model.kind==='rlt'||model.family==='RLT')&&['stage1','reference'].includes(model.stage||model.mode));
+  const isRlt = model => model?.kind === "rlt" || model?.family === "RLT";
+  function modeOf(model) {
+    if (!isRlt(model)) return "";
+    if (model.training_enabled === false || model.mode === "frozen" || model.stage === "frozen") return "frozen";
+    if (model.training_enabled === true || model.mode === "online" || model.stage === "online") return "online";
+    return "unknown";
+  }
+  function modeLabel(model) {
+    return ({frozen:text("冻结", "Frozen"), online:"Online", unknown:text("模式待核验", "Mode unverified")})[modeOf(model)] || "";
+  }
+  function optionLabel(model) {
+    return [stepLabel(model), modeLabel(model), isRlt(model) && model.actor_version != null ? "Actor " + model.actor_version : ""].filter(Boolean).join(" · ");
+  }
+  function runtimeIdentity(state) {
+    const model = state?.model;
+    if (!isRlt(model)) return "";
+    const session = state.session || {};
+    const frozen = session.evaluation_only === true || modeOf(model) === "frozen";
+    const enabled = model.training_enabled;
+    const learner = session.learner_version;
+    const actor = session.actor_version ?? model.last_inference_actor_version;
+    return [text("实际加载：", "Loaded: ") + (frozen ? text("冻结", "Frozen") : modeLabel(model)),
+      frozen || enabled === false ? text("Learner 关闭", "Learner disabled") : enabled === true ? text("Learner 已启用", "Learner enabled") : text("Learner 状态待核验", "Learner state unverified"),
+      learner != null ? "Learner " + learner : model.learner_step != null ? text("登记 Learner ", "Registered Learner ") + model.learner_step : "",
+      actor != null ? text("最近推理 Actor ", "Last inference Actor ") + actor : model.actor_version != null ? text("登记 Actor ", "Registered Actor ") + model.actor_version + text("（推理未观测）", " (inference not observed)") : text("执行 Actor 待核验", "Inference Actor unverified"),
+      model.id].filter(Boolean).join(" · ");
+  }
   function weightKey(model) {
-    return JSON.stringify([familyOf(model),taskOf(model),model.checkpoint||model.id,methodOf(model)]);
+    return JSON.stringify([familyOf(model),taskOf(model),model.checkpoint||model.id,methodOf(model),modeOf(model)]);
   }
 
   function renderDetails(container, model) {
     if (!container) return;
     const rows = model ? [
-      ["Model", familyOf(model)], ["Method", methodLabel(methodOf(model))], ["Task", taskOf(model)],
+      ["Model", familyOf(model)], ["Model ID", model.id], ["Mode", modeLabel(model)], ["Learner enabled (reported)", model.training_enabled == null ? null : String(model.training_enabled)], ["Method", methodLabel(methodOf(model))], ["Task", taskOf(model)],
       ["Training lineage", model.training_lineage], ["Training origin step", model.source_step], ["Launch command", model.cli_command], ["Stage1 checkpoint", model.stage1_step],
       ["Learner trained step", model.learner_step],
       ["Learner internal Actor", model.publication_tracked ? model.learner_actor_version : null],
@@ -87,7 +114,7 @@
     function render() {
       setText(sceneTitle, text("场景", "Scene"));
       setText(familyTitle, text("模型", "Model"));
-      setText(modelTitle, text("步数", "Steps"));
+      setText(modelTitle, text("版本／模式", "Version / mode"));
       setText(methodTitle,text("方法","Method"));methodSelect.setAttribute("aria-label",methodTitle.textContent);
       familySelect.setAttribute("aria-label", familyTitle.textContent);
       sceneSelect.setAttribute("aria-label", sceneTitle.textContent);
@@ -122,8 +149,8 @@
       methodSelect.value=method;
       const variants = familyModels.filter(model=>methodOf(model)===method);
       const candidates = variants.filter(model => model === (variants.find(other => weightKey(other) === weightKey(model) && other.id === selected) || variants.find(other => weightKey(other) === weightKey(model) && other.training_enabled && !other.execution_profile) || variants.find(other => weightKey(other) === weightKey(model) && !other.execution_profile) || variants.find(other => weightKey(other) === weightKey(model))));
-      const matching=candidates.filter(model=>model===(candidates.find(other=>stepLabel(other)===stepLabel(model)&&other.id===selected)||candidates.find(other=>stepLabel(other)===stepLabel(model)))).sort((a,b)=>Number(stepLabel(a))-Number(stepLabel(b)));
-      const labels = matching.map(stepLabel);
+      const matching = candidates.sort((a,b)=>Number(stepLabel(a))-Number(stepLabel(b)));
+      const labels = matching.map(optionLabel);
       const nextModelSignature = JSON.stringify([english(), matching, labels]);
       if (modelSignature !== nextModelSignature) {
         modelSignature = nextModelSignature;
@@ -149,7 +176,7 @@
       path.title = pathText;
       path.hidden = !pathText;
       setText(hint, chosen && !available(chosen) ? reason(chosen)
-        : models.length && !matching.some(available) ? text("当前场景的模型暂不可用，请查看灰色选项的原因或切换场景。", "Models in this scene are unavailable. Check the disabled options or choose another scene.") : "");
+        : chosen ? [text("选中：", "Selected: ") + modeLabel(chosen), chosen.label || "", chosen.id, chosen.learner_step != null ? text("登记 Learner ", "Registered Learner ") + chosen.learner_step : ""].filter(Boolean).join(" · ") : models.length && !matching.some(available) ? text("当前场景的模型暂不可用，请查看灰色选项的原因或切换场景。", "Models in this scene are unavailable. Check the disabled options or choose another scene.") : "");
       hint.hidden = !hint.textContent;
       sceneSelect.disabled = disabled;
       familySelect.disabled = disabled;
@@ -240,5 +267,5 @@
       get scene() { return scene; }
     };
   }
-  root.CobotModelPicker = {create, available, methodOf, visible, sceneLabel, stepLabel, renderDetails};
+  root.CobotModelPicker = {create, available, methodOf, visible, sceneLabel, stepLabel, optionLabel, modeOf, modeLabel, runtimeIdentity, renderDetails};
 })(window);
