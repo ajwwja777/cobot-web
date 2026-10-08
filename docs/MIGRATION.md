@@ -732,3 +732,19 @@ NVMe GPU 权重恢复日志由之前 Getea 183.59 秒降至本次 20 Hz 的 5.85
 只为生效单模型 NVMe 路径重载网页，PID 63917→3588664；重载立即采样的 12 个硬件身份保持。后续加载期间三路相机节点由 3495535／3495536／3495537 变为 3590670／3590671／3590672，control cameras.json 记录另一次 cameras_up.sh 于 17:46:05 执行；本任务未调用相机启停或其他硬件命令，不能声称整个最终窗口全部 12 个硬件身份不变。剩余 9 个 ROS／机械臂身份保持。相机恢复消息后预热完成。
 
 用户授权范围内的 π0.5 暂停部署恢复已完成，最终保留可用的 50 Hz 配置和模型，不卸载或恢复已由用户释放的 RLT。现场拥有权释放给用户，保留暂停门控。记录回执 recovered-load-verification.json、recovered20-ready.json、recovered50rtcfilter-ready.json、recovered-final-checks.json、after-recovered-load.json、final-release.json；首次普通客户端日志 model-20261008T174517.log，最终 50 Hz 客户端日志 model-20261008T174621.log。
+
+### 2026-10-08：π0.5 运动后 RTC 延迟故障与发布取消竞争修复
+
+用户在自行启动运动后反馈模型退出。此次失败 launcher 3694662，客户端日志 model-20261008T183742.log；NVMe DAgger 参数恢复正常，不能把此次运行故障归因于此前 Getea 读取问题。之前验收限定为暂停加载和 sampler 预热，未覆盖运动后的 RTC 重规划。
+
+共享 PublicationDriver 的异步 safe_stop 曾在发布线程等待 50 Hz 子步期间 reset，将 previous 清空；发布线程继续相减，产生 float - NoneType，遮蔽最初的 RTC 故障。现用状态锁、发布锁和代际检查串行化取消与提交；睡眠不持有状态锁，取消后旧动作不再提交，也不复活已清空状态。滤波常数、动作限制与逻辑／发布时钟不变。π0.5 baseline／DAgger Task2 采用带代际校验的暂停 sink；RTC 异常保存原始原因、触发手动保护暂停，不再通过 rospy.signal_shutdown 导致模型与 policy server 自动退出。恢复仍需操作者显式操作；重新建控制器使用新 observation 和新 session，不延续过期队列。网页状态保留 model_ready／paused，并通过 policy_fault／error 显示原始故障。
+
+首轮真实权重／实际三相机和关节输入的无指令发布器影子诊断，在 29 个逻辑步、70 次影子发布后确认最初错误为 actual delay exceeded predicted delay；保护暂停保留原因，没有再出现 NoneType。原预测历史只由首次空前缀 baseline 推理耗时初始化，低估第一次 guided RTC 推理。现于 guided sampler 预热后测量两次已预热 guided RPC 的完整往返耗时，向上换算逻辑步，作为 Task2 RTC 预测下限；另加 2 个逻辑步的游标相位／抖动余量。本次下限为 4 步，初始预算 6 步；20 Hz 逻辑步频与 50 Hz 发布频率不变。原生控制器新增可选 floor／margin 默认均为 0，仅 Task2 适配器显式应用校准；actual delay 超限检查、过期前缀丢弃与 horizon 可行性约束保留，不绕过安全检查。RTC 关闭的 SequentialRTCController 不接收这两个选项。
+
+VLA 48 项针对性测试通过（取消竞争、实际适配器导入／暂停、物理时间与滤波、延迟预算和严格过期检查）；web 50 项通过、1 项既有真实 RLT 环境测试跳过（暂停协议、运行故障状态、轮次保留、选项）。代码提交并 push：VLA f4f1f6bffc9c99399dc2db37d03152c5baa2036e、29cbbb68f3b669596f963d5e5c2f672c582a1445；web 803d797ccf25b29b8359e7eded4c69372c5964f5。现场按变更文件 SHA 同步，baseline／DAgger 两套完整 RTC manifest 均通过；备份分别在 runtime/incidents/pi05-publication-race-20261008/before 与 before-calibration。
+
+此前进程退出留下的 eval-20261008T183801-f68ae082 经 unknown HTTP 收尾保留，result.outcome=unknown，三个 start JPEG 字节保持，active 清空；没有 abort 删除或写 Replay。失败进程的 unknown 收尾无需调用已不存在的 ROS 暂停服务，RLT 活动会话仍使用原有跳过机制。现场只重载网页服务，网页 PID 3588664→3710224；本次前后采样 12 个硬件身份一致。仅卸载本任务手动暂停的模型以生效代码，不调用运动／归位／硬件启停。
+
+修复后真实 observation／原始 DAgger 权重的无发布器影子 RTC＋滤波＋50 Hz 验证完成 300 个逻辑步、750 次影子输出，15.758842 秒，发布间隔中位数 0.019996182 秒；无 RTC／NoneType 错误，单次关节增量最大 0.004000008（浮点误差范围内的 0.004 限制）。该进程构造的机器人指令发布器数量为 0，现场手动暂停不变。最终 launcher 3727953、policy server 3728007，model_ready=true、phase=paused、manual_pause=true、hil_active=false、runtime_fault=null，无 active／operation／writer。最终客户端 model-20261008T190256.log 明确 guided delay floor=4、margin=2 和 ready and PAUSED。现场拥有权释放给用户，真实机器人运动复测仍由操作者完成，不能以影子验证声称实际运动已通过。
+
+权重仍使用用户批准的 /home/agilex/jiaan/model/vla-platform/pi05/in_the_pot/dagger_2000plus3000；本批没有修改权重或修复 Getea 底层存储。证据：cobot-web/outputs/pi05-publication-race-20261008/ 的 source-release.json、calibration-release.json、interrupted-trial-retained.json、calibrated-paused-load.json、shadow-publication-verification.json、final-snapshot.json、final-release.json；现场 cobot-web/runtime/verification/pi05-publication-race-20261008/。首次未校准影子故障保留为 final-release.json 中 prior_shadow_observation，来源为当时工具输出，不冒充未覆盖的原始文件。
