@@ -62,7 +62,7 @@
   "rlt_model_root": "/media/agilex/Getea1/jiaan/model/rl-platform/rlt/plug_insertion",
   "rlt_warmup_root": "/media/agilex/Getea1/jiaan/model/rl-platform/rlt/plug_insertion/warmup_5000",
   "pi05_checkpoint": "/media/agilex/Getea1/jiaan/model/vla-platform/pi05/in_the_pot/baseline_2000",
-  "pi05_dagger_checkpoint": "/media/agilex/Getea1/jiaan/model/vla-platform/pi05/in_the_pot/dagger_2000plus3000",
+  "pi05_dagger_checkpoint": "/home/agilex/jiaan/model/vla-platform/pi05/in_the_pot/dagger_2000plus3000",
   "pose_config": "/media/agilex/Getea1/jiaan/data/motion/poses/home_poses.yaml",
   "teleop_data_root": "/media/agilex/Getea1/jiaan/data/motion/replays",
   "rlt_trace_root": "/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/derived/rl-platform/rlt/traces",
