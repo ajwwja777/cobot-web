@@ -703,3 +703,8 @@ VLA 共用运行模块及 π0.5 baseline／DAgger、Flux、G05、XR1 客户端�
 15:39 结束最初 π0.5 加载验证并释放现场拥有权后，15:41 网页已启动 plug-v3-supported-online，后续只读 HTTP 状态为 ready、无录制 writer；本对话未切换、卸载或停止该 RLT 模型，也未继续占用 GPU 运行 π0.5。后续 π0.5 真权重加载验证前须重新协调现场拥有权。代码导入修复已完成，实际 DAgger 部署恢复仍未完成。
 
 新增现场证据（均在本任务 runtime/verification 或 runtime/incidents 中）：historical-dagger-logs.json、checkpoint-repeat-hashes.json、checkpoint-direct-hashes.json、checkpoint-after-advice-hashes.json、checkpoint-after-advice-finite-scan.json、serial-embedding-scan.json、local-checkpoint-search.json、copy-hashes.json、recovery.json、read-difference-pattern.json、read-difference-ranges.json。汇总归档到 cobot-web/outputs/pi05-import-20261008/；final-release.json 已追加最新诊断，保留之前快照的时点，部署恢复标志仍为 false。
+
+
+## 2026-10-08：录制积压诊断与采样调度修复
+
+录制状态接口增加白名单数值 timing，配合 dagger 的采样调度修复与队列诊断。相关78项回归通过；同步不等于现有进程生效，本批不重载服务。证据及边界见相邻 cobot-dagger/docs/audits/2026-10-08-recorder-backpressure.md。

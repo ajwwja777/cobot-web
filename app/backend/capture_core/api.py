@@ -6,6 +6,7 @@ from capture_core.exact_labels import ExactEpisodeLabelStore
 from cobot_console.mode import ModeConflict
 
 import logging
+import math
 import os
 import threading
 import time
@@ -178,6 +179,19 @@ def _public_status(raw: Any) -> Dict[str, object]:
         "frames_written": int(raw.get("frames_written", 0) or 0),
         "publication_status": raw.get("publication_status"),
     }
+    timing = raw.get("timing")
+    if isinstance(timing, dict):
+        # Explicit numeric allowlist; never expose paths or raw writer errors.
+        public["timing"] = {
+            key: value for key in (
+                "queue_depth", "queue_capacity", "queue_high_watermark",
+                "writer_inflight_ms", "writer_last_ms", "writer_max_ms",
+                "sample_last_ms", "sample_max_ms", "disk_check_last_ms",
+                "disk_check_max_ms", "missed_sample_ticks",
+            ) for value in (timing.get(key),)
+            if isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value) and value >= 0
+        }
     if "capture_enabled" in raw:
         public["capture_enabled"] = bool(raw["capture_enabled"])
     path = raw.get("path")
