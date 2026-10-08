@@ -667,3 +667,21 @@ A6000 独立 worktree 验证：743 Python 测试通过、6 既有跳过；69 前
 用户释放后选择同一个7000 Online，采集页加载按钮仍灰。实际状态offline、process_started/model_ready=false、无Session/操作/active_mode，录制stopped/committed，但登记保留历史PID2054513。UnifiedCollection错误地用PID字段存在作为仍在运行的依据。现用实际process_started与phase判断，明确已释放时不被历史PID阻塞；状态过期或真正仍运行时继续锁定。未删除历史进程信息，不改变启动协议、权重或Replay。
 
 新增回归在修复前复现失败，修复后完整前端74 passed；实际现场目录/状态DOM核对7000 Online选择保留且加载按钮可用。仅同步unified_collection.js及HTML缓存版本，不重启网页/模型、不发启动POST或运动。证据与静态发布回执：outputs/model-mode-identity-20261007/load-disabled/。
+
+## 2026-10-08：π0.5 部署导入冲突已修复；DAgger 3000 权重异常待恢复
+
+来源：用户报告及现场日志。本轮所查两次启动失败 model-20261008T145833.log、model-20261008T150342.log 为相同导入根因：网页 standalone wrapper 的 cobot_console 目录位于 sys.path 前部；VLA 共享目录已在 PYTHONPATH，旧条件没有把它前移，裸 execution_options 导入命中网页同名文件，触发 attempted relative import with no known parent package。不能据此认定更早的所有 50 Hz 故障都相同。
+
+VLA 共用运行模块及 π0.5 baseline／DAgger、Flux、G05、XR1 客户端改用 integrations.cobot 明确包名；保留旧辅助模块路径，更新两份 RTC overlay checksum。代码提交 83a49c9c059da661df34f152c617b7d54d3424a5 已 push、同步；12 个运行文件 SHA 与完整两份 overlay 清单核验通过。算法、默认频率／滤波常数、权重、归一化和动作映射未修改。
+
+真实网页 wrapper／RTC 模块加合成硬件／策略依赖的测试在修复前复现，修复后 baseline／DAgger 各自默认、20 Hz 无 RTC／滤波、50 Hz＋RTC＋滤波、50 Hz 无 RTC＋滤波共 8 个组合到达 ready and PAUSED。CPU 回归共 144 项通过：共用执行／导入／时钟 37、G05 30、XR1 52、web 暂停／执行配置合同 25；Flux 导入冒烟通过。工控机真实 client Python／ROS／OpenPI 环境的 8 个导入／选项解析组合通过。这些不是实际权重推理或持续 50 Hz 发布验收。
+
+现场仅提交一次 DAgger 3000 的 50 Hz＋RTC＋滤波显式加载，保持 manual_pause，不请求 start／resume／home。权重恢复完成，真实相机／关节 observation 同步完成；首个 prefix 为空的普通 baseline 预热请求返回非有限动作，RTCProtocolError: actions_robot must contain finite values。故障发生在 guided RTC 重规划和发布端滤波之前；模型没有 ready。启动器已退出并收尾自己启动的 policy server。未继续提交已知坏权重的原 20 Hz 加载，不声称原配置恢复或两配置真机通过。
+
+只读 CPU 参数恢复扫描（原 float32，不做 GPU／bf16 转换）确认 51 个参数叶、3,353,433,872 个参数中，4 个张量共 96 个非有限值：input_embedding 9、mlp/gating_einsum 27、mlp/linear 58、mlp_1/gating_einsum 2。与 2026-09-28 Getea 迁移 copied-files.jsonl 的 19 文件 SHA 对账，15 个一致，4 个参数数据文件不一致：1bf70e1ab729c2317a20f411e3169a69、29a49413c8812dd549aeeeea3c2debb1、7434943d4187ec08f841850611be2528、a37ff27b36ec269fd140299c14eba633。可确认内容与迁移记录不同，具体改变原因尚未确定。归一化文件 SHA 与登记原始结果一致。
+
+已登记 Cobot 旧 step_3000 是当前 Getea 权重的符号链接，不是独立备份；A6000 2026-09-08 审计记载当时完整权重备份未完成。训练原始产物来源为 trainer 的 task5_hil_realworld_rl/checkpoints/task5_pi05_masked_in_the_pot_round_001/dagger_round001_step2000_3000/2999（旧 Task5 已归档到 legacy-assets/cobot-platform-pre-framework-202608）。本轮按已登记 124.174.13.117 的 25791、65279 两入口尝试，均连接超时。等待同版本可信原件／备份入口，核对资产身份及有限性后才能恢复；未改坏权重、未将 NaN 清零、未切换其他模型冒充恢复。
+
+最终网页 PID 63917 与 12 个采样硬件／模型身份保持；部署 phase=error、model_ready=false、process_started=false，日志所记录 launcher PID 3402035 已不运行，active／operation／writer_token 均为空。页面仍显示本次 50 Hz＋RTC＋滤波选择。没有网页／硬件重启、没有运动、没有生产 Episode 或 Replay 修改。现场拥有权已释放，后续加载前重新核对现场所有权与权重健康。
+
+完整证据：cobot-web/outputs/pi05-import-20261008/ 的 source-release.json、field-imports.json、checkpoint-finite-scan.json、checkpoint-migration-hashes.json、after-failure.json 与 final-release.json；现场 runtime/verification/pi05-import-20261008/。客户端失败日志 runtime/deployment/model-20261008T152221.log；policy server 日志 runtime/deployment/pi05/logs/rtc_policy_server_20261008_152222.log。本批 VLA 旧源文件备份在 vla-platform/runtime/incidents/pi05-import-20261008/before/。部署修复尚未完成，剩余阻碍为同版本健康权重。
