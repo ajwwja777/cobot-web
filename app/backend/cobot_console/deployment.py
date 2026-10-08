@@ -495,16 +495,24 @@ class ManagedRuntime:
     @serialized
     def unload(self):
         saved = read_json(self.registry)
+        pause_warning = None
         if self._owned_members(saved):
             state = self.status()
             if state["phase"] not in ("loading", "error", "process_running") and saved["model"].get("capabilities", {}).get("pause", True):
-                self.action("pause")
+                try:
+                    self.action("pause")
+                except (DeploymentError, RltBackendError, subprocess.TimeoutExpired) as error:
+                    # Explicit release still stops the identity-verified owner
+                    # when its ROS/HTTP pause endpoint has already disappeared.
+                    # This is not a pause acknowledgement; retain the failure.
+                    pause_warning = str(error)
+                    atomic_json(self.registry, {**saved, "release_warning": pause_warning})
             if saved["model"]["kind"] == "rlt" and state.get("session"):
                 try:
                     self._session_action("/api/session/stop")
                 except (DeploymentError, RltBackendError):
                     pass  # Continue stopping this owned process even if Session is faulted.
-            os.killpg(saved["pid"], signal.SIGINT)
+            self._signal_owned_group(saved, signal.SIGINT)
             grace = min(45, max(8, float(saved["model"].get("shutdown_grace_seconds", 8))))
             deadline = time.monotonic() + grace
             while self._owned_members(saved) and time.monotonic() < deadline:
@@ -512,7 +520,7 @@ class ManagedRuntime:
                     self.process.poll()
                 time.sleep(.1)
             if self._owned_members(saved):
-                os.killpg(saved["pid"], signal.SIGTERM)
+                self._signal_owned_group(saved, signal.SIGTERM)
                 deadline = time.monotonic() + 5
                 while self._owned_members(saved) and time.monotonic() < deadline:
                     if self.process:
@@ -524,8 +532,20 @@ class ManagedRuntime:
             result = subprocess.run([str(PLATFORM / "scripts/rlt_v3_down.sh")], capture_output=True, text=True, timeout=30)
             if result.returncode:
                 raise DeploymentError(result.stderr or result.stdout)
-        atomic_json(self.registry, {**saved, "phase": "offline", "detail": "模型已释放"})
-        return {"phase": "offline"}
+        atomic_json(self.registry, {**saved, "phase": "offline", "detail": "模型已释放",
+                                   "release_warning": pause_warning})
+        return {"phase": "offline", "release_warning": pause_warning}
+
+    def _signal_owned_group(self, saved, sig):
+        # Pause RPCs can block while the launcher exits. Recheck ownership
+        # immediately before each signal; never signal a reused PID/group.
+        if not self._owned_members(saved):
+            return
+        try:
+            os.killpg(saved["pid"], sig)
+        except ProcessLookupError:
+            if self._owned_members(saved):
+                raise DeploymentError("Owned model process group disappeared but members remain")
 
 
 class DeploymentManager:
