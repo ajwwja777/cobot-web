@@ -419,7 +419,10 @@ class ManagedRuntime:
             atomic_json(self.registry, saved)
         gate = read_json(self.directory / "pi05-gate.json")
         phase = "paused" if ready and gate.get("paused", True) else "running" if ready else "loading"
-        return {**saved, "phase": phase, "log_tail": output, "intervention_count": gate.get("intervention_count", 0)}
+        fault = gate.get("runtime_fault") if ready and gate.get("paused", True) else None
+        return {**saved, "phase": phase, "log_tail": output,
+                "policy_fault": fault, "error": str(fault) if fault else None,
+                "intervention_count": gate.get("intervention_count", 0)}
 
     def _session_action(self, path, body=None):
         status = self.status()
@@ -631,7 +634,7 @@ class DeploymentManager:
                     model["last_inference_actor_version"] = session.get("actor_version")
                     model["inference_episode_id"] = session.get("episode_id")
             collection_session = (session.get("session_use") == "collection" and session.get("phase") not in ("disarmed", "stopped")) if session else (self.collection_session and state.get("phase") not in {"error", "offline"})
-            self.last_status = {**state, "session_active": collection_session, "operation": self.operation, "error": self.error,
+            self.last_status = {**state, "session_active": collection_session, "operation": self.operation, "error": self.error or state.get("error"),
                     "data_root": self.settings.get("data_root") or str(self.allowed_root / "evaluations"),
                     "default_data_root": str(self.allowed_root / "evaluations/test"),
                     "read_only": os.environ.get("COBOT_READ_ONLY") == "1",
@@ -808,12 +811,14 @@ class DeploymentManager:
             if not self.active:
                 raise DeploymentError("尚未开始评估")
             return self.runtime.action(operation)
-        if operation in ("success", "failure", "abort"):
+        if operation in ("success", "failure", "unknown", "abort"):
             if not self.active:
                 raise DeploymentError("尚未开始评估")
             state = self.runtime.status()
+            if operation == "unknown" and state.get("session"):
+                raise DeploymentError("Use the RLT episode skip action to retain its recording")
             if state["phase"] == "offline" or (state["phase"] == "error" and not self.runtime._alive(state)):
-                if operation != "abort":
+                if operation not in ("abort", "unknown"):
                     raise DeploymentError("模型已退出，请放弃本轮后重新加载")
             else:
                 self.runtime.action("pause")
@@ -932,7 +937,7 @@ def install_routes(app, cameras, modes, devices):
 
     @app.post("/api/deployment/action")
     def action(request: DeploymentAction):
-        if request.action not in {"load", "unload", "start", "pause", "resume", "success", "failure", "abort"}:
+        if request.action not in {"load", "unload", "start", "pause", "resume", "success", "failure", "unknown", "abort"}:
             raise HTTPException(422, "unknown_deployment_action")
         try:
             if request.execution_options is not None:

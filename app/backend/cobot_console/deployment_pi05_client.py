@@ -28,6 +28,7 @@ class ConsolePauseGate(OriginalGate):
         temporary.write_text(json.dumps({"schema_version": 2, "paused": self.paused, "manual_pause": self.manual_pause,
                                          "hil_active": self.hil_active, "pause_source": self.pause_source,
                                          "pause_caller": self.pause_caller,
+                                         "runtime_fault": getattr(self, "runtime_fault", None),
                                          "intervention_count": self.intervention_count, "updated_at": time.time()}))
         os.replace(temporary, self.path)
 

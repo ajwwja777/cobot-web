@@ -430,3 +430,27 @@ def test_refresh_never_changes_storage_during_another_operation(manager, reason)
     with pytest.raises(DeploymentError):
         manager.save_settings(str(manager.allowed_root / "evaluations/test"), reset_on_refresh=True)
     assert manager.root() == previous
+
+
+@pytest.mark.parametrize("phase", ["offline", "error"])
+def test_exited_model_episode_can_be_retained_unknown_without_deleting_frames(manager, phase):
+    manager.perform("load", "fixed")
+    manager.perform("start")
+    record = dict(manager.active)
+    folder = Path(record["data_root"]) / record["id"]
+    starts = {p.name:p.read_bytes() for p in folder.glob("start_*.jpg")}
+    calls = list(manager.runtime.calls)
+    manager.runtime.phase = phase
+    manager.runtime._alive = lambda state: False
+    manager.perform("unknown")
+    assert manager.active is None and manager.runtime.calls == calls
+    assert {p.name:p.read_bytes() for p in folder.glob("start_*.jpg")} == starts
+    saved = json.loads((folder / "result.json").read_text())
+    assert saved["outcome"] == "unknown" and saved["ended_at"] >= saved["started_at"]
+    assert manager.records()["records"][0]["outcome"] == "unknown"
+
+
+def test_manager_status_keeps_protective_fault_visible(manager):
+    manager.runtime.status = lambda: dict(phase="paused",model=MODEL,error="original RTC worker fault",policy_fault="original RTC worker fault")
+    manager.refresh()
+    assert manager.status()["error"] == "original RTC worker fault"
