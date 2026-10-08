@@ -748,3 +748,15 @@ VLA 48 项针对性测试通过（取消竞争、实际适配器导入／暂停�
 修复后真实 observation／原始 DAgger 权重的无发布器影子 RTC＋滤波＋50 Hz 验证完成 300 个逻辑步、750 次影子输出，15.758842 秒，发布间隔中位数 0.019996182 秒；无 RTC／NoneType 错误，单次关节增量最大 0.004000008（浮点误差范围内的 0.004 限制）。该进程构造的机器人指令发布器数量为 0，现场手动暂停不变。最终 launcher 3727953、policy server 3728007，model_ready=true、phase=paused、manual_pause=true、hil_active=false、runtime_fault=null，无 active／operation／writer。最终客户端 model-20261008T190256.log 明确 guided delay floor=4、margin=2 和 ready and PAUSED。现场拥有权释放给用户，真实机器人运动复测仍由操作者完成，不能以影子验证声称实际运动已通过。
 
 权重仍使用用户批准的 /home/agilex/jiaan/model/vla-platform/pi05/in_the_pot/dagger_2000plus3000；本批没有修改权重或修复 Getea 底层存储。证据：cobot-web/outputs/pi05-publication-race-20261008/ 的 source-release.json、calibration-release.json、interrupted-trial-retained.json、calibrated-paused-load.json、shadow-publication-verification.json、final-snapshot.json、final-release.json；现场 cobot-web/runtime/verification/pi05-publication-race-20261008/。首次未校准影子故障保留为 final-release.json 中 prior_shadow_observation，来源为当时工具输出，不冒充未覆盖的原始文件。
+
+### 2026-10-08：终端 kill 后 π0.5 暂停服务消失，模型释放继续收尾
+
+用户报告释放返回 timeout exceeded while waiting for service /task2/policy/set_paused。只读现场核验：当前 launcher 3805043、推理客户端 3805646 仍存活，而 policy server 3805093 已不在、GPU 无计算进程；无 active／operation／writer。旧状态只依据启动脚本身份与曾经 ready 日志仍显示 paused／model_ready=true，因此不能把终端 kill 或网页 ready 当作完整进程状态的证明。根因是 ManagedRuntime.unload 在向已消失的暂停端点请求失败后直接抛出异常，未继续清理当前已登记进程组。
+
+修复将明确的释放请求与暂停确认分开：仅对身份核验的本模型进程组执行现有 SIGINT、限时等待及必要的 SIGTERM；有界 ROS／HTTP 暂停请求的 DeploymentError、RltBackendError 或 subprocess.TimeoutExpired 保存到 release_warning 后继续释放。没有把暂停失败当成暂停确认。每次发信号前重新核对成员与启动身份，进程在等待期间退出则跳过，不向复用 PID／其他进程组发信号；仍有成员时保持失败，不写 offline。释放成功后保留暂停失败信息作为 warning，当前操作 error 清空，不要求重新加载或重复调用不存在的服务。
+
+新增 5 项回归覆盖服务缺失、子命令超时、暂停等待期间退出、进程未退出不得声称释放、PID 复用拒绝。与部署评测、运行恢复、外部模型、终端恢复和 π0.5 暂停协议合计 85 passed／1 项既有真实 RLT 环境测试 skipped。源码 05bc673b087b97971ba5124db2c9dff2ad96a8f7 已 A6000 提交／push；仅 deployment.py 按旧／新 SHA 核对同步，旧文件备份在 Cobot runtime/incidents/pi05-release-after-kill-20261008/before/。
+
+只重载网页以生效，再通过正式 8015 的 unload 请求完成用户要求的释放。真实暂停服务仍报同样的超时，流程继续，仅 5.383499 秒后确认该登记模型组无存活成员，phase=offline、process_started=false、model_ready=false、无 error／operation／active／writer。release_warning 保留原始超时内容；没有重试不确定提交，没有启动或恢复推理、归位、重启硬件、编辑 Episode／Replay／权重。前后采样硬件身份保持，最终网页及 GPU 事实见 final-release.json，不把释放后的旧 gate.paused 或日志 ready 当作仍有模型就绪。
+
+证据：cobot-web/outputs/pi05-release-after-kill-20261008/ 的 initial-snapshot.json、process-tree.txt、before-publish.json、source-release.json、after-web-restart.json、release-verification.json、final-release.json；现场 runtime/verification/pi05-release-after-kill-20261008/。最终现场拥有权交还用户、模型保持已释放，不自动加载。
