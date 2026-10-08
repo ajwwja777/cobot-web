@@ -685,3 +685,21 @@ VLA 共用运行模块及 π0.5 baseline／DAgger、Flux、G05、XR1 客户端�
 最终网页 PID 63917 与 12 个采样硬件／模型身份保持；部署 phase=error、model_ready=false、process_started=false，日志所记录 launcher PID 3402035 已不运行，active／operation／writer_token 均为空。页面仍显示本次 50 Hz＋RTC＋滤波选择。没有网页／硬件重启、没有运动、没有生产 Episode 或 Replay 修改。现场拥有权已释放，后续加载前重新核对现场所有权与权重健康。
 
 完整证据：cobot-web/outputs/pi05-import-20261008/ 的 source-release.json、field-imports.json、checkpoint-finite-scan.json、checkpoint-migration-hashes.json、after-failure.json 与 final-release.json；现场 runtime/verification/pi05-import-20261008/。客户端失败日志 runtime/deployment/model-20261008T152221.log；policy server 日志 runtime/deployment/pi05/logs/rtc_policy_server_20261008_152222.log。本批 VLA 旧源文件备份在 vla-platform/runtime/incidents/pi05-import-20261008/before/。部署修复尚未完成，剩余阻碍为同版本健康权重。
+
+### 2026-10-08 追加核验：迁移后曾成功；不能把物理权重损坏当作定论
+
+用户补充旧训练机已经不用，迁移后本机曾成功部署，并指定 /home/agilex/cobot_magic/task5/jiaan/hil_realworld_rl/deployments/in_the_pot/pi05_dagger_round001。只读检查确认该目录仍有旧部署代码，checkpoints/step_3000 是当前 Getea dagger_2000plus3000 的链接，不是第二份权重，也没有误指向 baseline。真实本次 policy server 日志明确从 dagger_2000plus3000/params 恢复，norm stats 也来自该 DAgger 目录；网页 Base model 的 baseline_2000 仅指训练初始化来源。
+
+已找到迁移后 model-20260929T150832.log 与 model-20260929T162836.log，两次均 ready and PAUSED；对应 policy server 日志均明确恢复当前 Getea dagger_2000plus3000 路径。用户关于迁移后曾成功部署的陈述有现场日志支持。
+
+普通重复读取的 4 个异常文件 SHA 与第一次一致；改用 dd iflag=direct 后，一个文件 1bf70e1ab729c2317a20f411e3169a69 的 SHA 与原始迁移记录完全一致，其他三个产生不同于缓存读取、且仍不匹配迁移记录的 SHA。仅针对本 checkpoint 的只读文件描述符使用 POSIX_FADV_DONTNEED 后，第一个文件普通读取也恢复原 SHA，但其余三个仍不一致。随后 CPU 恢复后，第一个文件普通读取 SHA 又变化。未全局 drop_caches、未 sync／卸载外接盘、未重启机器或改权重。
+
+缓存处理后再次只读 CPU 参数恢复，非有限值变成 127 个：input_embedding 24、mlp/gating_einsum 61、mlp/linear 42。TensorStore／Orbax 版本 0.1.74／0.11.13；隔离进程将 file_io_concurrency 与 data_copy_concurrency 均设为 1，仅串行读取 embedding，仍发现 26 个非有限值。不能据此认定仅为并发加载器故障。未改生产依赖或 TensorStore 默认并发配置。
+
+在 NVMe 独立诊断目录保留不可信的文件读取样本，对 29a49413c8812dd549aeeeea3c2debb1 两个不同读取样本比较，共 395 个字节不同，分布在 3 个 512-byte 扇区。多个读取样本的逐位多数结果不匹配原始完整 SHA，拒绝用于部署；只接受精确匹配迁移 SHA 的候选，不通过清零 NaN、改浮点参数或更换模型伪装修复。冗余相同样本与失败多数副本已删除，保留两份有差异的诊断样本及小型回执；原权重文件不写入、不改名、不替换。
+
+因此更正上一节的初步归因：已确认当前加载取得了非有限参数，且读取结果有缓存／读取路径差异，但尚未确认持久磁盘文件本身损坏，更不能把重新找旧训练机权重当作唯一恢复方法。剩余需要区分底层数据、文件系统／缓存、内存与读取路径问题。agilex 对 /dev/sda2 没有读权限且 sudo -n 不可用，已请求用户在现场终端执行只读 sudo ntfscluster -f -I 358606 /dev/sda2，取得异常文件底层映射信息；不请求用户发送密码。
+
+15:39 结束最初 π0.5 加载验证并释放现场拥有权后，15:41 网页已启动 plug-v3-supported-online，后续只读 HTTP 状态为 ready、无录制 writer；本对话未切换、卸载或停止该 RLT 模型，也未继续占用 GPU 运行 π0.5。后续 π0.5 真权重加载验证前须重新协调现场拥有权。代码导入修复已完成，实际 DAgger 部署恢复仍未完成。
+
+新增现场证据（均在本任务 runtime/verification 或 runtime/incidents 中）：historical-dagger-logs.json、checkpoint-repeat-hashes.json、checkpoint-direct-hashes.json、checkpoint-after-advice-hashes.json、checkpoint-after-advice-finite-scan.json、serial-embedding-scan.json、local-checkpoint-search.json、copy-hashes.json、recovery.json、read-difference-pattern.json、read-difference-ranges.json。汇总归档到 cobot-web/outputs/pi05-import-20261008/；final-release.json 已追加最新诊断，保留之前快照的时点，部署恢复标志仍为 false。
