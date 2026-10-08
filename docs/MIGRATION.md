@@ -760,3 +760,21 @@ VLA 48 项针对性测试通过（取消竞争、实际适配器导入／暂停�
 只重载网页以生效，再通过正式 8015 的 unload 请求完成用户要求的释放。真实暂停服务仍报同样的超时，流程继续，仅 5.383499 秒后确认该登记模型组无存活成员，phase=offline、process_started=false、model_ready=false、无 error／operation／active／writer。release_warning 保留原始超时内容；没有重试不确定提交，没有启动或恢复推理、归位、重启硬件、编辑 Episode／Replay／权重。前后采样硬件身份保持，最终网页及 GPU 事实见 final-release.json，不把释放后的旧 gate.paused 或日志 ready 当作仍有模型就绪。
 
 证据：cobot-web/outputs/pi05-release-after-kill-20261008/ 的 initial-snapshot.json、process-tree.txt、before-publish.json、source-release.json、after-web-restart.json、release-verification.json、final-release.json；现场 runtime/verification/pi05-release-after-kill-20261008/。最终现场拥有权交还用户、模型保持已释放，不自动加载。
+
+### 2026-10-08：原版 in_the_pot π0.5 step2000 非有限动作，原始权重恢复与暂停部署验证
+
+用户反馈原版 2000 在勾选 50 Hz／RTC／滤波后加载报 actions_robot must contain finite values。此次失败 launcher 3882017，客户端 model-20261008T205406.log，server rtc_policy_server_20261008_205407.log。错误发生在首次空前缀 baseline 预热，尚未进入 guided RTC、50 Hz 发布或滤波；进程已自行退出并收尾，GPU 空闲、无 active／operation／writer。不能以关闭 RTC 或滤波掩盖这次参数问题。
+
+原版仍从 Getea /media/agilex/Getea1/jiaan/model/vla-platform/pi05/in_the_pot/baseline_2000 恢复，耗时 253.29 秒。原始迁移清单中共有 28 文件、12,441,297,724 bytes；独立普通读取副本 24/28 SHA 匹配，CPU NumPy 检查 51 个叶、3,353,433,872 参数，PaliGemma/llm/layers/mlp/gating_einsum 17 个非有限值、mlp/linear 13 个，共 30 个。norm_stats.json 与原始 SHA 相同。此处是读取所得异常，不能据此认定持久权重本身已坏。
+
+4 个不匹配文件的 FUSE 文件 O_DIRECT 读取恢复其中 2 个原始 SHA；用户授权本对话执行管理员块设备只读核验，O_RDONLY | O_DIRECT 直接读取 /dev/sda2，仅向独立 NVMe 诊断目录写副本。剩余两文件首轮 1/2 匹配，只重读最后一个文件后匹配原始 SHA。该文件两次块设备直接读取样本有 136 字节差异，集中在 1 个 512-byte 扇区。底层读取链路也有变化，Getea 故障具体原因尚未确定或修复，不能只归为文件缓存，也不声明磁盘硬件健康。
+
+最终集合包含全部 28 文件原始 SHA，没有清零 NaN、改浮点参数、替换 DAgger 或使用其他训练步数。独立完整副本 CPU 再恢复，非有限值为 0；恢复后 SHA 全部保持原始值。沿用已确认的工控机 NVMe 恢复方式，原版单独复制并登记 /home/agilex/jiaan/model/vla-platform/pi05/in_the_pot/baseline_2000，复制后逐文件 SHA 再次通过；原 Getea 文件保留、不写入、不改名。web configs/hosts/cobot.json 与现场 configs/local.json 仅改变 pi05_checkpoint，DAgger 运行资产和所有其他配置不变，DAgger Base model 谱系由该登记解析到同一原版 NVMe 位置。
+
+配置提交 cac047a 已 A6000 commit／push，现场 config SHA 核验；只重载网页以生效配置，网页 PID 3877888→3900622，前后 12 个采样硬件身份保持。仅对本次已退出的原版失败状态收尾，无活动轮次或 writer；没有重启硬件、归位、恢复运动、修改 Episode／Replay 或算法。没有把默认 RTC、Hz、滤波常数、动作／速度限制改成别的配置。
+
+正式 HTTP 暂停加载两种选项均通过：20 Hz、RTC off／滤波 off 的 launcher 3901479，随后仅卸载本任务该模型后加载 50 Hz、RTC on／滤波 on 的 launcher 3902257。两次真实三相机／关节 observation 与 baseline／guided sampler 预热均 ready and PAUSED；日志明确恢复原版 NVMe params 并加载 assets/wja/cobot_in_the_pot_40episodes 的原始归一化，不是 DAgger 替代。GPU restore 分别 5.53 秒／5.05 秒。两次加载后再校验永久路径全部 28 SHA，仍与原始迁移清单一致，两套 RTC overlay manifest 同样通过。
+
+原版 50 Hz＋RTC＋滤波的无机器人指令发布器影子运行完成 300 个 20 Hz 逻辑步、750 次影子输出，15.602959 秒，无非有限动作或 RTC 错误；发布间隔中位数 0.019996681 秒，单次关节增量最大 0.004000008（0.004 限制的浮点误差范围内）。guided 延迟校准下限 4 个逻辑步、余量 2 步，沿用已发布适配器代码，不修改采样器。该独立 ROS 进程不构造机器人指令发布器，现场手动暂停保持。
+
+最终模型原版 2000、launcher 3902257、server 3902303，model_ready=true、phase=paused、manual_pause=true、hil_active=false、runtime_fault=null，无 active／operation／writer。客户端 model-20261008T211338.log，server rtc_policy_server_20261008_211338.log；现场拥有权交还用户，实际机器人运动和任务成功率仍待操作者复测，不以影子运行视为运动验收。完整证据在 cobot-web/outputs/pi05-baseline-finite-20261008/：baseline-original-manifest.json、baseline-buffered-verification.json、baseline-file-direct-verification.json、device-direct-verification.json、device-direct-retry-verification.json、baseline-block-read-difference.json、baseline-recovered-verification.json、nvme-baseline-release.json、config-release.json、baseline-load-verification.json、shadow-publication-verification.json、baseline-final-checks.json、final-release.json；现场两项目 runtime/verification/pi05-baseline-finite-20261008/。权重和诊断副本不入 Git，管理员认证信息不写脚本／记录。
