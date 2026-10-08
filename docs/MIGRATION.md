@@ -720,3 +720,15 @@ VLA 共用运行模块及 π0.5 baseline／DAgger、Flux、G05、XR1 客户端�
 用户另行明确批准接管并切换为 π0.5，保持暂停、不启动机器人运动。接管时 HTTP 模型已 offline，recorder stopped，无 active_mode／writer／operation，GPU 空闲；只为生效路径重载网页服务，不重启硬件。此段记录权重恢复与配置发布，实际 20 Hz 及 50 Hz＋RTC＋滤波暂停加载结果另行追加，不能将 CPU 检查视为真机运行验收。
 
 证据：cobot-web/outputs/pi05-import-20261008/ 的 device-direct-verification.json、a37-direct-read-difference.json、recovered-checkpoint-assembly.json、recovered-checkpoint-finite-scan.json、nvme-checkpoint-release.json；现场 vla-platform/runtime/verification/pi05-import-20261008/ 保留匹配及拒绝样本。永久权重不放 Git，恢复和检查脚本仅写独立诊断目录。
+
+### 2026-10-08 最终验收：DAgger 3000 普通及 50 Hz＋RTC＋滤波暂停加载通过
+
+恢复后的永久 NVMe 原始检查点通过正常网页 HTTP 加载：20 Hz、RTC off／滤波 off 的 launcher 3589045 到达 model_ready=true、phase=paused；仅卸载本轮 20 Hz 模型后，50 Hz、RTC on／滤波 on 的 launcher 3591198 也到达 model_ready=true、phase=paused。两次客户端均完成真实三相机／双前臂关节 observation 同步及 baseline 和 guided RTC sampler 预热，日志出现 ready and PAUSED，没有再发生 ImportError、RTCProtocolError 或非有限动作。对应 policy server 日志明确从 /home/agilex/jiaan/model/vla-platform/pi05/in_the_pot/dagger_2000plus3000/params 恢复，norm stats 也来自该 DAgger 同目录；不是 baseline 替代。
+
+NVMe GPU 权重恢复日志由之前 Getea 183.59 秒降至本次 20 Hz 的 5.85 秒；最终在两次 GPU 加载后重新校验全部 19 文件 SHA，仍与原始迁移记录一致。源码导入冲突与此模型资产读取绕行恢复已完成；Getea 底层读取不稳定的具体原因仍未确定，也未做盘修复、全局清缓存、卸载或重启机器。
+
+最终保持 50 Hz＋RTC＋滤波手动暂停：gate.paused=true、manual_pause=true、hil_active=false、intervention_count=0，无活动 Episode／writer／operation。只读订阅监测 3 秒内两个 /task2/policy/joint_* 均无动作消息；未调用 start／resume／home，不宣称机器人运动成功率或持续 50 Hz 实际发布验收。20 Hz 是原逻辑轨迹步频，50 Hz 是已选择的动作发布频率。
+
+只为生效单模型 NVMe 路径重载网页，PID 63917→3588664；重载立即采样的 12 个硬件身份保持。后续加载期间三路相机节点由 3495535／3495536／3495537 变为 3590670／3590671／3590672，control cameras.json 记录另一次 cameras_up.sh 于 17:46:05 执行；本任务未调用相机启停或其他硬件命令，不能声称整个最终窗口全部 12 个硬件身份不变。剩余 9 个 ROS／机械臂身份保持。相机恢复消息后预热完成。
+
+用户授权范围内的 π0.5 暂停部署恢复已完成，最终保留可用的 50 Hz 配置和模型，不卸载或恢复已由用户释放的 RLT。现场拥有权释放给用户，保留暂停门控。记录回执 recovered-load-verification.json、recovered20-ready.json、recovered50rtcfilter-ready.json、recovered-final-checks.json、after-recovered-load.json、final-release.json；首次普通客户端日志 model-20261008T174517.log，最终 50 Hz 客户端日志 model-20261008T174621.log。
