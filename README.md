@@ -54,7 +54,9 @@ Cobot 的操作网页：设备状态、普通／模型辅助采集、训练状�
 | Cobot 日志／PID／任务状态 | `/home/agilex/jiaan/project/cobot-web/runtime` |
 | 新的采集／评测数据根 | `/media/agilex/Getea1/jiaan/data` |
 
-仓库：[ajwwja777/cobot-web](https://github.com/ajwwja777/cobot-web)，`main`。笔记本只保留对话入口。
+仓库：[ajwwja777/cobot-web](https://github.com/ajwwja777/cobot-web)，`main`。
+
+笔记本入口为 `D:\Code\jiaan_workspace\cobot-web\AGENTS.md`，项目根层只保留该入口。上传材料放 `uploads/`；确需本地浏览器验证的工具与输出放同名子目录 `cobot-web/`，没有需求不创建空目录。2026-10-09 已核验归档并清理本地历史 scratch 和两批网页迁移/恢复材料，当前仅保留入口；实际位置与逐文件证据见 [迁移记录](docs/MIGRATION.md#2026-10-09笔记本网页项目归档与整理)。
 
 Python 环境是项目内的 `.venv/`，依赖只在根目录的 `pyproject.toml` 声明，版本由 `uv.lock` 固定。保留 Cobot ROS Noetic 对 Python 3.8 的兼容。`.env` 如有使用只负责配置，不是 Python 环境。现有硬件 SDK 使用已安装的 `aloha` conda 环境；它不是本次网页环境，未改名或重建。
 

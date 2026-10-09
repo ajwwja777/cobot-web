@@ -778,3 +778,18 @@ VLA 48 项针对性测试通过（取消竞争、实际适配器导入／暂停�
 原版 50 Hz＋RTC＋滤波的无机器人指令发布器影子运行完成 300 个 20 Hz 逻辑步、750 次影子输出，15.602959 秒，无非有限动作或 RTC 错误；发布间隔中位数 0.019996681 秒，单次关节增量最大 0.004000008（0.004 限制的浮点误差范围内）。guided 延迟校准下限 4 个逻辑步、余量 2 步，沿用已发布适配器代码，不修改采样器。该独立 ROS 进程不构造机器人指令发布器，现场手动暂停保持。
 
 最终模型原版 2000、launcher 3902257、server 3902303，model_ready=true、phase=paused、manual_pause=true、hil_active=false、runtime_fault=null，无 active／operation／writer。客户端 model-20261008T211338.log，server rtc_policy_server_20261008_211338.log；现场拥有权交还用户，实际机器人运动和任务成功率仍待操作者复测，不以影子运行视为运动验收。完整证据在 cobot-web/outputs/pi05-baseline-finite-20261008/：baseline-original-manifest.json、baseline-buffered-verification.json、baseline-file-direct-verification.json、device-direct-verification.json、device-direct-retry-verification.json、baseline-block-read-difference.json、baseline-recovered-verification.json、nvme-baseline-release.json、config-release.json、baseline-load-verification.json、shadow-publication-verification.json、baseline-final-checks.json、final-release.json；现场两项目 runtime/verification/pi05-baseline-finite-20261008/。权重和诊断副本不入 Git，管理员认证信息不写脚本／记录。
+
+
+## 2026-10-09：笔记本网页项目归档与整理
+
+来源：用户本次授权、笔记本实际清单、A6000 最新 guide 目录约定及所属项目历史验证记录。仅处理确定属于网页项目的本地文件：`D:\Code\jiaan_workspace\cobot-web\scratch` 下 catalog-results、execution-compact、recording-defer-rate 共 88 文件；工作区 `.tmp/web-migration-20260927` 共 8 文件；已由网页接管的 `.tmp/recovery-migration-20260927` 共 3 文件。合计 99 文件、3,998,026 bytes。其他项目、共享 bootstrap/handoff 文件及工作区 `.tmp` 的剩余内容保留。
+
+93 文件在 A6000 已有大小及 SHA256 完全一致的副本，沿用原验证任务或迁移归档位置，不重复上传。5 个未找到同内容副本的历史文件保存到 `/data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/laptop-cleanup-20261009/retained/`：catalog-results 的 online_seed.py、test_load_purpose.py、test_online_seed.py，以及 recording-defer-rate 的 model_picker.css、preview.html，均保留原相对层级。另复制 styles.css、execution_options.js、history_labels.js 三项依赖，使历史预览包完整。三个 Python 文件 AST 解析通过；这是历史原型/证据，不覆盖现有算法或网页实现，不执行旧发布脚本。
+
+本地 platform-source.tar.gz 是截断迁移包：138 个可读取成员，gzip 提前结束；字节完全等于 A6000 完整包的前段，全部可读成员与完整包对应内容一致。完整归档有 353 成员，路径 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/migrations/20260927-web/platform-source.tar.gz`，SHA256 `6d0b7fa630e8ccc14884b4df1eed8c865a46b1603b49af00ad5e96eaab716819`，与历史迁移记录相同。因此保留完整包，清理无新增内容的截断副本。原 backend-history.bundle 验证通过；其余网页迁移材料与已接管 ops 的三项恢复回执均沿用原归档。
+
+复制后远端逐文件大小/SHA 校验，删除前再次核对本地文件清单并重算 SHA；99 个源文件及上述三个空源目录已删除。本次校验工具和回执也归档到 A6000 后清理本地工作副本，笔记本项目根层仅 `AGENTS.md`，入口已登记目录规则及归档位置。没有待上传材料或当前必需的浏览器工具，不创建空 uploads/ 或同名子目录。
+
+完整证据位于 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/laptop-cleanup-20261009/`：inventory.json、migration-plan.json、remote-verification.json、archive-content-verification.json、git-bundle-verification.txt、local-cleanup-receipt.json，以及本次工具归档和最终清理/发布回执。辅助校验脚本与原入口备份位于 `/data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/laptop-cleanup-20261009/`，独立文档 worktree 为其 cobot-web/ 子目录。
+
+本次仅本地文件整理、A6000 历史资产核验和文档更新；未连接 Cobot、未接管现场、未重启网页/模型/硬件，未修改权重、数据、Episode 或 Replay。10 月 8 日的加载、影子运行与待真机复测结论保持其原时点，本次不作为新的现场验收。guide 只追加事实摘要，不提交或推送 guide Git。
