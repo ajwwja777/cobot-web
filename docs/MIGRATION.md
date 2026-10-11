@@ -793,3 +793,11 @@ VLA 48 项针对性测试通过（取消竞争、实际适配器导入／暂停�
 完整证据位于 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/laptop-cleanup-20261009/`：inventory.json、migration-plan.json、remote-verification.json、archive-content-verification.json、git-bundle-verification.txt、local-cleanup-receipt.json，以及本次工具归档和最终清理/发布回执。辅助校验脚本与原入口备份位于 `/data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/laptop-cleanup-20261009/`，独立文档 worktree 为其 cobot-web/ 子目录。
 
 本次仅本地文件整理、A6000 历史资产核验和文档更新；未连接 Cobot、未接管现场、未重启网页/模型/硬件，未修改权重、数据、Episode 或 Replay。10 月 8 日的加载、影子运行与待真机复测结论保持其原时点，本次不作为新的现场验收。guide 只追加事实摘要，不提交或推送 guide Git。
+
+## 2026-10-11 RLT探索入口保存目录闭环
+
+rl-platform的固定探索入口真实写入专用目录，但网页selected仍为datasets/test，导致用户看不到新增记录。RLT registry 7bd6cda注册显式collection目录和model策略；web 2936dad在模型选择/恢复显示时自动设置目录并刷新历史，活动Episode不切换，失败阻止开始，普通模型仍支持自选。77项前端回归通过。
+
+已提交推送后，在ready/waiting_scene、policy_paused、recorder stopped状态持.model-operation.lock同步index.html/app.js/unified_collection.js和RLT registry；逐文件SHA一致，未重启服务或模型，权重/Replay未变。正式8015返回新JS、新目录策略和7条complete历史记录。用户刷新页面即可；本次没有加载模型、采集或运动。
+
+事实/数据分析主任务：`/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/online/tasks/2026-10-11-exploration-collection/ANALYSIS.md`。发布与测试回执：同项目`outputs/exploration-collection-20261011/followup/`。7轮6失败1自主成功，不作为持续Online学习证据。早期工具HTTP请求受环境代理影响误报connection refused，绕过代理后确认进程和服务未停止；后续本机诊断显式禁用代理。guide只同步摘要不提交Git。
