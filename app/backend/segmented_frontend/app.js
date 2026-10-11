@@ -130,6 +130,7 @@ function historyIsRlt(uuid = historyUuid) {
 }
 document.addEventListener("cobot:storage-used", event => {
   if (event.detail.kind !== "collection") return;
+  if (collectionIsRlt()) rltStorageInitialized = true; // Model-selected paths supersede the refresh default.
   const changed = historySelectedRoot !== event.detail.path;
   historySelectedRoot = event.detail.path;
   if (changed) { historyUuid = null; historyEpisodes = []; resetReplay(); }
@@ -429,7 +430,7 @@ async function refreshConsole() {
 async function refreshRltStorage() {
   let storage = await request("/api/rlt/storage");
   window.CobotRecordingDirectories = [...new Set([...(window.CobotRecordingDirectories || []), ...(storage.recent_data_roots || [storage.data_root])])];
-  if (!rltStorageInitialized && testDataRoot) {
+  if (!rltStorageInitialized && testDataRoot && !window.CobotUnifiedCollection?.managedDirectory) {
     rltStorageInitialized = captureProfileReadOnly || storage.can_reset_on_refresh || Boolean(storage.recording_data_root);
     if (!captureProfileReadOnly && storage.can_reset_on_refresh) {
       try {

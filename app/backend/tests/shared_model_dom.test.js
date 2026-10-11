@@ -247,3 +247,50 @@ test('release must be verified before unlocking load; live and stale states stay
   assert.equal(requests.length,0);
  }finally{await tick();dom.window.close();}
 });
+
+
+test("model-owned collection directory auto-matches on reload and updates history once",async()=>{
+ const {dom,w,models,setState}=setup();
+ const used=[],events=[];
+ w.request=async(path,options)=>{const body=JSON.parse(options.body);used.push({path,...body});return body;};
+ w.document.addEventListener('cobot:storage-used',e=>events.push(e.detail.path));
+ try{
+  models[0].collection_directory_policy='model';models[0].data_directories={collection:'/data/dedicated'};
+  setState({phase:'ready',model:models[0],started_at:3});
+  await tick();await w.refreshConsole();await tick();
+  assert.equal(used.length,1);assert.equal(used[0].data_root,'/data/dedicated');
+  assert.deepEqual(events,['/data/dedicated']);
+  assert.equal(w.document.getElementById('collection-data-root').value,'/data/dedicated');
+  assert.equal(w.document.getElementById('collection-data-root').disabled,true);
+  assert.equal(w.document.getElementById('collection-storage-use').disabled,true);
+  await w.refreshConsole();await tick();assert.equal(used.length,1);
+  w.document.getElementById('rlt-data-root').value='/data/test'; // Late legacy refresh response.
+  await w.refreshConsole();await tick();assert.equal(used.length,2);
+  assert.equal(w.document.getElementById('rlt-data-root').value,'/data/dedicated');
+ }finally{dom.window.close();}
+});
+
+test("model-owned directory waits for the active episode to end",async()=>{
+ const {dom,w,models}=setup();let calls=0;
+ w.request=async(path,options)=>{calls++;return JSON.parse(options.body);};
+ try{
+  await tick();await w.refreshConsole();
+  w.CobotUnifiedCollection.render({session:{phase:'rollout'}});
+  models[0].collection_directory_policy='model';models[0].data_directories={collection:'/data/dedicated'};
+  await w.CobotCollectionModel.refresh();await tick();assert.equal(calls,0);
+  w.CobotUnifiedCollection.render({session:{phase:'disarmed'}});await tick();assert.equal(calls,1);
+ }finally{dom.window.close();}
+});
+
+test("directory rejection blocks start and does not report a false saved path or retry storm",async()=>{
+ const {dom,w,models}=setup();let calls=0;
+ w.request=async()=>{calls++;throw Error('disk_not_ready');};
+ try{
+  await tick();await w.refreshConsole();
+  models[0].collection_directory_policy='model';models[0].data_directories={collection:'/data/dedicated'};
+  await w.CobotCollectionModel.refresh();await tick();
+  assert.equal(w.document.getElementById('collection-start').disabled,true);
+  assert.match(w.document.getElementById('collection-storage-policy').textContent,/disk_not_ready/);
+  await w.refreshConsole();await tick();assert.equal(calls,1);
+ }finally{dom.window.close();}
+});

@@ -2,6 +2,8 @@
 (function(root){
   const $=s=>document.querySelector(s);
   let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null,recorderRecovery=null,runtimeRecovery=null,executionOptions=null,deferUncertain=false;
+  let managedStorageKey='',managedStorageApplied='',managedStoragePending=false,managedStorageError='';
+  const managedPath=()=>useModel()&&selectedModel()?.collection_directory_policy==='model'?selectedModel()?.data_directories?.collection:null;
   const english=()=>root.CobotPreferences?.language==='en';
   const text=(zh,en)=>english()?en:zh;
   const useModel=()=>Boolean($('#capture-use-model')?.checked);
@@ -58,15 +60,35 @@
     const normal={start:'start',pause:'pause',resume:'resume',marker:'marker',save:'stop',discard:'discard',success:'capture-success',failure:'capture-failure'};
     return $('#'+(isRlt()?rlt:normal)[action]);
   }
+  async function syncManagedStorage(){
+    const path=managedPath();
+    if(!path&&!managedStoragePending){managedStorageKey='';managedStorageApplied='';managedStorageError='';}
+    if(!path||!isRlt()||active()||changing||context.busy||modelBusy||modelState().status_stale)return;
+    const key=selected+':'+path;
+    if(managedStorageApplied===key&&$('#rlt-data-root').value!==path)managedStorageKey='';
+    if(managedStorageKey===key||managedStoragePending)return;
+    managedStorageKey=key;managedStorageApplied='';managedStoragePending=true;managedStorageError='';
+    try{
+      const payload=await root.request('/api/rlt/storage',{method:'POST',body:JSON.stringify({data_root:path})});
+      if(payload.data_root!==path)throw Error('recording_directory_mismatch');
+      // The server accepted the next-Episode destination; history follows the same path.
+      $('#rlt-data-root').value=path;$('#rlt-recording-directory').textContent=path;
+      $('#collection-data-root').value=path;delete $('#collection-data-root').dataset.dirty;
+      document.dispatchEvent(new CustomEvent('cobot:storage-used',{detail:{kind:'collection',path}}));
+      managedStorageApplied=key;
+    }catch(error){managedStorageError=error.message;root.CobotWorkspaceUI?.report(error.message,'error',text('保存位置','Save location'));}
+    finally{managedStoragePending=false;render();}
+  }
   function render(next){
     if(next)context={...context,...next};if(!mounted)return;
     updateCatalog();
+    syncManagedStorage();
     const rlt=isRlt(),use=useModel(),chosen=selectedModel(),state=modelState();
     executionOptions?.update(chosen,state,active()||changing||Boolean(context.busy)||!use);
     root.CobotModelPicker.renderDetails($('#collection-model-details'),executionOptions?.describe(state.model?.id===chosen?.id&&state.phase!=='offline'?state.model:chosen)||chosen);
     const processing=modelBusy||root.CobotCollectionModel?.busy;
     const loading=root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading';
-    const locked=active()||changing||context.busy||processing||loading;
+    const locked=active()||changing||managedStoragePending||context.busy||processing||loading;
     const routeReady=!changing&&(use?Boolean(chosen)&&chosen.runtime===(rlt?'rlt':'normal'):!rlt);
     $('#capture-use-model').disabled=Boolean(locked);
     modelPicker.setDisabled(!use||locked,{lockSelection:locked});
@@ -90,7 +112,7 @@
     for(const key of ['success','failure'])$('#capture-'+key).disabled=!normalTerminal||!labelResults();
     for(const key of ['start','pause','resume','marker','save','discard','success','failure']){
       const button=$('#collection-'+key),original=source(key),result=key==='success'||key==='failure';
-      button.disabled=!original||original.disabled||original.classList.contains('is-loading')||changing||!routeReady||(result&&!labelResults());
+      button.disabled=!original||original.disabled||original.classList.contains('is-loading')||changing||!routeReady||(result&&!labelResults())||(key==='start'&&Boolean(managedPath())&&managedStorageApplied!==selected+':'+managedPath());
       button.classList.toggle('is-active',Boolean(original?.classList.contains('is-active')));
       button.classList.toggle('is-loading',Boolean(original?.classList.contains('is-loading')));
       const shortcuts={start:'→',pause:text('空格','Space'),resume:text('空格','Space'),save:text('→ 暂停后','→ when paused'),discard:'←',success:'↑',failure:'↓'};
@@ -110,11 +132,15 @@
     value($('#collection-generation'),rlt?context.session?.generation??0:context.capture?.generation??0);
     const src=rlt?$('#rlt-data-root'):$('#capture-form input[name=data_root]'),input=$('#collection-data-root');
     if(document.activeElement!==input&&!input.dataset.dirty&&input.value!==src.value)input.value=src.value;
-    input.disabled=false;directoryPicker?.setDisabled(false);
+    const modelPath=managedPath();
+    if(modelPath){input.value=modelPath;delete input.dataset.dirty;}
+    input.disabled=Boolean(modelPath);directoryPicker?.setDisabled(Boolean(modelPath));
     $('#collection-storage-browse').disabled=input.disabled;
-    $('#collection-storage-use').disabled=Boolean(changing||(!rlt&&active()));
+    $('#collection-storage-use').disabled=Boolean(modelPath||changing||(!rlt&&active()));
     recentDirectories?.update();recentDirectories?.setDisabled($('#collection-storage-use').disabled);
     value($('#collection-recording-directory'),$(rlt?'#rlt-recording-directory':'#episode-directory').textContent);
+    const storageNote=$('#collection-storage-policy');
+    if(storageNote){storageNote.hidden=!modelPath;storageNote.textContent=modelPath?(managedStorageError?text('目录同步失败，请刷新重试：','Directory sync failed; refresh to retry: ')+managedStorageError:managedStoragePending?text('正在匹配模型目录…','Matching model directory…'):active()&&managedStorageApplied!==selected+':'+modelPath?text('本轮结束后匹配模型目录','Model directory will apply after this episode'):text('此模型自动使用专用目录；历史记录显示在下方。','This model uses its dedicated directory; recordings appear below.')):'';}
     const msg=$(rlt?'#rlt-message':'#message');value($('#collection-message'),msg.textContent);$('#collection-message').classList.toggle('error',msg.classList.contains('error'));
     label($('#episode-browser-title'),'数据','Data');
     $('#episode-live-strip').classList.add('hidden');
@@ -136,7 +162,7 @@
       if(chosenRoot){
         const target=mode==='rlt'?$('#rlt-data-root'):$('#capture-form input[name=data_root]');
         target.value=chosenRoot;
-        if(mode==='rlt')await root.saveRltStorage();else await root.prepareStorage(true);
+        if(mode==='rlt'){if(!managedPath())await root.saveRltStorage();}else await root.prepareStorage(true);
       }
       if(isRlt()!==(mode==='rlt'))throw Error(text('采集模式切换失败','Collection mode switch failed'));
       localStorage.setItem('cobot-collection-model-id',selected);localStorage.setItem('cobot-capture-use-model',useModel());localStorage.setItem('cobot-collection-runtime',mode==='rlt'?'rlt':'pi05');
@@ -226,7 +252,7 @@
     $('#collection-label-results').checked=localStorage.getItem('cobot-collection-label-results')==='true';$('#collection-label-results').addEventListener('change',()=>{localStorage.setItem('cobot-collection-label-results',labelResults());render();});
     use.addEventListener('change',changeRuntime);
     root.addEventListener('cobot:model-default',event=>{if(active())return;selected=modelPicker.select(event.detail);render();});
-    storage.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="保存位置" data-en="Save location">保存位置</h3></div><label><span data-zh="目录" data-en="Directory">目录</span><input id="collection-data-root" autocomplete="off" aria-controls="collection-directory-options" role="combobox"/></label><div class="directory-browser" hidden id="collection-directory-browser"><p class="muted" id="collection-directory-hint"></p><div class="path-options" id="collection-directory-options" role="listbox"></div></div><div class="button-row"><button id="collection-storage-browse" type="button" data-zh="浏览" data-en="Browse">浏览</button><button id="collection-storage-use" type="button" data-zh="检查并使用" data-en="Check and use">检查并使用</button></div><p class="path-caption"><span data-zh="当前：" data-en="Current: ">当前：</span><code data-localize id="collection-recording-directory">—</code></p>');
+    storage.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="保存位置" data-en="Save location">保存位置</h3></div><label><span data-zh="目录" data-en="Directory">目录</span><input id="collection-data-root" autocomplete="off" aria-controls="collection-directory-options" role="combobox"/></label><div class="directory-browser" hidden id="collection-directory-browser"><p class="muted" id="collection-directory-hint"></p><div class="path-options" id="collection-directory-options" role="listbox"></div></div><div class="button-row"><button id="collection-storage-browse" type="button" data-zh="浏览" data-en="Browse">浏览</button><button id="collection-storage-use" type="button" data-zh="检查并使用" data-en="Check and use">检查并使用</button></div><p id="collection-storage-policy" class="muted" role="status" hidden></p><p class="path-caption"><span data-zh="当前：" data-en="Current: ">当前：</span><code data-localize id="collection-recording-directory">—</code></p>');
     const storageBody=document.createElement('div');storageBody.className='session-settings-body';
     for(const child of [...storage.children])if(!child.classList.contains('panel-head'))storageBody.append(child);
     storage.append(storageBody);
@@ -238,6 +264,6 @@
     $('#collection-storage-use').addEventListener('click',()=>{const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;if(isRlt())target.dispatchEvent(new Event('input'));$(isRlt()?'#rlt-save-storage':'#prepare-storage').click();delete input.dataset.dirty;});
     document.querySelector('[data-view="operation"]')?.addEventListener('click',()=>{if(useModel()&&!active())changeRuntime();});$('#capture-home-enabled').addEventListener('change',()=>render());document.addEventListener('cobot:language',()=>render());render();
   }
-  root.CobotUnifiedCollection={get executionOptions(){return executionOptions?.value;},mount,render,labelResults,active,changeRuntime,shortcutAction,updateCatalog,get mounted(){return mounted;},get changing(){return changing||modelBusy;},updateRecorder:state=>{context.recorder=state;render();}};
+  root.CobotUnifiedCollection={get managedDirectory(){return managedPath();},get executionOptions(){return executionOptions?.value;},mount,render,labelResults,active,changeRuntime,shortcutAction,updateCatalog,get mounted(){return mounted;},get changing(){return changing||modelBusy;},updateRecorder:state=>{context.recorder=state;render();}};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.CobotUnifiedCollection;
 })(typeof window!=='undefined'?window:globalThis);
