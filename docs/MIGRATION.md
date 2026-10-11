@@ -806,3 +806,5 @@ rl-platform的固定探索入口真实写入专用目录，但网页selected仍�
 ## 2026-10-11：探索采集历史目录竞态
 
 已验证：普通test目录prepare迟到响应覆盖RLT历史根，此前隔离组件验证遗漏跨组件交错返回。修复按runtime隔离事件/迟到响应、等待模式刷新、managed目录作为历史来源、旧请求不覆盖总数；恢复历史刷新按钮，模型固定目录隐藏无效更换按钮。原版竞态2失败1通过；修复后80前端测试通过。机器人/模型生命周期未改。现场是否已同步以RLT outputs/exploration-collection-20261011/finish-history/field-sync.json为准。收尾重复特征与末端计划往返详见同级rl-platform/docs/online/tasks/2026-10-11-exploration-collection/FINISH_AND_MOTION.md。
+
+现场同步已验证：webc2c93d5b四静态文件HTTP逐SHA一致，RLT5517f257两运行文件已安装但旧EnvDriver待用户下次重载。combined history实际返回专用目录27条；未启动/停止服务、加载模型或动作。5进程及Actor/norm/registry/Replay保持；备份 runtime/verification/episode-finish-history-20261011/before。详见上述field-sync.json/http-verification.json。
