@@ -120,7 +120,7 @@ body,.workspace{background:var(--bg);color:var(--text)}
 .training-figures,.chart-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
 @media(max-width:980px){.capture-layout,.rl-layout,.workbench-grid,.training-figures,.chart-grid{grid-template-columns:1fr}.status-rail{left:78px}}
 @media(max-width:760px){.status-rail{position:static;width:100%;padding:8px}.sidebar-toggle{top:12px}.sidebar-is-collapsed .app-shell{display:block}.camera-dock.is-pinned{top:0}}
-.history-panel .toolbar #refresh-history,.history-panel .toolbar #load-history,.history-panel .toolbar #load-replay,.history-panel .toolbar #show-live{display:none}
+.history-panel .toolbar #load-history,.history-panel .toolbar #load-replay,.history-panel .toolbar #show-live{display:none}
 .history-panel .toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}
 .episode-endpoints{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
 .episode-endpoint{background:var(--surface-2);border-color:var(--line)}

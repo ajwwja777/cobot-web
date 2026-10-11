@@ -74,7 +74,7 @@
       // The server accepted the next-Episode destination; history follows the same path.
       $('#rlt-data-root').value=path;$('#rlt-recording-directory').textContent=path;
       $('#collection-data-root').value=path;delete $('#collection-data-root').dataset.dirty;
-      document.dispatchEvent(new CustomEvent('cobot:storage-used',{detail:{kind:'collection',path}}));
+      document.dispatchEvent(new CustomEvent('cobot:storage-used',{detail:{kind:'collection',runtime:'rlt',path}}));
       managedStorageApplied=key;
     }catch(error){managedStorageError=error.message;root.CobotWorkspaceUI?.report(error.message,'error',text('保存位置','Save location'));}
     finally{managedStoragePending=false;render();}
@@ -135,12 +135,14 @@
     const modelPath=managedPath();
     if(modelPath){input.value=modelPath;delete input.dataset.dirty;}
     input.disabled=Boolean(modelPath);directoryPicker?.setDisabled(Boolean(modelPath));
+    $('#collection-storage-browse').hidden=Boolean(modelPath);
+    $('#collection-storage-use').hidden=Boolean(modelPath);
     $('#collection-storage-browse').disabled=input.disabled;
     $('#collection-storage-use').disabled=Boolean(modelPath||changing||(!rlt&&active()));
     recentDirectories?.update();recentDirectories?.setDisabled($('#collection-storage-use').disabled);
     value($('#collection-recording-directory'),$(rlt?'#rlt-recording-directory':'#episode-directory').textContent);
     const storageNote=$('#collection-storage-policy');
-    if(storageNote){storageNote.hidden=!modelPath;storageNote.textContent=modelPath?(managedStorageError?text('目录同步失败，请刷新重试：','Directory sync failed; refresh to retry: ')+managedStorageError:managedStoragePending?text('正在匹配模型目录…','Matching model directory…'):active()&&managedStorageApplied!==selected+':'+modelPath?text('本轮结束后匹配模型目录','Model directory will apply after this episode'):text('此模型自动使用专用目录；历史记录显示在下方。','This model uses its dedicated directory; recordings appear below.')):'';}
+    if(storageNote){storageNote.hidden=!modelPath;storageNote.textContent=modelPath?(managedStorageError?text('目录同步失败，请刷新重试：','Directory sync failed; refresh to retry: ')+managedStorageError:managedStoragePending?text('正在匹配模型目录…','Matching model directory…'):active()&&managedStorageApplied!==selected+':'+modelPath?text('本轮结束后匹配模型目录','Model directory will apply after this episode'):text('此模型固定使用专用目录；可用下方“刷新”更新记录。','This model uses a fixed directory; use Refresh below to update recordings.')):'';}
     const msg=$(rlt?'#rlt-message':'#message');value($('#collection-message'),msg.textContent);$('#collection-message').classList.toggle('error',msg.classList.contains('error'));
     label($('#episode-browser-title'),'数据','Data');
     $('#episode-live-strip').classList.add('hidden');

@@ -801,3 +801,8 @@ rl-platform的固定探索入口真实写入专用目录，但网页selected仍�
 已提交推送后，在ready/waiting_scene、policy_paused、recorder stopped状态持.model-operation.lock同步index.html/app.js/unified_collection.js和RLT registry；逐文件SHA一致，未重启服务或模型，权重/Replay未变。正式8015返回新JS、新目录策略和7条complete历史记录。用户刷新页面即可；本次没有加载模型、采集或运动。
 
 事实/数据分析主任务：`/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/online/tasks/2026-10-11-exploration-collection/ANALYSIS.md`。发布与测试回执：同项目`outputs/exploration-collection-20261011/followup/`。7轮6失败1自主成功，不作为持续Online学习证据。早期工具HTTP请求受环境代理影响误报connection refused，绕过代理后确认进程和服务未停止；后续本机诊断显式禁用代理。guide只同步摘要不提交Git。
+
+
+## 2026-10-11：探索采集历史目录竞态
+
+已验证：普通test目录prepare迟到响应覆盖RLT历史根，此前隔离组件验证遗漏跨组件交错返回。修复按runtime隔离事件/迟到响应、等待模式刷新、managed目录作为历史来源、旧请求不覆盖总数；恢复历史刷新按钮，模型固定目录隐藏无效更换按钮。原版竞态2失败1通过；修复后80前端测试通过。机器人/模型生命周期未改。现场是否已同步以RLT outputs/exploration-collection-20261011/finish-history/field-sync.json为准。收尾重复特征与末端计划往返详见同级rl-platform/docs/online/tasks/2026-10-11-exploration-collection/FINISH_AND_MOTION.md。

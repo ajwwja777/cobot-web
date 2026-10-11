@@ -130,6 +130,7 @@ function historyIsRlt(uuid = historyUuid) {
 }
 document.addEventListener("cobot:storage-used", event => {
   if (event.detail.kind !== "collection") return;
+  if (event.detail.runtime && event.detail.runtime !== (collectionIsRlt() ? "rlt" : "normal")) return;
   if (collectionIsRlt()) rltStorageInitialized = true; // Model-selected paths supersede the refresh default.
   const changed = historySelectedRoot !== event.detail.path;
   historySelectedRoot = event.detail.path;
@@ -137,6 +138,8 @@ document.addEventListener("cobot:storage-used", event => {
   refreshHistory({loadSelected: true}).catch(error => historyMessage(error.message, true));
 });
 function historyDataRoot() {
+  const managed = collectionIsRlt() && window.CobotUnifiedCollection?.managedDirectory;
+  if (managed) return managed;
   if (historySelectedRoot) return historySelectedRoot;
   if (!collectionIsRlt()) return selectedDataRoot();
   const sessionRoot = rltSession && rltSession.data_root;
@@ -506,7 +509,7 @@ async function saveRltStorage() {
     const payload = await request("/api/rlt/storage", {method:"POST", body:JSON.stringify({data_root:$("#rlt-data-root").value.trim()})});
     rltStorageDirty = false; rltHistoryCount = null;
     if (rltPathPicker) rltPathPicker.remember(payload.data_root);
-    document.dispatchEvent(new CustomEvent("cobot:storage-used", {detail:{kind:"collection",path:payload.data_root}}));
+    document.dispatchEvent(new CustomEvent("cobot:storage-used", {detail:{kind:"collection",runtime:"rlt",path:payload.data_root}}));
     rltMessage("录制目录已设置：" + payload.data_root);
     await refreshConsole();
   } catch (error) { rltMessage("目录未设置：" + error.message, true); }
@@ -1034,12 +1037,12 @@ async function refreshHistory(options = {}) {
   state.classList.add("is-loading");
   const listing = await request(historyPageUrl(HISTORY_INITIAL_PAGE, 0));
   let episodes = listing.episodes;
-  historyTotal = listing.total;
   const hiddenAborted = historyIsRlt()
     ? episodes.filter(episode => historyEpisodeOutcome(episode) === "aborted").length : 0;
   episodes = visibleHistory(episodes);
   if (historyIsRlt()) episodes = [...episodes].sort((a, b) => Number(b.episode_index || 0) - Number(a.episode_index || 0));
   if (token !== historyRefreshToken) return 0;
+  historyTotal = listing.total;
   historyEpisodes = episodes.slice();
   if(!episodes.length)window.CobotFeaturePaths?.update("history",{rlt:historyIsRlt(),dataRoot:historyDataRoot()});
   appendHistoryOptions(episodes, true);
@@ -1322,6 +1325,7 @@ async function start() {
 }
 
 async function prepareStorage(silent = false) {
+  if (collectionIsRlt()) return;
   const requestedRoot = selectedDataRoot();
   setButtonBusy($("#prepare-storage"), true, "正在检查");
   try {
@@ -1329,18 +1333,18 @@ async function prepareStorage(silent = false) {
       method: "POST",
       body: JSON.stringify(startPayload()),
     });
-    if (requestedRoot !== selectedDataRoot()) return;
+    if (collectionIsRlt() || requestedRoot !== selectedDataRoot()) return;
     storagePrepared = true;
     $("#episode-directory").textContent = prepared.episode_directory;
     $("#next-episode").textContent = `episode_${String(prepared.next_episode_index).padStart(6, "0")}`;
     saveConfig();
     if (normalPathPicker) normalPathPicker.remember(prepared.data_root);
-    document.dispatchEvent(new CustomEvent("cobot:storage-used", {detail:{kind:"collection",path:prepared.data_root}}));
+    document.dispatchEvent(new CustomEvent("cobot:storage-used", {detail:{kind:"collection",runtime:"normal",path:prepared.data_root}}));
     updateButtons();
     await refreshHistory({loadSelected: true});
     if (!silent) message("数据目录已核验；不存在时已安全创建。", false);
   } catch (error) {
-    if (requestedRoot !== selectedDataRoot()) return;
+    if (collectionIsRlt() || requestedRoot !== selectedDataRoot()) return;
     showLive();
     storagePrepared = false;
     $("#episode-directory").textContent = "检查失败";
@@ -2043,8 +2047,8 @@ async function initializeCaptureProfile() {
     });
     await refreshModels();
     refresh();
-    refreshConsole();
-    if (!captureActive && !captureProfileReadOnly) prepareStorage(true);
+    await refreshConsole();
+    if (!collectionIsRlt() && !captureActive && !captureProfileReadOnly) prepareStorage(true);
   } catch (error) {
     message("无法读取采集目录配置：" + error.message, true);
   }
