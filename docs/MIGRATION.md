@@ -821,3 +821,16 @@ rl-platform的固定探索入口真实写入专用目录，但网页selected仍�
 仅两份静态文件在已有 model-operation.lock 下按旧SHA预核验、备份、原子替换及新SHA验证，正式8015的 app.js/首页HTTP字节SHA与提交文件完全一致。9个采样进程PID/启动身份保持，episode22标签HTTP字节保持。未重启网页/模型/硬件、未接管运动、加载模型或改 Episode/Replay/权重；用户刷新页面生效，当前已打开的页面不自动热替换脚本。
 
 证据：/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/history-boundary-merge-20261012/ 的 before-readonly.json、before-tests.txt、targeted-tests.txt、frontend-tests.txt、source-release.json、field-static-release.json、episode22-dom.json 与 final-release.json；辅助核验/安装脚本在 /data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/history-boundary-merge-20261012/。现场静态文件旧版及回执在 /home/agilex/jiaan/project/cobot-web/runtime/verification/history-boundary-merge-20261012/。guide 仅事实摘要，不由本对话提交/push。
+
+
+## 2026-10-12：Getea1 自选录制目录修复并启用
+
+用户在 `/media/agilex/Getea1/xiqing` 浏览／检查保存位置时收到 `data_root_not_allowed`。根因是主机只登记 jiaan/data，目录浏览与准备、录制预检查／历史重标、RLT storage 校验的允许根又不一致。用户确认 Getea1 盘下可自选；新增主机 `recording_allowed_roots: ["/media/agilex/Getea1"]`，通过 `COBOT_ADDITIONAL_DATA_ROOTS` 共享允许范围，预检查与历史操作使用同一个路径解析器，保留旧别名迁移。错误提示显示可用范围；前端脚本版本更新。兄弟路径与跳出允许根的符号链接仍被拒绝，默认 DATA／普通采集／RLT 目录及模型固定探索目录策略保持。
+
+源码 cobot-web `fb3e3429eb64f61b4087729f664f88836fd72513`、rl-platform `542f560e34199470fca5c91d20224fb394b5eee3` 已提交 push 后串行同步。完整后台 758 passed、6 既有 skipped，前端 84 passed；初次完整回归发现旧别名兼容遗漏，修复后最终全量通过，失败日志单独保留。8 个现场源码／静态文件旧 SHA 预核对、备份、原子替换及新 SHA 核验；现场 local.json 仅新增 recording_allowed_roots 键，其余配置一致。
+
+用户随后明确授权仅重载网页并验证目录。正式 ui_down/ui_up 成功，网页 PID 5145 → 795010；7 个采样的模型／硬件相关进程 PID/启动身份保持。正式接口 xiqing 浏览与 flat prepare 均 HTTP 200，独立新子目录 prepare/浏览通过后已清理，该测试目录没有录制文件。Getea1-other 兄弟路径拒绝为 422。现场 CPU 导入 RLT validate_root 确认 xiqing 可用，未改 selected storage；首页／app.js／path_picker.js 的 HTTP SHA 与安装源码完全一致。
+
+默认数据根仍 `/media/agilex/Getea1/jiaan/data`，默认普通采集目录仍为其 `datasets/plug_insertion/recordings/demonstrations/manual`。录制空闲，无新录制／运动／模型加载或硬件重启；重载前后已有探索模型均为 error／未运行，本任务没有修复或启动它。已有 Episode、Replay、权重未迁移或编辑，现场控制交还用户。此次仅新增允许保存范围，没有把测试目录登记为真实采集目标。
+
+完整证据 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/custom-recording-roots-20261012/`：backend-tests-final.txt、frontend-tests.txt、source-release.json、field-precheck.json、field-install.json、web-reload.json、field-verification.json、http-source-verification.json、final-release.json。辅助脚本与 worktree 在 `scratch/cobot-web/custom-recording-roots-20261012/`，RLT worktree 在 `scratch/rl-platform/custom-recording-roots-20261012/rl-platform`；现场旧源码和 local.json 备份在 `/home/agilex/jiaan/project/cobot-web/runtime/verification/custom-recording-roots-20261012/before/`，同目录上一级保存安装／重载／校验回执。笔记本根层仅入口，guide 只追加事实摘要，不提交／push guide Git。
