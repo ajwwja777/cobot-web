@@ -808,3 +808,16 @@ rl-platform的固定探索入口真实写入专用目录，但网页selected仍�
 已验证：普通test目录prepare迟到响应覆盖RLT历史根，此前隔离组件验证遗漏跨组件交错返回。修复按runtime隔离事件/迟到响应、等待模式刷新、managed目录作为历史来源、旧请求不覆盖总数；恢复历史刷新按钮，模型固定目录隐藏无效更换按钮。原版竞态2失败1通过；修复后80前端测试通过。机器人/模型生命周期未改。现场是否已同步以RLT outputs/exploration-collection-20261011/finish-history/field-sync.json为准。收尾重复特征与末端计划往返详见同级rl-platform/docs/online/tasks/2026-10-11-exploration-collection/FINISH_AND_MOTION.md。
 
 现场同步已验证：webc2c93d5b四静态文件HTTP逐SHA一致，RLT5517f257两运行文件已安装但旧EnvDriver待用户下次重载。combined history实际返回专用目录27条；未启动/停止服务、加载模型或动作。5进程及Actor/norm/registry/Replay保持；备份 runtime/verification/episode-finish-history-20261011/before。详见上述field-sync.json/http-verification.json。
+
+
+## 2026-10-12：历史暂停边界与结束节点合并显示
+
+用户反馈 RLT episode 22 在网页暂停后直接结束，历史仍分别显示暂停 frame92 与结束 frame92。只读正式接口确认 UUID 7605e740-8704-4a54-81c8-320de26b31c9、93 帧、success，原 operator_nodes 仅一条 frame92 pause。根因是 rltHistoryNodes 无条件保留每条 operator 节点，未将停止写帧期间的同帧边界合并。
+
+仅修改前端显示：同帧暂停/继续合成一个“暂停/继续”节点；与首尾同帧的暂停/继续并入开始/结束，仍保留两个首尾卡片；不同帧暂停/继续、手动 marker 与原 HIL 区间保持。按钮、图片卡片与视频标记共用同一结果，点击合并边界不重复创建图片卡片。输入标签不修改，原始 operator_nodes 仍可追溯。index.html 更新 app.js 缓存版本，无后台/算法/录制协议变更。
+
+新增4项回归在原版3失败1通过，修复后全部84项前端测试通过。实际 episode22 接口标签与93帧元数据驱动的 DOM 核验为两个按钮、两个卡片、六张图片，开始frame0/结束frame92；不是删除历史暂停记录。源码 55457059ec14f55b74e32f51c2734d42404d8614 已提交/push，主工作树干净。
+
+仅两份静态文件在已有 model-operation.lock 下按旧SHA预核验、备份、原子替换及新SHA验证，正式8015的 app.js/首页HTTP字节SHA与提交文件完全一致。9个采样进程PID/启动身份保持，episode22标签HTTP字节保持。未重启网页/模型/硬件、未接管运动、加载模型或改 Episode/Replay/权重；用户刷新页面生效，当前已打开的页面不自动热替换脚本。
+
+证据：/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/history-boundary-merge-20261012/ 的 before-readonly.json、before-tests.txt、targeted-tests.txt、frontend-tests.txt、source-release.json、field-static-release.json、episode22-dom.json 与 final-release.json；辅助核验/安装脚本在 /data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/history-boundary-merge-20261012/。现场静态文件旧版及回执在 /home/agilex/jiaan/project/cobot-web/runtime/verification/history-boundary-merge-20261012/。guide 仅事实摘要，不由本对话提交/push。
