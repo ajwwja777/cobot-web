@@ -200,15 +200,38 @@ function updateEpisodeBrowserControls() {
 function rltHistoryNodes(labels, frameCount = 0) {
   const phases = Array.isArray(labels.intervention_phases) ? labels.intervention_phases : [];
   const last = Math.max(0, Math.trunc(Number(frameCount || 1)) - 1);
+  const start = {frame_index: 0, node_kind: "summary", endpoint: "start", display_label: "开始 · frame 0"};
+  const end = {frame_index: last, node_kind: "summary", endpoint: "end", display_label: `结束 · frame ${last}`};
+  const operators = [], boundaries = new Map();
+  for (const original of labels.operator_nodes || []) {
+    const node = {...original, frame_index: Number(original.frame_index), operator: true};
+    if (!["pause", "resume"].includes(node.node_kind)) {
+      operators.push({...node, display_label: `节点 · frame ${node.frame_index}`});
+      continue;
+    }
+    // Paused recording writes no frames: resume or finish shares this boundary.
+    let boundary = node.frame_index === last ? end : node.frame_index === 0 ? start : boundaries.get(node.frame_index);
+    if (!boundary) {
+      boundary = {...node, merged_operator_nodes: []};
+      boundaries.set(node.frame_index, boundary);
+      operators.push(boundary);
+    }
+    (boundary.merged_operator_nodes ||= []).push({...original});
+    if (!boundary.endpoint) {
+      const kinds = new Set(boundary.merged_operator_nodes.map(item => item.node_kind));
+      const label = kinds.size > 1 ? "暂停/继续" : kinds.has("pause") ? "暂停" : "继续";
+      boundary.display_label = `${label} · frame ${node.frame_index}`;
+    }
+  }
   const candidates = [
-    {frame_index: 0, node_kind: "summary", endpoint: "start", display_label: "开始 · frame 0"},
+    start,
     ...phases.map((phase, index) => ({
       frame_index: Number(phase.start_frame || 0),
       node_kind: "hil",
       display_label: `HIL ${index + 1} · ${Array.isArray(phase.human_sides) ? phase.human_sides.join("+") : "human"} · frames ${phase.start_frame}–${phase.end_frame}`,
     })),
-    ...(labels.operator_nodes || []).map(node=>({...node, operator:true, display_label: `${({pause:'暂停',resume:'继续',marker:'节点'})[node.node_kind]||'节点'} · frame ${node.frame_index}`})),
-    {frame_index: last, node_kind: "summary", endpoint: "end", display_label: `结束 · frame ${last}`},
+    ...operators,
+    end,
   ];
   const seen = new Set();
   return candidates
