@@ -191,6 +191,9 @@ def create_app(
             containing_root(resolved)
         return resolved
 
+    application.state.resolve_data_root = selected_root
+    application.state.allowed_data_roots = data_roots
+
     def prepare(request: StartRequest):
         root = selected_root(request.data_root)
         assert root is not None

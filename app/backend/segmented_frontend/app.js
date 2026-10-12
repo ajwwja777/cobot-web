@@ -2054,6 +2054,7 @@ async function initializeCaptureProfile() {
     const initialRoot = captureActive ? (capture.data_root || recentDirectories[0] || config.normal_data_root) : testDataRoot;
     form.elements.namedItem("data_root").value = initialRoot;
     window.CobotRecordingDirectories = [...recentDirectories];
+    window.CobotAllowedRecordingRoots = config.allowed_data_roots || [];
     renderRecordingDirectories([initialRoot, ...(config.data_root_choices || []), ...recentDirectories]);
     const fetchDirectories = value => request("/api/segmented-teach/storage/directories?path=" + encodeURIComponent(value));
     const pathStorage = window.localStorage;

@@ -53,6 +53,12 @@
       } catch (_error) { /* Blocked/corrupt storage must not prevent page startup. */ }
     }
   }
+  function directoryError(message, roots = []) {
+    if (message === "data_root_not_allowed") {
+      return "目录不在允许保存的范围内。" + (roots.length ? "可用位置：" + cleanPaths(roots).join("、") : "请选择已登记的数据目录。");
+    }
+    return message;
+  }
   function create(options) {
     const { input, panel, list, hint, fetchDirectories } = options;
     const storage = options.storage || root.localStorage;
@@ -144,7 +150,7 @@
       } catch (error) {
         if (current !== token || value !== input.value.trim()) return;
         list.replaceChildren(); candidates = [];
-        hint.textContent = "目录读取失败：" + error.message;
+        hint.textContent = "目录读取失败：" + directoryError(error.message, root.CobotAllowedRecordingRoots || []);
       }
     }
     function close() { token++; panel.hidden = true; active = -1; }
@@ -220,7 +226,7 @@
     update();
     return {remember, update, setDisabled: value => {select.disabled = Boolean(value);}};
   }
-  const api = { mergeRecent, completeDirectory, pathName, migratedPath, migrateStoredPaths, create, recentSelector };
+  const api = { directoryError, mergeRecent, completeDirectory, pathName, migratedPath, migrateStoredPaths, create, recentSelector };
   root.CobotPathPicker = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

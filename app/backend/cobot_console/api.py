@@ -283,6 +283,7 @@ def create_app(
             "normal_data_root": str(DEFAULT_DATA_ROOT.expanduser().resolve()),
             "test_data_root": str((allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve() / "datasets/test"),
             "data_root_choices": recording_directories(),
+            "allowed_data_roots": [str(root) for root in application.state.allowed_data_roots()],
             "data_root_aliases": SETTINGS.get("data_root_aliases", {}),
             "storage_layout": "flat",
             "rlt_data_root": str(selected_rlt_root),
@@ -356,10 +357,12 @@ def create_app(
         from capture_core.validation import PreflightError
         if data_root is not None and not isinstance(data_root, str):
             raise HTTPException(422, "data_root_must_be_a_path_string")
-        target = Path(data_root or selected_rlt_root).expanduser().resolve()
-        allowed = (allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve()
-        if target != allowed and allowed not in target.parents:
-            raise HTTPException(422, "recording_path_outside_allowed_root")
+        try:
+            target = application.state.resolve_data_root(migrated_data_path(str(data_root or selected_rlt_root)))
+        except HTTPException as error:
+            if error.detail == "data_root_not_allowed":
+                raise HTTPException(422, "recording_path_outside_allowed_root") from error
+            raise
         health = readiness()
         if health["status"] != "ok":
             return {"status": "not_ready", "error_code": health.get("error_code"),
@@ -390,11 +393,12 @@ def create_app(
     def deferred_root(value):
         if not isinstance(value, str):
             raise HTTPException(422, 'data_root_required')
-        target = Path(migrated_data_path(value)).expanduser().resolve()
-        allowed = (allowed_data_root or DEFAULT_ALLOWED_DATA_ROOT).expanduser().resolve()
-        if target != allowed and allowed not in target.parents:
-            raise HTTPException(422, 'recording_path_outside_allowed_root')
-        return target
+        try:
+            return application.state.resolve_data_root(migrated_data_path(value))
+        except HTTPException as error:
+            if error.detail == "data_root_not_allowed":
+                raise HTTPException(422, 'recording_path_outside_allowed_root') from error
+            raise
 
     historical_label_lock = threading.RLock()
 

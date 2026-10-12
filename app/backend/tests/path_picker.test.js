@@ -171,3 +171,8 @@ test("migration preserves selections and only replaces the registered directory 
   assert.deepEqual([...values], once);
   assert.doesNotThrow(() => migrateStoredPaths({getItem(){throw Error("blocked");}}, "p", aliases));
 });
+
+const directoryError = require('../segmented_frontend/path_picker.js').directoryError;
+assert.ok(directoryError('data_root_not_allowed', ['/media/agilex/Getea1']).includes('/media/agilex/Getea1'));
+assert.ok(!directoryError('data_root_not_allowed').includes('data_root_not_allowed'));
+assert.equal(directoryError('directory_not_readable'), 'directory_not_readable');

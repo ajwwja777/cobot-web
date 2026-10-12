@@ -26,6 +26,8 @@ def migrated_data_path(value):
             return new + value[len(old):]
     return value
 def configure_environment():
+    additional_roots = ([str(LEGACY_DATA)] if LEGACY_DATA != DATA else [])
+    additional_roots += SETTINGS.get("recording_allowed_roots", [])
     defaults = {
         "COBOT_PLATFORM_ROOT": str(PROJECT),
         "COBOT_RUNTIME_ROOT": str(RUNTIME_ROOT),
@@ -34,7 +36,7 @@ def configure_environment():
         "COBOT_RLT_RUN_ROOT": str(RLT / "outputs/rlt/plug_v3_yyshadow"),
         "COBOT_LEGACY_DATA_ROOT": str(LEGACY_DATA),
         "COBOT_DATA_ROOT_ALIASES": json.dumps(SETTINGS.get("data_root_aliases", {})),
-        "COBOT_ADDITIONAL_DATA_ROOTS": json.dumps([str(LEGACY_DATA)] if LEGACY_DATA != DATA else []),
+        "COBOT_ADDITIONAL_DATA_ROOTS": json.dumps(list(dict.fromkeys(additional_roots))),
         "COBOT_DATA_UI_RUNTIME_DIR": str(RUNTIME_ROOT / "data-console"),
         "COBOT_CONSOLE_JOB_RUNTIME": str(RUNTIME_ROOT / "console-jobs"),
         "TASK5_SEGMENTED_DATA_ROOT": str(path("normal_data_root", DATA / "raw")),

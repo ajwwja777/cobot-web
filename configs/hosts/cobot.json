@@ -80,5 +80,8 @@
     "/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/legacy_record",
     "/media/agilex/Getea1/jiaan/data/datasets/plug_insertion/recordings/demonstrations/legacy_test"
   ],
-  "model_root": "/media/agilex/Getea1/jiaan/model"
+  "model_root": "/media/agilex/Getea1/jiaan/model",
+  "recording_allowed_roots": [
+    "/media/agilex/Getea1"
+  ]
 }
