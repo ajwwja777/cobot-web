@@ -294,3 +294,26 @@ test("directory rejection blocks start and does not report a false saved path or
   await w.refreshConsole();await tick();assert.equal(calls,1);
  }finally{dom.window.close();}
 });
+
+
+test("EXPO online shows versions and gates the next episode while learning",async()=>{
+  const {dom,w,models,setState}=setup();
+  try {
+    const model={id:"expo-online",family:"EXPO",kind:"vla",runtime_adapter:"expo_online",task:"plug_left_2cam",mode:"online",step:2000,checkpoint:"/expo/seed",available:true};
+    models.push(model);await tick();await w.chooseCollection("normal");await w.refreshConsole();
+    setState({phase:"paused",model,started_at:9,online:{phase:"ready",learner_step:4,actor_version:4,replay_steps:160}});
+    await w.CobotCollectionModel.refresh();
+    const $=id=>w.document.getElementById(id);
+    assert.equal($("collection-model-select").value,model.id);
+    assert.match($("collection-model-state").textContent,/EXPO Online.*Learner 4.*Actor 4.*Replay 160/);
+    assert.equal($("collection-label-results").checked,true);
+    assert.equal($("collection-label-results").disabled,true);
+    assert.equal(w.CobotCollectionModel.ready(),true);
+    setState({online:{phase:"updating",learner_step:5,actor_version:5,replay_steps:200}});
+    await w.CobotCollectionModel.refresh();
+    assert.equal(w.CobotCollectionModel.ready(),false);
+    assert.equal($("collection-session-start").disabled,true);
+    assert.equal($("collection-unload").disabled,true);
+    assert.match($("collection-model-state").textContent,/Learning and saving/);
+  } finally {dom.window.close();}
+});

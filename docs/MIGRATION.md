@@ -845,4 +845,6 @@ Web630fa2f增加独立EXPO登记的受管理VLA命令入口、PID/model_id/心�
 
 ## 2026-10-13 EXPO Online 采集协调
 
-增加 `expo_online` 管理运行时，沿用普通采集/HIL控制。在录制完成并标注成功/失败后，通过本机HTTP向RL项目交接回合；保留回合身份用于幂等重试，学习/保存期间禁止下一轮和释放模型。显示 Learner/Actor版本、Replay与学习错误；Online强制RTC与结果标注，Hz/滤波沿用已有选项。算法、Replay与权重仍由rl-platform负责，无反向Web Python依赖。隔离Web回归58项通过/1项环境跳过、前端29项通过；现场安装状态以后续记录为准。RL证据：`docs/online/tasks/2026-10-13-expo-online/RESULT.md`。
+增加 `expo_online` 管理运行时，沿用普通采集/HIL控制。在录制完成并标注成功/失败后，通过本机HTTP向RL项目交接回合；保留回合身份用于幂等重试，学习/保存期间禁止下一轮和释放模型。显示 Learner/Actor版本、Replay与学习错误；Online强制RTC与结果标注，Hz/滤波沿用已有选项。算法、Replay与权重仍由rl-platform负责，无反向Web Python依赖。隔离Web回归58项通过/1项环境跳过、前端31项通过；现场安装已完成，Online模型ready/paused，发布指令0。RL证据：`docs/online/tasks/2026-10-13-expo-online/RESULT.md`。
+
+现场验证：18个跨项目文件SHA清单通过，网页服务重载；Online模型以collection用途加载，ROS PID2262658/Learner PID2262728，50Hz/RTC/滤波开启，Replay0，无活动录制或机器人指令。实际HTTP前端JS逐字节一致；用户负责真实rollout/HIL验收。

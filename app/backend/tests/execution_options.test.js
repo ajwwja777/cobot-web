@@ -99,3 +99,15 @@ test('EXPO native10 stays visible when changing RTC/filter independently of cust
  ui.update({id:'old',kind:'vla',control_hz:20},{});assert.equal(hz.value,'20');assert.equal([...hz.options].some(o=>o.value==='10'),false);
  dom.window.close();
 });
+
+
+test('EXPO online keeps RTC required while frequency and filtering remain selectable',()=>{
+ const [dom,w]=setup(),node=w.document.querySelector('#options'),ui=w.CobotExecutionOptions.create(node);
+ const model={id:'expo-online',kind:'vla',runtime_adapter:'expo_online',execution_settings:{publish_hz:10,rtc:true,smoothing:false}};
+ ui.update(model,{});
+ const rtc=node.querySelector('.execution-rtc'),custom=node.querySelector('.execution-custom'),hz=node.querySelector('.execution-hz'),filter=node.querySelector('.execution-smoothing');
+ assert.equal(rtc.checked,true);assert.equal(rtc.disabled,true);assert.equal(filter.disabled,false);
+ custom.checked=true;custom.dispatchEvent(new w.Event('change'));hz.value='50';hz.dispatchEvent(new w.Event('change'));filter.checked=true;filter.dispatchEvent(new w.Event('change'));
+ assert.equal(ui.value.publish_hz,50);assert.equal(ui.value.rtc,true);assert.equal(ui.value.smoothing,true);
+ dom.window.close();
+});
