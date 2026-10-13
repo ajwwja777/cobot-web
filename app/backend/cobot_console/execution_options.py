@@ -16,4 +16,8 @@ def configured_model(model, options=None):
         result['execution_settings'] = runpy.run_path(str(RLT / 'methods/openpi_rlt/cobot_adapter/execution_profiles.py'))['describe_execution'](result, RLT)
     else:
         result['execution_settings'] = contract()['describe_execution'](result)
+    if result.get('runtime_adapter') == 'expo_left':
+        selected = result.get('execution_options', {'enabled': False})
+        defaults = dict(enabled=False, publish_hz=10, logical_hz=10, rtc=True, smoothing=False)
+        result['execution_settings'] = {**defaults, **selected} if selected['enabled'] else defaults
     return result

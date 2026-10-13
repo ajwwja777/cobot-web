@@ -65,6 +65,11 @@ def catalog():
             available = available and bool(base) and (Path(base) / "params").is_dir()
             if item.get("custom"):
                 available = available and (checkpoint.parent.parent / "action_norm_stats.json").is_file()
+        elif item.get("runtime_adapter") == "expo_left":
+            entry = RLT / item["entry_relative"]
+            required = [*item.get("required", []), str(entry)]
+            available = available and all(Path(value).exists() for value in required)
+            item.update(command=[str(entry), item["id"]], cwd=str(RLT))
         else:
             entry_root = DAGGER if item["id"].endswith("dagger") else LEGACY
             available = available and (entry_root / "run_checkpoint_rtc_task2.sh").is_file()
@@ -312,7 +317,7 @@ class ManagedRuntime:
         log = self.directory / ("model-" + time.strftime("%Y%m%dT%H%M%S") + ".log")
         command = [str(PLATFORM / "scripts/deployment_run.sh"), model["id"]]
         cwd = None
-        if model["kind"] == "external":
+        if model["kind"] == "external" or model.get("runtime_adapter") == "expo_left":
             command = model["command"]
             cwd = model["cwd"]
         if model["kind"] == "rlt":
@@ -405,12 +410,19 @@ class ManagedRuntime:
         if model["kind"] == "vla":
             gate = read_json(self.directory / "vla-gate.json")
             ready = gate.get("ready") and gate.get("pid") == saved["pid"]
+            if model.get("runtime_adapter") == "expo_left":
+                fresh = 0 <= time.time() - gate.get("updated_at", 0) <= 3
+                ready = ready and fresh and gate.get("model_id") == model["id"]
+                if not fresh and saved.get("ready_confirmed"):
+                    return {**saved, "phase": "error", "model_ready": False,
+                            "detail": "EXPO runtime heartbeat expired; release/reload", "log_tail": output}
             phase = "paused" if ready and gate.get("paused", True) else "running" if ready else "loading"
             if ready and not saved.get("ready_confirmed"):
                 saved["ready_confirmed"] = True
                 saved["model_ready"] = True
                 atomic_json(self.registry, saved)
             return {**saved, "phase": phase, "log_tail": output,
+                    "detail": gate.get("runtime_fault"), "policy_fault": gate.get("runtime_fault"),
                     "intervention_count": gate.get("intervention_count", 0)}
         ready = "ready and PAUSED" in output or saved.get("ready_confirmed")
         if ready and not saved.get("ready_confirmed"):
