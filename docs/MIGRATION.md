@@ -840,3 +840,5 @@ rl-platform的固定探索入口真实写入专用目录，但网页selected仍�
 Web630fa2f增加独立EXPO登记的受管理VLA命令入口、PID/model_id/心跳及故障展示，执行描述保留10Hz逻辑时基。现有普通采集/评测、标签、HIL和用户归位入口复用，不复制算法。相关46CPU通过/1既有可选跳过；实际Web环境3接口断言通过，未添加开发依赖。确认model offline/无writer后同步并重载正式8015；EXPO2000真实加载至ready/paused，实际Session prepare/stop仅暂停、发布0命令，录制idle。没有Start/Continue/运动/归位/硬件重启/在线训练。RL14行为及原生boot/RTC GPU验证通过；真机操作仍待用户。
 
 完整权重/配置、部署守卫与回执见同级rl-platform `docs/execution/tasks/2026-10-13-expo-web/TASK.md`；A6000证据`scratch/rl-platform/expo-web-20261013/field-evidence`。其他模型登记、硬件身份和RLT权重/norm保持；新EXPO使用xiqing自己的资产/原生loader。
+
+2026-10-13补充：EXPO默认10Hz的下拉显示与独立RTC/滤波校验已修复（Weba8d7a8c/RLafaed39），其他模型频率契约保持。15执行、45相关Web/1既有跳过、9前端通过；3源文件SHA同步与正式JS HTTP校验通过，仅idle Web重载，EXPO2057530及活动10Hz/RTCtrue/滤波false保持，发布计数前后765。用户此前运行不归因于本修复；无模型重载/动作/录制。开关选择在释放后重载模型生效。证据同任务native10-field-delivery.json。
