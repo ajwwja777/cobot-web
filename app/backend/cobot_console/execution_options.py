@@ -22,7 +22,7 @@ def contract():
 
 def configured_model(model, options=None):
     result = dict(model)
-    expo = model.get('runtime_adapter') == 'expo_left'
+    expo = model.get('runtime_adapter') in {'expo_left', 'expo_online'}
     if options is not None:
         validate = normalize_options if expo else shared_contract()['normalize_options']
         options = validate(options)
@@ -37,4 +37,6 @@ def configured_model(model, options=None):
         result['execution_settings'] = runpy.run_path(str(RLT / 'methods/openpi_rlt/cobot_adapter/execution_profiles.py'))['describe_execution'](result, RLT)
     else:
         result['execution_settings'] = shared_contract()['describe_execution'](result)
+    if model.get('runtime_adapter') == 'expo_online' and not result['execution_settings']['rtc']:
+        raise ValueError('EXPO 在线学习需要开启 RTC，以匹配训练的延迟输入')
     return result

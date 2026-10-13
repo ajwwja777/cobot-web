@@ -65,7 +65,7 @@ def catalog():
             available = available and bool(base) and (Path(base) / "params").is_dir()
             if item.get("custom"):
                 available = available and (checkpoint.parent.parent / "action_norm_stats.json").is_file()
-        elif item.get("runtime_adapter") == "expo_left":
+        elif item.get("runtime_adapter") in {"expo_left", "expo_online"}:
             entry = RLT / item["entry_relative"]
             required = [*item.get("required", []), str(entry)]
             available = available and all(Path(value).exists() for value in required)
@@ -317,7 +317,7 @@ class ManagedRuntime:
         log = self.directory / ("model-" + time.strftime("%Y%m%dT%H%M%S") + ".log")
         command = [str(PLATFORM / "scripts/deployment_run.sh"), model["id"]]
         cwd = None
-        if model["kind"] == "external" or model.get("runtime_adapter") == "expo_left":
+        if model["kind"] == "external" or model.get("runtime_adapter") in {"expo_left", "expo_online"}:
             command = model["command"]
             cwd = model["cwd"]
         if model["kind"] == "rlt":
@@ -410,7 +410,7 @@ class ManagedRuntime:
         if model["kind"] == "vla":
             gate = read_json(self.directory / "vla-gate.json")
             ready = gate.get("ready") and gate.get("pid") == saved["pid"]
-            if model.get("runtime_adapter") == "expo_left":
+            if model.get("runtime_adapter") in {"expo_left", "expo_online"}:
                 fresh = 0 <= time.time() - gate.get("updated_at", 0) <= 3
                 ready = ready and fresh and gate.get("model_id") == model["id"]
                 if not fresh and saved.get("ready_confirmed"):
@@ -423,7 +423,8 @@ class ManagedRuntime:
                 atomic_json(self.registry, saved)
             return {**saved, "phase": phase, "log_tail": output,
                     "detail": gate.get("runtime_fault"), "policy_fault": gate.get("runtime_fault"),
-                    "intervention_count": gate.get("intervention_count", 0)}
+                    "intervention_count": gate.get("intervention_count", 0),
+                    "online": gate.get("online")}
         ready = "ready and PAUSED" in output or saved.get("ready_confirmed")
         if ready and not saved.get("ready_confirmed"):
             saved["ready_confirmed"] = True
@@ -742,6 +743,10 @@ class DeploymentManager:
             self.active = None
 
     def perform(self, operation, model_id=None, execution_options=None, load_use=None):
+        if operation in {'unload','load'}:
+            current=self.runtime.status()
+            if current.get('model',{}).get('runtime_adapter')=='expo_online' and (current.get('online') or {}).get('phase')=='updating':
+                raise DeploymentError('EXPO 正在学习和保存，请等待完成后释放模型')
         if operation in {'load', 'start', 'collection_session_start'}:
             try:
                 require_storage(self.allowed_root, write=True)

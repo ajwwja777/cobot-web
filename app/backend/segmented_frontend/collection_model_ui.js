@@ -30,7 +30,7 @@
   };
   const enabled=()=>Boolean($('#capture-use-model')?.checked);
   const active=()=>Boolean(state.active)||['recording','paused','finalizing'].includes(capture.capture_state);
-  function ready(){return !busy&&!state.operation&&!state.status_stale&&['ready','paused'].includes(state.phase)&&state.model?.id===$('#capture-model-select')?.value;}
+  function ready(){return (state.model?.runtime_adapter!=='expo_online'||state.online?.phase==='ready')&&!busy&&!state.operation&&!state.status_stale&&['ready','paused'].includes(state.phase)&&state.model?.id===$('#capture-model-select')?.value;}
   function render(){
     if(!mounted)return;
     const use=enabled(),locked=active(),select=$('#capture-model-select');
@@ -43,6 +43,10 @@
     $('#capture-session-start').disabled=locked||!ready()||Boolean(state.session_active);
     $('#capture-session-stop').disabled=locked||busy||Boolean(state.operation)||!state.session_active;
     $('#capture-model-state').textContent=!use?(english()?'Manual capture':'纯示教'):state.operation?(english()?'Working…':'正在处理…'):ready()?(english()?'Model ready':'模型已加载')+' · '+(root.CobotModelPicker?.runtimeIdentity(state)||''):state.phase==='loading'?(english()?'Loading model…':'模型加载中…'):state.error||(english()?'Load model to start':'等待加载模型');
+    if(use&&state.model?.runtime_adapter==='expo_online'&&state.online){
+      const o=state.online,names={ready:'等待下一回合',rollout:'采样中',updating:'正在学习和保存',fault:'学习故障',loading:'加载中'};
+      $('#capture-model-state').textContent='EXPO Online · '+(names[o.phase]||o.phase)+' · Learner '+(o.learner_step??0)+' · Actor '+(o.actor_version??0)+' · Replay '+(o.replay_steps??0)+(o.error?' · '+o.error:'');
+    }
     const start=$('#start');if(start){start.dataset.zh=use?'开始推理':'开始采集';start.dataset.en=use?'Start inference':'Start capture';start.textContent=english()?start.dataset.en:start.dataset.zh;}
     root.CobotUnifiedCollection?.render();
   }

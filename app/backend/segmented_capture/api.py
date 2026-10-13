@@ -300,6 +300,7 @@ def create_app(
                         raise HTTPException(409, str(error)) from error
                 result = service.start(identity, data_root=root)
                 if controller:
+                    getattr(controller,"started",lambda _:None)(result)
                     controller.action("start")
             except Exception:
                 if model_control():
@@ -385,13 +386,17 @@ def create_app(
 
         def final_response():
             release_lease()
-            if model_control():
-                model_control().finished()
             if request.outcome is not None:
                 try:
                     service.label_outcome(request.outcome)
                 except Exception as error:
                     raise HTTPException(503, "数据已保存，结果标注失败：" + str(error)) from error
+            if model_control():
+                try:
+                    getattr(model_control(),"finalized",lambda *_:None)(request.outcome or "unknown",request.episode_uuid)
+                    model_control().finished()
+                except Exception as error:
+                    raise HTTPException(503,"数据已保存，EXPO在线收尾待重试："+str(error)) from error
             return _public(service)
 
         # Make stop idempotent only for a proven, fully finalized episode.  This
@@ -425,6 +430,8 @@ def create_app(
             if model_control():
                 model_control().action('stop')
             result = service.defer()
+            if model_control():
+                getattr(model_control(),'finalized',lambda *_:None)('unknown',request.episode_uuid)
             lease = active_lease.get('value')
             if writer_coordinator is not None and lease is not None:
                 writer_coordinator.release_writer(lease)
@@ -447,6 +454,7 @@ def create_app(
                 model_control().action("discard")
             service.discard()
             if model_control():
+                getattr(model_control(),"finalized",lambda *_:None)("aborted",request.episode_uuid)
                 model_control().finished()
             return _public(service)
         except Exception as error:

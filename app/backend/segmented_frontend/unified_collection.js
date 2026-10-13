@@ -10,7 +10,7 @@
   const selectedModel=()=>catalog.find(m=>m.id===selected);
   const isRlt=()=>Boolean(root.collectionIsRlt?.());
   const active=()=>Boolean(context.console?.active_mode)||['recording','paused','finalizing'].includes(context.capture?.capture_state)||['recording_starting','rollout','hil','paused','terminal_pending','finalizing','replay_committing'].includes(context.session?.phase);
-  const labelResults=()=>Boolean($('#collection-label-results')?.checked);
+  const labelResults=()=>Boolean((useModel()&&selectedModel()?.runtime_adapter==='expo_online')||$('#collection-label-results')?.checked);
   const modelState=()=>root.CobotCollectionModel?.state||{};
   function modelLoaded(){
     const model=selectedModel();
@@ -92,19 +92,25 @@
     const routeReady=!changing&&(use?Boolean(chosen)&&chosen.runtime===(rlt?'rlt':'normal'):!rlt);
     $('#capture-use-model').disabled=Boolean(locked);
     modelPicker.setDisabled(!use||locked,{lockSelection:locked});
-    $('#collection-label-results').disabled=Boolean(context.busy||changing);
+    const expoOnline=use&&chosen?.runtime_adapter==='expo_online';
+    if(expoOnline)$('#collection-label-results').checked=true;
+    $('#collection-label-results').disabled=expoOnline||Boolean(context.busy||changing);
     const backendOnline=state.model&&!['offline'].includes(state.phase);
     recorderRecovery?.update(state,active()||changing||Boolean(context.busy));
     runtimeRecovery?.update(state);
     $('#collection-load').disabled=Boolean(state.status_stale)||!use||!root.CobotModelPicker.available(chosen)||locked||modelLoaded()||(state.model?.id===chosen?.id&&(state.process_started===true||(state.process_started!==false&&state.phase!=='offline'&&Boolean(state.pid))))||!routeReady;
-    $('#collection-unload').disabled=!use||active()||changing||processing||!backendOnline;
-    const ready=modelLoaded();
+    $('#collection-unload').disabled=!use||active()||changing||processing||!backendOnline||(expoOnline&&state.online?.phase==='updating');
+    const ready=modelLoaded()&&(!expoOnline||state.online?.phase==='ready');
     const estimate=root.CobotModelLoading(chosen);
     label($('#collection-model-state'),!use?'纯示教':loading?estimate.zh:processing?'正在处理…':ready?'模型加载成功':'等待加载模型',!use?'Manual capture':loading?estimate.en:processing?'Working…':ready?'Model loaded successfully':'Load model to start');
     if (use && ready) $('#collection-model-state').textContent += ' · ' + (root.CobotModelPicker.runtimeIdentity(state) || '');
     const failure=use&&(state.error||(state.phase==='error'?(state.detail||'模型加载失败'):null));
     if(state.runtime_failure)label($('#collection-model-state'),root.CobotRuntimeRecovery.summary(state),root.CobotRuntimeRecovery.summary(state));
     else if(failure)label($('#collection-model-state'),state.model_ready&&state.session?.phase==='fault'?'模型已加载；录制需要恢复（见下方）':String(failure),state.model_ready&&state.session?.phase==='fault'?'Model loaded; recording needs recovery (below)':root.CobotPreferences?.text(String(failure))||String(failure));
+    if(expoOnline&&state.online){
+      const o=state.online,names={ready:text('等待下一回合','Ready for next episode'),rollout:text('采样中','Collecting'),updating:text('正在学习和保存','Learning and saving'),fault:text('学习故障','Learning fault'),loading:text('加载中','Loading')};
+      $('#collection-model-state').textContent='EXPO Online · '+(names[o.phase]||o.phase)+' · Learner '+(o.learner_step??0)+' · Actor '+(o.actor_version??0)+' · Replay '+(o.replay_steps??0)+(o.error?' · '+o.error:'');
+    }
     $('#collection-model-state').dataset.tone=failure?'error':ready?'ready':'idle';
     $('#collection-session-start').disabled=!use||!routeReady||changing||processing||!ready||active()||Boolean(state.session_active);
     $('#collection-session-stop').disabled=!use||!routeReady||changing||processing||active()||!state.session_active;

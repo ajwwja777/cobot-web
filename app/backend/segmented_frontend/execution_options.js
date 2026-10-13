@@ -17,6 +17,7 @@
       container.hidden=!model;
       container.querySelector('.execution-smoothing-label').textContent=text('滤波','Filter');
       custom.disabled=rtc.disabled=smoothing.disabled=locked||busy;
+      if(model?.runtime_adapter==='expo_online'){rtc.checked=true;rtc.disabled=true;rtc.title=text('在线训练使用 RTC 延迟条件','Online learning uses RTC delay conditioning');}else rtc.title='';
       hz.disabled=locked||busy||!custom.checked;
       apply.textContent=uncertain?text('检查','Check'):text('应用','Apply');
       const changed=JSON.stringify(value())!==JSON.stringify(state.model?.execution_options||{enabled:false});
@@ -51,7 +52,7 @@
     });
     return {update(next,nextState={},disabled=false){
       model=next;state=nextState;locked=Boolean(disabled)||Boolean(state.operation)||state.phase==='loading'||Boolean(state.active)||Boolean(state.status_stale);
-      if(modelId!==model?.id){setRates(model?.runtime_adapter==='expo_left');modelId=model?.id||'';let saved=null;try{saved=JSON.parse(root.localStorage.getItem(key)||'{}')[modelId];}catch(_){}set(saved||state.model?.id===modelId&&state.model.execution_options||{enabled:false});notice='';}
+      if(modelId!==model?.id){setRates(['expo_left','expo_online'].includes(model?.runtime_adapter));modelId=model?.id||'';let saved=null;try{saved=JSON.parse(root.localStorage.getItem(key)||'{}')[modelId];}catch(_){}set(saved||state.model?.id===modelId&&state.model.execution_options||{enabled:false});notice='';}
       show();
     },describe(facts=model){
       if(!facts||!model)return facts;
