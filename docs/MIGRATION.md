@@ -842,3 +842,7 @@ Web630fa2f增加独立EXPO登记的受管理VLA命令入口、PID/model_id/心�
 完整权重/配置、部署守卫与回执见同级rl-platform `docs/execution/tasks/2026-10-13-expo-web/TASK.md`；A6000证据`scratch/rl-platform/expo-web-20261013/field-evidence`。其他模型登记、硬件身份和RLT权重/norm保持；新EXPO使用xiqing自己的资产/原生loader。
 
 2026-10-13补充：EXPO默认10Hz的下拉显示与独立RTC/滤波校验已修复（Weba8d7a8c/RLafaed39），其他模型频率契约保持。15执行、45相关Web/1既有跳过、9前端通过；3源文件SHA同步与正式JS HTTP校验通过，仅idle Web重载，EXPO2057530及活动10Hz/RTCtrue/滤波false保持，发布计数前后765。用户此前运行不归因于本修复；无模型重载/动作/录制。开关选择在释放后重载模型生效。证据同任务native10-field-delivery.json。
+
+## 2026-10-13 EXPO Online 采集协调
+
+增加 `expo_online` 管理运行时，沿用普通采集/HIL控制。在录制完成并标注成功/失败后，通过本机HTTP向RL项目交接回合；保留回合身份用于幂等重试，学习/保存期间禁止下一轮和释放模型。显示 Learner/Actor版本、Replay与学习错误；Online强制RTC与结果标注，Hz/滤波沿用已有选项。算法、Replay与权重仍由rl-platform负责，无反向Web Python依赖。隔离Web回归58项通过/1项环境跳过、前端29项通过；现场安装状态以后续记录为准。RL证据：`docs/online/tasks/2026-10-13-expo-online/RESULT.md`。
