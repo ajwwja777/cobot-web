@@ -848,3 +848,10 @@ Web630fa2f增加独立EXPO登记的受管理VLA命令入口、PID/model_id/心�
 增加 `expo_online` 管理运行时，沿用普通采集/HIL控制。在录制完成并标注成功/失败后，通过本机HTTP向RL项目交接回合；保留回合身份用于幂等重试，学习/保存期间禁止下一轮和释放模型。显示 Learner/Actor版本、Replay与学习错误；Online强制RTC与结果标注，Hz/滤波沿用已有选项。算法、Replay与权重仍由rl-platform负责，无反向Web Python依赖。隔离Web回归58项通过/1项环境跳过、前端31项通过；现场安装已完成，Online模型ready/paused，发布指令0。RL证据：`docs/online/tasks/2026-10-13-expo-online/RESULT.md`。
 
 现场验证：18个跨项目文件SHA清单通过，网页服务重载；Online模型以collection用途加载，ROS PID2262658/Learner PID2262728，50Hz/RTC/滤波开启，Replay0，无活动录制或机器人指令。实际HTTP前端JS逐字节一致；用户负责真实rollout/HIL验收。
+
+
+## 2026-10-13 EXPO Online 采集按钮与计数显示修复
+
+截图暴露两处前端缺陷：model 固定目录 readiness 只执行 RLT 分支，EXPO 走 normal 采集时始终无法满足开始条件；在线计数直接覆盖 textContent，但遗留 data-zh/data-en 导致语言刷新覆盖为“模型加载成功”。修复为 normal 目录调用既有 prepareStorage 并核对响应路径，失败/不匹配继续禁用开始；语言标签同步保存实时 Learner、Actor 版本、VLA 实际更新步与 Replay。保留正在更新时的开始禁用，不改训练算法、warmup、优化器或采样参数。
+
+A6000 浏览器模拟回归46项通过，新增用例先复现目录不触发检查，修复后验证等待/成功/错误路径、重复轮询、旧路径迟到与中英切换；现场验收回执归 scratch/cobot-web/expo-collection-ui-20261013。仅静态资源部署，无模型/Session/录制/运动操作；现场真实 rollout 仍由用户执行。

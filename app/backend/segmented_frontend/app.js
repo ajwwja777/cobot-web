@@ -1366,6 +1366,7 @@ async function prepareStorage(silent = false) {
     updateButtons();
     await refreshHistory({loadSelected: true});
     if (!silent) message("数据目录已核验；不存在时已安全创建。", false);
+    return prepared;
   } catch (error) {
     if (collectionIsRlt() || requestedRoot !== selectedDataRoot()) return;
     showLive();

@@ -314,6 +314,42 @@ test("EXPO online shows versions and gates the next episode while learning",asyn
     assert.equal(w.CobotCollectionModel.ready(),false);
     assert.equal($("collection-session-start").disabled,true);
     assert.equal($("collection-unload").disabled,true);
+    $("start").disabled=false;w.CobotUnifiedCollection.render();
+    assert.equal($("collection-start").disabled,true);
     assert.match($("collection-model-state").textContent,/Learning and saving/);
   } finally {dom.window.close();}
+});
+
+
+test("EXPO managed normal storage unlocks start only after confirmation and keeps counters after translation",async()=>{
+ const {dom,w,models,setState}=setup();
+ try {
+  const model={id:"expo-managed",family:"EXPO",kind:"vla",runtime_adapter:"expo_online",task:"plug_left_2cam",mode:"online",step:2000,available:true,collection_directory_policy:"model",data_directories:{collection:"/data/expo-online"}};
+  models.push(model);
+  const calls=[];let complete;
+  w.prepareStorage=async()=>{calls.push(w.document.querySelector('#capture-form input[name=data_root]').value);return new Promise(resolve=>complete=resolve);};
+  await tick();await w.chooseCollection("normal");await w.refreshConsole();
+  setState({phase:"paused",model,started_at:10,session_active:true,online:{phase:"ready",learner_step:8,actor_version:8,actor_updates:3,replay_steps:200}});
+  await w.CobotCollectionModel.refresh();
+  const $=id=>w.document.getElementById(id);
+  $("start").disabled=false;w.CobotUnifiedCollection.render();
+  assert.deepEqual(calls,["/data/expo-online"]);
+  assert.equal($("collection-start").disabled,true);
+  complete({data_root:"/data/expo-online"});await tick();
+  assert.equal($("collection-start").disabled,false);
+  // Load the real preference implementation: applying a language used to erase counters.
+  w.eval(fs.readFileSync('segmented_frontend/preferences.js','utf8'));
+  w.CobotPreferences.setLanguage('en');
+  assert.match($("collection-model-state").textContent,/Learner 8.*Actor 8.*VLA.*3.*Replay 200/);
+  w.CobotPreferences.setLanguage('zh');
+  assert.match($("collection-model-state").textContent,/Learner 8.*Actor 8.*VLA.*3.*Replay 200/);
+  await w.refreshConsole();await tick();assert.equal(calls.length,1);
+  // A late old directory response must be rechecked, not silently accepted.
+  w.document.querySelector('#capture-form input[name=data_root]').value='/data/old';
+  w.CobotUnifiedCollection.render();assert.equal($("collection-start").disabled,true);
+  assert.equal(calls.length,2);
+  complete({data_root:"/data/wrong"});await tick();
+  assert.equal($("collection-start").disabled,true);
+  assert.match($("collection-storage-policy").textContent,/directory_mismatch/);
+ } finally {await tick();dom.window.close();}
 });

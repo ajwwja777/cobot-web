@@ -63,18 +63,23 @@
   async function syncManagedStorage(){
     const path=managedPath();
     if(!path&&!managedStoragePending){managedStorageKey='';managedStorageApplied='';managedStorageError='';}
-    if(!path||!isRlt()||active()||changing||context.busy||modelBusy||modelState().status_stale)return;
+    if(!path||active()||changing||context.busy||modelBusy||modelState().status_stale)return;
+    const rlt=isRlt(),input=rlt?$('#rlt-data-root'):$('#capture-form input[name=data_root]');
+    if(selectedModel()?.runtime!==(rlt?'rlt':'normal'))return;
     const key=selected+':'+path;
-    if(managedStorageApplied===key&&$('#rlt-data-root').value!==path)managedStorageKey='';
+    if(managedStorageApplied===key&&input.value!==path)managedStorageKey='';
     if(managedStorageKey===key||managedStoragePending)return;
     managedStorageKey=key;managedStorageApplied='';managedStoragePending=true;managedStorageError='';
     try{
-      const payload=await root.request('/api/rlt/storage',{method:'POST',body:JSON.stringify({data_root:path})});
-      if(payload.data_root!==path)throw Error('recording_directory_mismatch');
+      let payload;
+      if(rlt)payload=await root.request('/api/rlt/storage',{method:'POST',body:JSON.stringify({data_root:path})});
+      else {input.value=path;payload=await root.prepareStorage(true);}
+      if(selected+':'+managedPath()!==key||isRlt()!==rlt){managedStorageKey='';return;}
+      if(payload?.data_root!==path)throw Error('recording_directory_mismatch');
       // The server accepted the next-Episode destination; history follows the same path.
-      $('#rlt-data-root').value=path;$('#rlt-recording-directory').textContent=path;
+      input.value=path;if(rlt)$('#rlt-recording-directory').textContent=path;
       $('#collection-data-root').value=path;delete $('#collection-data-root').dataset.dirty;
-      document.dispatchEvent(new CustomEvent('cobot:storage-used',{detail:{kind:'collection',runtime:'rlt',path}}));
+      if(rlt)document.dispatchEvent(new CustomEvent('cobot:storage-used',{detail:{kind:'collection',runtime:'rlt',path}}));
       managedStorageApplied=key;
     }catch(error){managedStorageError=error.message;root.CobotWorkspaceUI?.report(error.message,'error',text('保存位置','Save location'));}
     finally{managedStoragePending=false;render();}
@@ -107,9 +112,10 @@
     const failure=use&&(state.error||(state.phase==='error'?(state.detail||'模型加载失败'):null));
     if(state.runtime_failure)label($('#collection-model-state'),root.CobotRuntimeRecovery.summary(state),root.CobotRuntimeRecovery.summary(state));
     else if(failure)label($('#collection-model-state'),state.model_ready&&state.session?.phase==='fault'?'模型已加载；录制需要恢复（见下方）':String(failure),state.model_ready&&state.session?.phase==='fault'?'Model loaded; recording needs recovery (below)':root.CobotPreferences?.text(String(failure))||String(failure));
-    if(expoOnline&&state.online){
-      const o=state.online,names={ready:text('等待下一回合','Ready for next episode'),rollout:text('采样中','Collecting'),updating:text('正在学习和保存','Learning and saving'),fault:text('学习故障','Learning fault'),loading:text('加载中','Loading')};
-      $('#collection-model-state').textContent='EXPO Online · '+(names[o.phase]||o.phase)+' · Learner '+(o.learner_step??0)+' · Actor '+(o.actor_version??0)+' · Replay '+(o.replay_steps??0)+(o.error?' · '+o.error:'');
+    if(expoOnline&&state.model?.id===chosen.id&&state.phase!=='offline'&&state.online){
+      const o=state.online,names={ready:['等待下一回合','Ready for next episode'],rollout:['采样中','Collecting'],updating:['正在学习和保存','Learning and saving'],fault:['学习故障','Learning fault'],loading:['加载中','Loading']};
+      const status=language=>'EXPO Online · '+(names[o.phase]?.[language]||o.phase)+' · Learner '+(o.learner_step??'—')+' · Actor '+(o.actor_version??'—')+' · '+(language?'VLA updates ':'VLA 更新 ')+(o.actor_updates??'—')+' · Replay '+(o.replay_steps??'—')+(o.error?' · '+o.error:'');
+      label($('#collection-model-state'),status(0),status(1));
     }
     $('#collection-model-state').dataset.tone=failure?'error':ready?'ready':'idle';
     $('#collection-session-start').disabled=!use||!routeReady||changing||processing||!ready||active()||Boolean(state.session_active);
@@ -118,7 +124,7 @@
     for(const key of ['success','failure'])$('#capture-'+key).disabled=!normalTerminal||!labelResults();
     for(const key of ['start','pause','resume','marker','save','discard','success','failure']){
       const button=$('#collection-'+key),original=source(key),result=key==='success'||key==='failure';
-      button.disabled=!original||original.disabled||original.classList.contains('is-loading')||changing||!routeReady||(result&&!labelResults())||(key==='start'&&Boolean(managedPath())&&managedStorageApplied!==selected+':'+managedPath());
+      button.disabled=!original||original.disabled||original.classList.contains('is-loading')||changing||!routeReady||(key==='start'&&expoOnline&&!ready)||(result&&!labelResults())||(key==='start'&&Boolean(managedPath())&&managedStorageApplied!==selected+':'+managedPath());
       button.classList.toggle('is-active',Boolean(original?.classList.contains('is-active')));
       button.classList.toggle('is-loading',Boolean(original?.classList.contains('is-loading')));
       const shortcuts={start:'→',pause:text('空格','Space'),resume:text('空格','Space'),save:text('→ 暂停后','→ when paused'),discard:'←',success:'↑',failure:'↓'};
