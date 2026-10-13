@@ -834,3 +834,9 @@ rl-platform的固定探索入口真实写入专用目录，但网页selected仍�
 默认数据根仍 `/media/agilex/Getea1/jiaan/data`，默认普通采集目录仍为其 `datasets/plug_insertion/recordings/demonstrations/manual`。录制空闲，无新录制／运动／模型加载或硬件重启；重载前后已有探索模型均为 error／未运行，本任务没有修复或启动它。已有 Episode、Replay、权重未迁移或编辑，现场控制交还用户。此次仅新增允许保存范围，没有把测试目录登记为真实采集目标。
 
 完整证据 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/custom-recording-roots-20261012/`：backend-tests-final.txt、frontend-tests.txt、source-release.json、field-precheck.json、field-install.json、web-reload.json、field-verification.json、http-source-verification.json、final-release.json。辅助脚本与 worktree 在 `scratch/cobot-web/custom-recording-roots-20261012/`，RLT worktree 在 `scratch/rl-platform/custom-recording-roots-20261012/rl-platform`；现场旧源码和 local.json 备份在 `/home/agilex/jiaan/project/cobot-web/runtime/verification/custom-recording-roots-20261012/before/`，同目录上一级保存安装／重载／校验回执。笔记本根层仅入口，guide 只追加事实摘要，不提交／push guide Git。
+
+## 2026-10-13 EXPO 左臂双腕RTC-SFT接入
+
+Web630fa2f增加独立EXPO登记的受管理VLA命令入口、PID/model_id/心跳及故障展示，执行描述保留10Hz逻辑时基。现有普通采集/评测、标签、HIL和用户归位入口复用，不复制算法。相关46CPU通过/1既有可选跳过；实际Web环境3接口断言通过，未添加开发依赖。确认model offline/无writer后同步并重载正式8015；EXPO2000真实加载至ready/paused，实际Session prepare/stop仅暂停、发布0命令，录制idle。没有Start/Continue/运动/归位/硬件重启/在线训练。RL14行为及原生boot/RTC GPU验证通过；真机操作仍待用户。
+
+完整权重/配置、部署守卫与回执见同级rl-platform `docs/execution/tasks/2026-10-13-expo-web/TASK.md`；A6000证据`scratch/rl-platform/expo-web-20261013/field-evidence`。其他模型登记、硬件身份和RLT权重/norm保持；新EXPO使用xiqing自己的资产/原生loader。
