@@ -57,3 +57,20 @@ def test_expo_catalog_requires_its_loader_norm_and_managed_entry(tmp_path,monkey
     assert value['family']=='EXPO' and not value['training_enabled']
     norm.unlink()
     assert next(m for m in deployment.catalog() if m['id']=='expo')['available'] is False
+
+
+@pytest.mark.parametrize('rtc,smoothing',[(False,False),(True,True),(False,True)])
+def test_standalone_toggles_preserve_native_10hz(rtc,smoothing):
+    from cobot_console.execution_options import contract
+    model=dict(kind='vla',runtime_adapter='expo_left',control_hz=10)
+    options=dict(enabled=True,publish_hz=10,rtc=rtc,smoothing=smoothing)
+    parsed=contract()['normalize_options'](options)
+    actual=configured_model(model,parsed)['execution_settings']
+    assert actual['publish_hz']==actual['logical_hz']==10
+    assert actual['rtc'] is rtc and actual['smoothing'] is smoothing
+
+
+def test_10hz_option_does_not_expand_other_adapter_contracts():
+    options=dict(enabled=True,publish_hz=10,rtc=True,smoothing=False)
+    for kind in ('rlt','pi05','vla','external'):
+        with pytest.raises(ValueError):configured_model(dict(kind=kind,control_hz=20),options)

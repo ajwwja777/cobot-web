@@ -83,3 +83,19 @@ test('history starts from recorded result, then accepts authoritative GET and br
  assert.equal(host.querySelector('select').value,'success');finish();await pending;
  assert.equal(host.querySelector('select').value,'failure');assert.equal(host.querySelector('select').disabled,false);assert.equal(events[0].data_root,'/old');dom.window.close();
 });
+
+
+test('EXPO native10 stays visible when changing RTC/filter independently of custom Hz',()=>{
+ const [dom,w]=setup(),host=w.document.querySelector('#options'),ui=w.CobotExecutionOptions.create(host);
+ const model={id:'expo',kind:'vla',runtime_adapter:'expo_left',execution_settings:{publish_hz:10,logical_hz:10,rtc:true,smoothing:false}};
+ ui.update(model,{});
+ const hz=host.querySelector('.execution-hz'),custom=host.querySelector('.execution-custom'),rtc=host.querySelector('.execution-rtc'),filter=host.querySelector('.execution-smoothing');
+ assert.equal(hz.value,'10');assert.equal(hz.disabled,true);assert.equal(custom.checked,false);assert.equal(ui.value.enabled,false);
+ rtc.checked=false;rtc.dispatchEvent(new w.Event('change'));
+ assert.equal(ui.value.publish_hz,10);assert.equal(ui.value.rtc,false);assert.equal(ui.value.enabled,true);
+ filter.checked=true;filter.dispatchEvent(new w.Event('change'));
+ assert.equal(ui.value.publish_hz,10);assert.equal(ui.value.smoothing,true);assert.equal(custom.checked,false);
+ ui.update(model,{});assert.equal(hz.value,'10');assert.equal(ui.value.smoothing,true);
+ ui.update({id:'old',kind:'vla',control_hz:20},{});assert.equal(hz.value,'20');assert.equal([...hz.options].some(o=>o.value==='10'),false);
+ dom.window.close();
+});

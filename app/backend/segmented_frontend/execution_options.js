@@ -6,7 +6,9 @@
     container.classList.add('execution-options');
     container.innerHTML='<div class="execution-fields"><label><input type="checkbox" class="execution-custom" aria-label="Hz"><span>Hz</span><select class="execution-hz" aria-label="Hz"></select></label><label><input type="checkbox" class="execution-rtc"><span>RTC</span></label><label><input type="checkbox" class="execution-smoothing"><span class="execution-smoothing-label"></span></label><button type="button" class="execution-apply secondary"></button></div><span class="execution-notice" role="status" hidden></span>';
     const custom=container.querySelector('.execution-custom'),hz=container.querySelector('.execution-hz'),rtc=container.querySelector('.execution-rtc'),smoothing=container.querySelector('.execution-smoothing'),noticeNode=container.querySelector('.execution-notice'),apply=container.querySelector('.execution-apply');
-    hz.replaceChildren(...[20,30,40,50].map(value=>{const o=document.createElement('option');o.value=value;o.textContent=value;return o;}));
+    const rates=expo=>expo?[10,20,30,40,50]:[20,30,40,50];
+    const setRates=expo=>hz.replaceChildren(...rates(expo).map(value=>{const o=document.createElement('option');o.value=value;o.textContent=value;return o;}));
+    setRates(false);
     let model=null,state={},locked=false,busy=false,modelId='',uncertain=false,notice='';
     const defaults=()=>model?.execution_settings||{publish_hz:model?.publish_hz||model?.control_hz||20,rtc:false,smoothing:false};
     const value=()=>{const d=defaults(),v={enabled:true,publish_hz:custom.checked?Number(hz.value):d.publish_hz,rtc:rtc.checked,smoothing:smoothing.checked};return !custom.checked&&v.rtc===Boolean(d.rtc)&&v.smoothing===Boolean(d.smoothing)?{enabled:false}:v;};
@@ -49,7 +51,7 @@
     });
     return {update(next,nextState={},disabled=false){
       model=next;state=nextState;locked=Boolean(disabled)||Boolean(state.operation)||state.phase==='loading'||Boolean(state.active)||Boolean(state.status_stale);
-      if(modelId!==model?.id){modelId=model?.id||'';let saved=null;try{saved=JSON.parse(root.localStorage.getItem(key)||'{}')[modelId];}catch(_){}set(saved||state.model?.id===modelId&&state.model.execution_options||{enabled:false});notice='';}
+      if(modelId!==model?.id){setRates(model?.runtime_adapter==='expo_left');modelId=model?.id||'';let saved=null;try{saved=JSON.parse(root.localStorage.getItem(key)||'{}')[modelId];}catch(_){}set(saved||state.model?.id===modelId&&state.model.execution_options||{enabled:false});notice='';}
       show();
     },describe(facts=model){
       if(!facts||!model)return facts;
