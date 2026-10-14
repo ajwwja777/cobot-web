@@ -884,3 +884,10 @@ Web 7438333仅对expo_online启用该录像，回放/HIL分别计数；旧零HIL
 7运行文件提交push后按旧/新SHA与模型操作锁安装；仅重载Web，保持相机订阅至新Web健康，再退出订阅。Runtime378049/Actor379952启动时间不变，Learner1070338仍在LFT2 GPU1；模型paused、Online ready、completed2/online326/warmup_remaining8、Critic/VLA0、版本0=served0，目录下一条3。两个历史preview均HTTP200 unavailable，失败结果保留，三路新鲜、ROS readiness ok。Web重载后Session inactive，用户刷新页面重新开始Session后采集。新版本的真实运动rollout/HIL视频验收仍由用户执行。
 
 证据：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/expo-native-remote-20261014/verification/edit001-online/review-video/，含测试日志、source/manifest、安装/切换/HTTP回执及只读相机MP4；跨机文件逐项SHA核验见receipts.json。
+
+
+## 2026-10-14 EXPO 开始按钮仍禁用：完整浏览器定位与修复
+
+上一轮局部测试遗漏完整初始化竞争。真实Chromium复现：EXPO目录同步已开始，但initializeCaptureProfile迟到写入默认datasets/test；syncManagedStorage得到undefined/路径不匹配后保留失败key，使外层按钮一直禁用（内部start已可用）。a5f3beb等待profile初始化完成才同步模型目录；normal历史也遵守模型专用目录。再次刷新还复现默认目录历史请求提前发出，读取无对应sidecar的旧UUID并显示episode_not_found。6c0ce78将历史初始化延后，切目录取消旧选择/预加载，丢弃过期响应和不在当前索引的选择；当前目录真实错误仍报告。
+
+录制检查误判零HIL残件由Dagger e238ffa严格识别已完成的节点回合解决，原文件未改。53后端/100前端通过。实际部署Chromium首次加载、重新加载、按钮actionability trial均通过，未点击真实开始；两次目录均为EXPO专用目录，2条历史，提示为空，无页面JS错误；POST recorder-check为ok/next3。5文件加后续2静态文件按SHA/锁安装；仅首次UI重载，Runtime475551与Learner1916528保留，相机订阅临时保活后退出，三路新鲜。Session因重载inactive。真实运动仍由用户验收。证据：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/expo-native-remote-20261014/verification/edit001-online/start-blocker。
