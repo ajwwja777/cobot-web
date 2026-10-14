@@ -63,7 +63,7 @@
   async function syncManagedStorage(){
     const path=managedPath();
     if(!path&&!managedStoragePending){managedStorageKey='';managedStorageApplied='';managedStorageError='';}
-    if(!path||active()||changing||context.busy||modelBusy||modelState().status_stale)return;
+    if(root.CobotCaptureProfileReady===false||!path||active()||changing||context.busy||modelBusy||modelState().status_stale)return;
     const rlt=isRlt(),input=rlt?$('#rlt-data-root'):$('#capture-form input[name=data_root]');
     if(selectedModel()?.runtime!==(rlt?'rlt':'normal'))return;
     const key=selected+':'+path;

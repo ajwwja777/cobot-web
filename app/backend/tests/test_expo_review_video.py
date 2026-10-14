@@ -138,3 +138,37 @@ def test_review_continues_across_policy_and_hil_without_changing_training_mask(t
     assert sidecar['review_video']['state'] == 'ready'
     assert sidecar['review_video']['source_frame_count'] > training_frames
     assert sidecar['training_intervals']
+
+
+@pytest.mark.parametrize('damage',[None,'frame_dataset','wrong_source','uncommitted','missing_outcome'])
+def test_closed_zero_hil_episode_is_not_an_unfinished_recording(tmp_path, real_service, damage):
+    import h5py
+    from capture_core.schema import EpisodeIdentity
+    from capture_core.storage import SeriesIdentity, prepare_series
+    from capture_core.series_inspection import inspect_prepared_series
+    from capture_core.labels import LabelStore, LabelValidationError
+    service = real_service
+    ident = EpisodeIdentity('plug_cycle','expert','manual','expert80',episode_index=1,storage_layout='flat')
+    started = service.start(ident, data_root=tmp_path)
+    result = service.stop(); service.label_outcome('failure')
+    hdf5 = tmp_path / 'episode_000001.hdf5.incomplete'
+    before = hdf5.read_bytes()
+    if damage == 'frame_dataset':
+        with h5py.File(hdf5,'r+') as h: h.create_dataset('action',data=[[0.]])
+    elif damage:
+        payload=json.loads(result.sidecar.read_text())
+        if damage=='wrong_source':payload['source_hdf5_relative']='episode_000099.hdf5'
+        elif damage=='uncommitted':payload['capture_state']='paused'
+        elif damage=='missing_outcome':payload.pop('outcome_storage')
+        result.sidecar.write_text(json.dumps(payload))
+    series=SeriesIdentity('recording','shared','collection',storage_layout='flat')
+    prepared=prepare_series(tmp_path,series)
+    if damage:
+        with pytest.raises(LabelValidationError,match='latest_episode_incomplete'):
+            inspect_prepared_series(LabelStore(tmp_path),prepared,series)
+    else:
+        inspected=inspect_prepared_series(LabelStore(tmp_path),prepared,series)
+        assert inspected['latest_node_only'] and inspected['latest_labels_complete']
+        assert not inspected['label_blocked'] and prepared.next_episode_index==2
+        assert hdf5.read_bytes()==before
+        assert not (tmp_path/'episode_000001.hdf5').exists()

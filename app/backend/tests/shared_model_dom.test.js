@@ -389,3 +389,21 @@ test("EXPO committed episodes unlock the next start through real button renderin
   }
  }finally{dom.window.close();}
 });
+
+
+test('model directory waits for profile defaults to finish initializing',async()=>{
+ const {dom,w,models,setState}=setup();
+ try{
+  w.CobotCaptureProfileReady=false;
+  const model={id:'expo-init',family:'EXPO',kind:'vla',runtime_adapter:'expo_online',task:'plug_left_2cam',step:2000,available:true,collection_directory_policy:'model',data_directories:{collection:'/data/expo-init'}};
+  models.push(model);let calls=0;
+  w.prepareStorage=async()=>{calls++;return {data_root:w.document.querySelector('#capture-form input[name=data_root]').value};};
+  await tick();await w.chooseCollection('normal');await w.refreshConsole();
+  setState({phase:'paused',model,started_at:12,online:{phase:'ready'},session_active:true});
+  await w.CobotCollectionModel.refresh();await tick();assert.equal(calls,0);
+  w.document.querySelector('#capture-form input[name=data_root]').value='/data/test';
+  w.CobotCaptureProfileReady=true;w.CobotUnifiedCollection.render();await tick();
+  assert.equal(calls,1);assert.equal(w.document.querySelector('#capture-form input[name=data_root]').value,'/data/expo-init');
+  assert.doesNotMatch(w.document.querySelector('#collection-storage-policy').textContent,/mismatch/);
+ }finally{dom.window.close();}
+});

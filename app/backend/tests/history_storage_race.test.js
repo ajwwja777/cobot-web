@@ -7,7 +7,7 @@ const tick=()=>new Promise(r=>setImmediate(r));
 function setup(){
  const dom=new JSDOM('<input id="rlt-data-root"><span id="rlt-recording-directory"></span><span id="episode-directory"></span><span id="next-episode"></span><button id="prepare-storage"></button>',{url:'http://localhost',runScripts:'outside-only'});
  const w=dom.window; let resolve,mode='normal',managed=null;const roots=[];
- Object.assign(w,{$:s=>w.document.querySelector(s),pendingCollectionMode:null,consoleStatus:{selected_mode:mode},rltStorageInitialized:false,historyUuid:null,historyEpisodes:[],storagePrepared:false,normalPathPicker:null,
+ Object.assign(w,{$:s=>w.document.querySelector(s),pendingCollectionMode:null,consoleStatus:{selected_mode:mode},rltStorageInitialized:false,selectionToken:0,mediaPreloadToken:0,historyUuid:null,historyEpisodes:[],storagePrepared:false,normalPathPicker:null,
  selectedDataRoot:()=>'/test',startPayload:()=>({data_root:'/test'}),setButtonBusy(){},saveConfig(){},updateButtons(){},message(){},showLive(){},resetReplay(){},historyMessage(){},
  request:()=>new Promise(r=>resolve=r),refreshHistory:async()=>roots.push(w.historyDataRoot())});
  w.CobotUnifiedCollection={get managedDirectory(){return managed}};

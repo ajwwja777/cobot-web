@@ -1,4 +1,5 @@
 "use strict";
+window.CobotCaptureProfileReady = false;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -134,11 +135,11 @@ document.addEventListener("cobot:storage-used", event => {
   if (collectionIsRlt()) rltStorageInitialized = true; // Model-selected paths supersede the refresh default.
   const changed = historySelectedRoot !== event.detail.path;
   historySelectedRoot = event.detail.path;
-  if (changed) { historyUuid = null; historyEpisodes = []; resetReplay(); }
+  if (changed) { selectionToken++; mediaPreloadToken++; historyUuid = null; historyEpisodes = []; resetReplay(); }
   refreshHistory({loadSelected: true}).catch(error => historyMessage(error.message, true));
 });
 function historyDataRoot() {
-  const managed = collectionIsRlt() && window.CobotUnifiedCollection?.managedDirectory;
+  const managed = window.CobotUnifiedCollection?.managedDirectory;
   if (managed) return managed;
   if (historySelectedRoot) return historySelectedRoot;
   if (!collectionIsRlt()) return selectedDataRoot();
@@ -1132,6 +1133,7 @@ async function preloadEpisodeMedia(token, episodes, isRlt) {
           bases=[nodes[0],nodes[nodes.length-1]].filter(Boolean).map(node=>`/episodes/${episode.episode_uuid}/nodes/${node.node_id}`);
           episode.generation=detail.generation||episode.generation;
         }
+        if (!active()) return;
         for (const base of bases) {
           const urls = ["camera_high", "camera_left", "camera_right"].map(camera =>
             historyEndpoint(`${base}/${camera}.jpg${isRlt?'':'?g='+episode.generation}`));
@@ -2101,10 +2103,11 @@ async function initializeCaptureProfile() {
       fetchDirectories, storage: pathStorage, storageKey: "cobot-recent-rlt-paths-v2:" + config.profile,
       onChange: () => { rltStorageDirty = true; },
     });
+    window.CobotCaptureProfileReady = true;
     await refreshModels();
     refresh();
     await refreshConsole();
-    if (!collectionIsRlt() && !captureActive && !captureProfileReadOnly) prepareStorage(true);
+    if (!collectionIsRlt() && !captureActive && !captureProfileReadOnly && !window.CobotUnifiedCollection?.managedDirectory) prepareStorage(true);
   } catch (error) {
     message("无法读取采集目录配置：" + error.message, true);
   }
