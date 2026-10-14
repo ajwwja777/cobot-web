@@ -855,3 +855,17 @@ Web630fa2f增加独立EXPO登记的受管理VLA命令入口、PID/model_id/心�
 截图暴露两处前端缺陷：model 固定目录 readiness 只执行 RLT 分支，EXPO 走 normal 采集时始终无法满足开始条件；在线计数直接覆盖 textContent，但遗留 data-zh/data-en 导致语言刷新覆盖为“模型加载成功”。修复为 normal 目录调用既有 prepareStorage 并核对响应路径，失败/不匹配继续禁用开始；语言标签同步保存实时 Learner、Actor 版本、VLA 实际更新步与 Replay。保留正在更新时的开始禁用，不改训练算法、warmup、优化器或采样参数。
 
 A6000 浏览器模拟回归46项通过，新增用例先复现目录不触发检查，修复后验证等待/成功/错误路径、重复轮询、旧路径迟到与中英切换；现场验收回执归 scratch/cobot-web/expo-collection-ui-20261013。仅静态资源部署，无模型/Session/录制/运动操作；现场真实 rollout 仍由用户执行。
+
+## 2026-10-14 EXPO无HIL回合结果标注修复
+
+用户失败标注报episode_not_found、左侧0条记录。实际UUID7e4bf1d5-cf33-41d4-bca4-0ebb4c62b4e6有188条EXPO独立采样，但分段录制按HIL门控只有首尾6张图、0训练帧；sidecar已提交，HDF5保持.incomplete。旧label_outcome只查完整HDF5，异常阻断EXPO finalized，同时前端未刷新已保存历史。
+
+Dagger8f5e269对经过身份、complete/committed、0帧、无HIL区间/teach_mask验证的节点回合原子保存结果到sidecar，保持HDF5有效性规则；Web29c9c1e在已提交后标注/收尾失败时刷新历史，不自动归位。39CPU和90前端通过，含真实SegmentedCaptureService零HIL失败标注→HTTP→Online收尾顺序、身份/非零/未完成/HIL拒绝和原子落盘失败保持。
+
+按用户明确failure恢复当前sidecar，再通过现存Runtime8044/episode/end完成原回合收尾。188条样本及原HDF5残件SHA保持；远端正式completed1、online188、Replay3489=seed3301+188，warmup_remaining9、Critic/VLA0、Actor0=served0。先前另有aborted回合，所以accepted2不等于有效warmup2。恢复没有伪造完整HDF5、补拍视频或重跑运动。
+
+4源码文件在提交push后按SHA安装；仅网页35055→411400重载激活，Runtime378049/Actor379952/Learner1070338保持。正式历史HTTP返回1条failure，6张首尾JPEG可读，next_episode_index2；当前录制规则不保存无HIL时的连续三路录像，188条RL观察不能冒充原始完整三相机视频。Session因Web重载恢复为inactive，需用户重新开始。
+
+重载后头部相机无帧，独立4秒订阅f0/l120/r119；单路toggle_uvc_camera请求超时。用户同时报告自行重启节点；本对话此前已发出的正式相机stop/start也完成（420957→421799），最终三路ready、health ok。无法把恢复唯一归因于任一操作；无机械臂/ROS master/模型重启或运动，无残留自动恢复任务。
+
+证据主存：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/expo-native-remote-20261014/verification/edit001-online/node-outcome/，含tests.log、frontend-tests.log、source/install/recovery/acceptance/reload-after/camera-restart回执。现场同目录runtime/verification保存原sidecar备份，失败标签及Online采样正式保留。
