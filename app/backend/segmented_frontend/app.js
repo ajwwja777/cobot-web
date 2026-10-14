@@ -800,6 +800,10 @@ async function finishCapture(discard=false,label=null,forceHome=false) {
     message(`${outcome}${selection.enabled?'，已复位到 '+selection.pose:''}，可以开始下一条。`,false);
   }catch(error){
     message((finished?outcome+'；':'')+error.message,true);await refresh();
+    // A durable save may precede a label/online-finalization error.
+    if(current?.capture_state==='committed'){
+      try{await refreshHistory({loadSelected:true});}catch(historyError){historyMessage(historyError.message,true);}
+    }
   }finally{
     if(finished){await prepareStorage(true);if(savedEpisode)await revealSavedEpisode(savedEpisode.episodeUuid,savedEpisode.wasReviewing);}
     captureHomeBusy=false;updateButtons();
