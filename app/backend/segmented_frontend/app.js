@@ -1076,6 +1076,9 @@ async function loadRemainingHistory(token, offset) {
 }
 
 async function refreshHistory(options = {}) {
+  if(window.CobotCaptureProfileReady===false)return 0;
+  if($('#capture-use-model')?.checked&&!window.CobotCollectionModel?.state?.models?.length)return 0;
+  const requestedRoot=historyDataRoot();
   const token = ++historyRefreshToken;
   mediaPreloadToken++;
   const loadSelected = Boolean(options.loadSelected);
@@ -1088,7 +1091,7 @@ async function refreshHistory(options = {}) {
     ? episodes.filter(episode => historyEpisodeOutcome(episode) === "aborted").length : 0;
   episodes = visibleHistory(episodes);
   if (historyIsRlt()) episodes = [...episodes].sort((a, b) => Number(b.episode_index || 0) - Number(a.episode_index || 0));
-  if (token !== historyRefreshToken) return 0;
+  if (token !== historyRefreshToken || requestedRoot !== historyDataRoot()) return 0;
   historyTotal = listing.total;
   historyEpisodes = episodes.slice();
   if(!episodes.length)window.CobotFeaturePaths?.update("history",{rlt:historyIsRlt(),dataRoot:historyDataRoot()});
@@ -1099,7 +1102,10 @@ async function refreshHistory(options = {}) {
     rltHistoryCount = episodes.length;
     $("#rlt-saved-count").textContent = String(episodes.length);
   }
-  if (loadSelected && episodes.length) await loadHistory();
+  if (loadSelected && episodes.length) {
+    try { await loadHistory(); }
+    catch(error) { if(token===historyRefreshToken&&requestedRoot===historyDataRoot())throw error; }
+  }
   if (episodes.length) preloadEpisodeMedia(++mediaPreloadToken, episodes, historyIsRlt());
   if (episodes.length < historyTotal) {
     setTimeout(() => loadRemainingHistory(token, episodes.length), 0);
@@ -1223,7 +1229,10 @@ async function loadHistory(showFirstNode = true) {
   const episodeUuid = $("#episode-history").value;
   if (!episodeUuid) return;
   const token = ++selectionToken;
+  const requestedRoot=historyDataRoot();
   const metadata = historyEpisodes.find(e=>e.episode_uuid===episodeUuid);
+  if(!metadata)return;
+  try {
   updateHistoryLabels(metadata);
   if(metadata?.history_format==='deferred'){
     historyUuid=episodeUuid;currentReview=null;resetReplay();
@@ -1276,6 +1285,7 @@ async function loadHistory(showFirstNode = true) {
   const review = await request(historyEndpoint(`/episodes/${episodeUuid}/review`));
   if (token !== selectionToken) return;
   currentReview = review; renderReview(review);
+  } catch(error) { if(token===selectionToken&&requestedRoot===historyDataRoot())throw error; }
 }
 async function loadReplay() {
   const uuid = historyUuid;

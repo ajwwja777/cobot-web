@@ -13,7 +13,7 @@ function setup(){
  window:{CobotRltHome:{manualReason:()=>'',setBusy(){},setManualBlocked(){}},CobotCaptureHome:{setBusy(){},setManualBlocked(){}},SegmentedTeachUI:require('../segmented_frontend/ui.js'),CobotConsoleUI:require('../segmented_frontend/console_ui.js')},FormData:class{get(){return '/data'}},URLSearchParams,setTimeout:()=>0,clearTimeout(){},console};
  ctx.fetch=async url=>jsonResponse(url.includes('/review')?{intervals:[],review_revision:0}:{episode_uuid:url.split('/episodes/')[1].split('?')[0],generation:4,nodes:[{node_id:7,frame_index:1,primary_trigger:'history'}]});
  vm.createContext(ctx);let src=fs.readFileSync('segmented_frontend/app.js','utf8');src=src.slice(0,src.indexOf('for (const image of'));
- vm.runInContext(src,ctx);return {ctx,get};
+ vm.runInContext(src,ctx);vm.runInContext('historyEpisodes=[{episode_uuid:"A",history_format:"segmented"},{episode_uuid:"B",history_format:"segmented"}]',ctx);return {ctx,get};
 }
 test('history remains selected across live polls and equal generations',async()=>{
  const {ctx,get}=setup();get('#episode-history').value='A';await vm.runInContext('loadHistory()',ctx);

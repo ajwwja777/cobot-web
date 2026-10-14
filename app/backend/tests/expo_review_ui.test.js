@@ -27,3 +27,27 @@ test('unavailable video hides player without polling or throwing a capture error
   assert.equal(polls,0);assert.equal(errors,0);
  }finally{dom.window.close();}
 });
+
+
+test('history waits for profile initialization instead of querying the default directory',async()=>{
+ const dom=new JSDOM('',{url:'http://localhost',runScripts:'outside-only'}),w=dom.window;
+ try{
+  w.CobotCaptureProfileReady=false;let calls=0;w.request=async()=>{calls++;throw Error('must not fetch');};
+  w.eval(source.slice(source.indexOf('async function refreshHistory('),source.indexOf('async function preloadEpisodeMedia(')));
+  assert.equal(await w.refreshHistory({loadSelected:true}),0);assert.equal(calls,0);
+ }finally{dom.window.close();}
+});
+for(const stale of [true,false])test('episode detail error is discarded only after its directory changes: '+stale,async()=>{
+ const dom=new JSDOM('<select id="episode-history"><option value="old">old</option></select><div id="timeline"></div><div id="node-preview"></div><div id="review-panel"></div>',{url:'http://localhost',runScripts:'outside-only'}),w=dom.window;
+ try{
+  let reject,root='/old';
+  Object.assign(w,{$:s=>w.document.querySelector(s),historyEpisodes:[{episode_uuid:'old',history_format:'segmented'}],selectionToken:0,
+   updateHistoryLabels(){},historyUuid:null,currentReview:null,resetReplay(){},preloadedEpisodeDetails:new Map(),
+   episodeDetailKey:x=>x,historyIsRlt:()=>false,showEpisodeEndpoints(){},historyDataRoot:()=>root,historyEndpoint:p=>p,
+   request:()=>new Promise((_,fail)=>reject=fail)});
+  w.eval(source.slice(source.indexOf('async function loadHistory('),source.indexOf('async function loadReplay(')));
+  const pending=w.loadHistory();if(stale){root='/expo';w.selectionToken++;}
+  reject(Error('episode_not_found'));
+  if(stale)await pending;else await assert.rejects(pending,/episode_not_found/);
+ }finally{dom.window.close();}
+});
