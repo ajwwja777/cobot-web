@@ -317,6 +317,12 @@ test("EXPO online shows versions and gates the next episode while learning",asyn
     $("start").disabled=false;w.CobotUnifiedCollection.render();
     assert.equal($("collection-start").disabled,true);
     assert.match($("collection-model-state").textContent,/Learning and saving/);
+    setState({online:{phase:"publishing",learner_step:5,actor_version:5,served_actor_version:4,replay_steps:200,compute_host:"Learner A6000 / Actor Cobot"}});
+    await w.CobotCollectionModel.refresh();
+    assert.equal(w.CobotCollectionModel.ready(),false);
+    assert.equal($("collection-start").disabled,true);
+    assert.match($("collection-model-state").textContent,/Publishing local Actor.*Actor 5.*Local version 4.*Learner A6000/);
+
   } finally {dom.window.close();}
 });
 
