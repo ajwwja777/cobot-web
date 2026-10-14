@@ -869,3 +869,18 @@ Dagger8f5e269对经过身份、complete/committed、0帧、无HIL区间/teach_ma
 重载后头部相机无帧，独立4秒订阅f0/l120/r119；单路toggle_uvc_camera请求超时。用户同时报告自行重启节点；本对话此前已发出的正式相机stop/start也完成（420957→421799），最终三路ready、health ok。无法把恢复唯一归因于任一操作；无机械臂/ROS master/模型重启或运动，无残留自动恢复任务。
 
 证据主存：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/expo-native-remote-20261014/verification/edit001-online/node-outcome/，含tests.log、frontend-tests.log、source/install/recovery/acceptance/reload-after/camera-restart回执。现场同目录runtime/verification保存原sidecar备份，失败标签及Online采样正式保留。
+
+
+## 2026-10-14 EXPO Online 连续回放与下一回合修复
+
+后续截图的两个failure实际已接收326条在线采样，Replay3627=seed3301+326；0 frames是HIL训练帧为0，不是Replay为空。旧回合只有首尾图片，无法补回原始完整三相机视频。旧preview/labels仍查询完整HDF5，分别产生episode_not_found和recording_not_complete_or_labels_invalid。
+
+Dagger f4bcde4增加EXPO Online独立review-only录像，3路320×240合成960×240、15fps、CPU libx264单线程；保存到对应.segments/UUID/review.mp4及review-video.json，不打开HIL门控、不写Replay。人工接管前后持续录像；时间戳用于独立回放节点映射，训练frame_index/mask不变。缺失相机用标识画面并计数，编码失败返回error，不冒充成功视频。
+
+Web 7438333仅对expo_online启用该录像，回放/HIL分别计数；旧零HIL回合明确返回unavailable并显示仅首尾图片，结果只读显示，不再调用不存在的HDF5标签。目录准备与历史刷新异常隔离，结束后的finally保证解除busy。未抓到用户浏览器卡住时的堆栈，不能断言其唯一触发分支；已用故障注入覆盖这两个可导致下一轮锁住的异常路径。
+
+44后端/96前端通过：真实录制器和模拟相机连续两轮start→failure→history→next，编号递增到3；视频逐帧解码、HIL切入退出门控不变、旧回放无错误轮询、真实按钮渲染解锁。Cobot只读真实三相机另外录制3秒/46帧，全部解码，missing_camera_frames0；视频首帧目视确认三路画面，未进入真实Replay、未发机器人动作。
+
+7运行文件提交push后按旧/新SHA与模型操作锁安装；仅重载Web，保持相机订阅至新Web健康，再退出订阅。Runtime378049/Actor379952启动时间不变，Learner1070338仍在LFT2 GPU1；模型paused、Online ready、completed2/online326/warmup_remaining8、Critic/VLA0、版本0=served0，目录下一条3。两个历史preview均HTTP200 unavailable，失败结果保留，三路新鲜、ROS readiness ok。Web重载后Session inactive，用户刷新页面重新开始Session后采集。新版本的真实运动rollout/HIL视频验收仍由用户执行。
+
+证据：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/expo-native-remote-20261014/verification/edit001-online/review-video/，含测试日志、source/manifest、安装/切换/HTTP回执及只读相机MP4；跨机文件逐项SHA核验见receipts.json。
