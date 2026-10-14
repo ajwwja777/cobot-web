@@ -29,6 +29,7 @@
     document.addEventListener('cobot:language',show);
     return {async update(next,rootPath){const selected=++token;episode=next;dataRoot=rootPath;labels=null;busy=false;uncertain=false;notice='';outcome.value=['success','failure'].includes(next?.episode_outcome)?next.episode_outcome:'unknown';show();if(!next)return;
       if(next.history_format==='deferred'){outcome.title=text('录制尚未完成，可稍后处理','Recording incomplete; handle later');return;}
+      if(next.labelable===false){notice=text('无 HIL 训练帧；显示已保存的回合结果','No HIL training frames; showing saved episode outcome');show();return;}
       try{const payload=await request(path(),{cache:'no-store'});if(selected!==token)return;accept(payload);}
       catch(error){if(selected===token)notice=error.message;}
       finally{if(selected===token)show();}

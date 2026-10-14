@@ -139,7 +139,9 @@
     label($('#collection-success'),'成功并复位','Success and home');label($('#collection-failure'),'失败并复位','Failure and home');
     const phase=rlt?(context.session?.phase||'idle'):(context.capture?.capture_state||'idle');
     value($('#collection-state'),root.CobotPreferences?.text(phase)||phase);
-    value($('#collection-frame-count'),rlt?(context.recorder?.frames_written??context.recorder?.frames_sampled??0):context.capture?.training_frame_count??0);
+    const reviewVideo=context.capture?.review_video;
+    value($('#collection-frame-count'),rlt?(context.recorder?.frames_written??context.recorder?.frames_sampled??0):
+      reviewVideo?text(`回放 ${reviewVideo.source_frame_count||0} / HIL ${context.capture?.training_frame_count||0}`,`Review ${reviewVideo.source_frame_count||0} / HIL ${context.capture?.training_frame_count||0}`):context.capture?.training_frame_count??0);
     value($('#collection-node-count'),rlt?(context.recorder?.node_count??context.session?.operator_nodes?.length??'—'):context.capture?.node_count??(context.capture?.nodes||[]).length);
     value($('#collection-generation'),rlt?context.session?.generation??0:context.capture?.generation??0);
     const src=rlt?$('#rlt-data-root'):$('#capture-form input[name=data_root]'),input=$('#collection-data-root');

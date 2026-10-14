@@ -298,7 +298,7 @@ def create_app(
                         controller.before_start(request.use_model, request.collection_model_id)
                     except RuntimeError as error:
                         raise HTTPException(409, str(error)) from error
-                result = service.start(identity, data_root=root)
+                result = service.start(identity, data_root=root, **({"review_video": True} if controller and getattr(controller, "online", False) else {}))
                 if controller:
                     getattr(controller,"started",lambda _:None)(result)
                     controller.action("start")
@@ -565,8 +565,23 @@ def create_app(
         except (FileNotFoundError, LabelNotFoundError) as error:
             raise HTTPException(status_code=404, detail="episode_not_found") from error
 
+    def independent_preview(episode_uuid, data_root):
+        try:
+            payload = service.read_episode(str(episode_uuid), data_root=selected_root(data_root))
+        except FileNotFoundError as error:
+            raise HTTPException(404, "episode_not_found") from error
+        video = payload.get("review_video")
+        if video:
+            return video
+        if payload.get("training_frame_count") == 0:
+            return {"state": "unavailable", "reason": "仅首尾图片：该回合未录制连续视频", "source_frame_count": 0}
+        return None
+
     @application.get("/api/segmented-teach/episodes/{episode_uuid}/preview")
     def replay_status(episode_uuid: UUID, data_root: Optional[str] = None):
+        independent = independent_preview(episode_uuid, data_root)
+        if independent is not None:
+            return independent
         artifacts = replay_artifacts(episode_uuid, data_root)
         try:
             state = previews.status(str(episode_uuid)) if hasattr(previews, "status") else {"state":"missing"}
@@ -576,6 +591,12 @@ def create_app(
 
     @application.get("/api/segmented-teach/episodes/{episode_uuid}/preview.mp4")
     def replay_video(episode_uuid: UUID, data_root: Optional[str] = None):
+        independent = independent_preview(episode_uuid, data_root)
+        if independent is not None:
+            if independent.get("state") != "ready":
+                raise HTTPException(409, "review_video_unavailable")
+            return FileResponse(service.review_video_path(str(episode_uuid), data_root=selected_root(data_root)),
+                                media_type="video/mp4", headers={"Cache-Control": "no-store"})
         artifacts = replay_artifacts(episode_uuid, data_root)
         try:
             return FileResponse(previews.preview_path(artifacts), media_type="video/mp4",

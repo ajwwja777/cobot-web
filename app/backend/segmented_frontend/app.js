@@ -243,7 +243,21 @@ function rltHistoryNodes(labels, frameCount = 0) {
       sample_timestamp: node.frame_index / 10,
     }));
 }
+function reviewVideoNodes(nodes, video) {
+  if (!video?.review_only || !video.frame_timestamps?.length) return nodes;
+  return nodes.map(node => {
+    const stamps=video.frame_timestamps,stamp=Number(node.sample_timestamp);
+    let nearest=0;
+    for(let i=1;i<stamps.length;i++)if(Math.abs(stamps[i]-stamp)<Math.abs(stamps[nearest]-stamp))nearest=i;
+    return {...node,frame_index:nearest};
+  });
+}
 function historyNodeLabel(node) {
+  const video=viewedEpisode?.review_video;
+  if(video?.review_only&&video.frame_timestamps?.length){
+    const seconds=Math.max(0,Number(node.sample_timestamp)-video.frame_timestamps[0]);
+    return `节点 ${node.node_id} · ${seconds.toFixed(2)}s · ${node.kind||node.node_kind||''}`;
+  }
   return node.display_label || nodeLabel(node, 30);
 }
 function renderConsole() {
@@ -805,8 +819,10 @@ async function finishCapture(discard=false,label=null,forceHome=false) {
       try{await refreshHistory({loadSelected:true});}catch(historyError){historyMessage(historyError.message,true);}
     }
   }finally{
-    if(finished){await prepareStorage(true);if(savedEpisode)await revealSavedEpisode(savedEpisode.episodeUuid,savedEpisode.wasReviewing);}
-    captureHomeBusy=false;updateButtons();
+    try {
+      if(finished){await prepareStorage(true);if(savedEpisode)await revealSavedEpisode(savedEpisode.episodeUuid,savedEpisode.wasReviewing);}
+    } catch(error) { historyMessage(error.message,true); }
+    finally { captureHomeBusy=false;updateButtons(); }
   }
 }
 async function finalizeAndHome(){return finishCapture(false);}
@@ -1022,7 +1038,10 @@ function appendHistoryOptions(episodes, replace = false) {
     const outcome = episode.episode_outcome || summary.outcome;
     const kind = (summary.hil || episode.has_hil) ? "HIL" : (episode.history_format === "rollout" ? "自主" : `${Number(episode.node_count || 0)} nodes`);
     const state = episode.history_format==="deferred" ? "暂存待处理" : episode.commit_state || episode.completion_state || "complete";
-    option.textContent = `episode ${index} · ${!outcome||outcome==='unknown'?"未标注":outcome} · ${kind} · ${frames} frames · ${state}`;
+    const frameSummary = episode.history_format === "segmented"
+      ? `${episode.review_video?.state==='ready'?'回放 '+episode.review_video.source_frame_count+' 帧':frames?'HIL 回放':'仅首尾图片'} · HIL ${frames} 帧`
+      : `${frames} frames`;
+    option.textContent = `episode ${index} · ${!outcome||outcome==='unknown'?"未标注":outcome} · ${kind} · ${frameSummary} · ${state}`;
     select.append(option);
   }
   if (episodes.some(e => e.episode_uuid === previous)) select.value = previous;
@@ -1135,12 +1154,13 @@ async function preloadEpisodeMedia(token, episodes, isRlt) {
       const episode = episodes[nextVideo++];
       const isRlt = episode.history_format === "rollout";
       const uuid = episode.episode_uuid;
+      if (episode.video_available === false || episode.history_format === "deferred") continue;
       if (preloadedVideos.has(uuid)) { videosReady++; continue; }
       try {
         let preview = null;
         for (let attempt = 0; attempt < 30 && active(); attempt++) {
           preview = await request(historyEndpoint(isRlt?`/episodes/${uuid}/preview/status`:`/episodes/${uuid}/preview`));
-          if (preview.state === "ready" || preview.state === "error") break;
+          if (["ready", "error", "unavailable"].includes(preview.state)) break;
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
         if (preview && preview.state === "ready" && active()) {
@@ -1261,6 +1281,7 @@ async function loadReplay() {
   const token = selectionToken;
   $("#node-preview").classList.add("hidden");
   $("#replay-panel").classList.remove("hidden");
+  $("#episode-video").hidden = true;
   $("#replay-status").textContent = "正在准备回放…";
   try {
     const cached = preloadedVideos.get(uuid);
@@ -1268,11 +1289,16 @@ async function loadReplay() {
       ? historyEndpoint(`/episodes/${uuid}/preview/status`)
       : historyEndpoint(`/episodes/${uuid}/preview`));
     if (token !== selectionToken) return;
+    $("#episode-video").hidden = state.state !== "ready";
+    if (state.state === "unavailable") {
+      $("#replay-status").textContent = state.reason || "仅首尾图片：该回合未录制连续视频";
+      return;
+    }
     if (state.state === "ready") {
       const video = $("#episode-video");
       video.src = cached ? cached.url : historyEndpoint(`/episodes/${uuid}/preview.mp4`);
       video.load();
-      if (replayTimeline) replayTimeline.setEpisode(viewedEpisode.nodes || [], state);
+      if (replayTimeline) replayTimeline.setEpisode(reviewVideoNodes(viewedEpisode.nodes || [], state), state);
       $("#replay-status").textContent = "回放已就绪；拖动进度条，靠近节点会自动吸附。";
     } else if (state.state === "error") {
       $("#replay-status").textContent = "回放生成失败，请查看服务日志。";
@@ -1368,7 +1394,8 @@ async function prepareStorage(silent = false) {
     if (normalPathPicker) normalPathPicker.remember(prepared.data_root);
     document.dispatchEvent(new CustomEvent("cobot:storage-used", {detail:{kind:"collection",runtime:"normal",path:prepared.data_root}}));
     updateButtons();
-    await refreshHistory({loadSelected: true});
+    try { await refreshHistory({loadSelected: true}); }
+    catch (error) { historyMessage(error.message, true); }
     if (!silent) message("数据目录已核验；不存在时已安全创建。", false);
     return prepared;
   } catch (error) {

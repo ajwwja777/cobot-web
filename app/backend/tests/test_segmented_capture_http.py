@@ -57,7 +57,7 @@ class FakeService:
     def active(self):
         return self.capture_state in {'recording','paused','finalizing'}
 
-    def start(self, identity, *, data_root):
+    def start(self, identity, *, data_root, review_video=False):
         self.identity = identity
         self.data_root = data_root
         self.generation = 1

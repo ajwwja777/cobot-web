@@ -361,3 +361,31 @@ test("EXPO managed normal storage unlocks start only after confirmation and keep
   assert.match($("collection-storage-policy").textContent,/directory_mismatch/);
  } finally {await tick();dom.window.close();}
 });
+
+
+test("EXPO committed episodes unlock the next start through real button rendering",async()=>{
+ const {dom,w,models,setState}=setup();
+ try {
+  const model={id:'expo-cycle',family:'EXPO',kind:'vla',runtime_adapter:'expo_online',task:'plug_left_2cam',step:2000,available:true,collection_directory_policy:'model',data_directories:{collection:'/data/expo-cycle'}};
+  models.push(model);w.prepareStorage=async()=>({data_root:'/data/expo-cycle'});
+  await tick();await w.chooseCollection('normal');await w.refreshConsole();
+  setState({phase:'paused',model,started_at:11,session_active:true,online:{phase:'ready'}});
+  await w.CobotCollectionModel.refresh();await tick();
+  const source=fs.readFileSync('segmented_frontend/app.js','utf8');
+  Object.assign(w,{$:s=>w.document.querySelector(s),$$:s=>w.document.querySelectorAll(s),
+   captureHomeBusy:false,manualHomeBusy:false,storagePrepared:true,normalPathPicker:null,rltSession:null,rltOperationBusy:false,
+   consoleStatus:{selected_mode:'normal',active_mode:null},updateManualHomeControls(){},updateEpisodeBrowserControls(){},hideDirectorySuggestions(){}});
+  w.eval(source.slice(source.indexOf('function updateButtons()'),source.indexOf('async function refreshCaptureHomePoses()')));
+  for(let n=1;n<=2;n++){
+   w.current={episode_uuid:'episode-'+n,capture_state:'paused',buttons:{stop:true}};
+   setState({phase:'running',online:{phase:'rollout'}});await w.CobotCollectionModel.refresh();w.updateButtons();
+   assert.equal(w.document.getElementById('collection-start').disabled,true);
+   w.current={episode_uuid:'episode-'+n,capture_state:'committed',buttons:{stop:false}};
+   w.captureHomeBusy=true;setState({phase:'paused',online:{phase:'ready'}});await w.CobotCollectionModel.refresh();
+   assert.equal(w.document.getElementById('collection-start').disabled,true);
+   w.captureHomeBusy=false;w.updateButtons();
+   assert.equal(w.document.getElementById('start').disabled,false);
+   assert.equal(w.document.getElementById('collection-start').disabled,false);
+  }
+ }finally{dom.window.close();}
+});
