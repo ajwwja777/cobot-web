@@ -1,4 +1,4 @@
-/* EXPO read-only monitoring. No control, model or recorder operations. */
+/* EXPO / RLT read-only monitoring. No control, model or recorder operations. */
 (function(root){
   'use strict';
   const ns='http://www.w3.org/2000/svg';
@@ -63,22 +63,26 @@
     function render(){
       title.textContent=tr('RL 在线学习','RL online learning');
       const learner=payload?.learner;
+      const rlt=model?.kind==='rlt';
       let connection=payload?.live?tr('已连接','Connected'):tr('历史 / 等待连接','History / awaiting connection');
       if(learner?.supported){
         connection=learner.connected?(learner.running?tr('Learner 运行中','Learner running'):tr('训练已停止 · 历史记录','Learner stopped · history')):
           learner.loading?tr('正在连接 Learner','Connecting to learner'):tr('指标连接中断 · 保留曲线','Metrics disconnected · history retained');
+        if(learner.connected&&learner.phase==='stale')connection=tr('Learner 暂无心跳 · 历史记录','No learner heartbeat · history');
         if(learner.connected&&learner.running&&!payload?.actor_loaded)connection+=tr(' · Actor 未加载',' · Actor unloaded');
       }
       badge.textContent=!supported?tr('当前模式无在线学习','No online learning in this mode'):error?tr('网页连接中断 · 保留曲线','Web disconnected · history retained'):connection;
       badge.dataset.live=String(Boolean(payload?.live&&!error));
       const o=payload?.options||options||{},t=payload?.training?.updated_at;
-      meta.textContent=[model?.label||model?.id,`d ${o.rtc_delay??'—'}`,`Edit ${fmt(o.edit_scale)}`,`Actor ${payload?.actor_version??'—'}`,`Learner ${learner?.learner_version??'—'}`,tr('最近学习记录：','Last learning sample: ')+(t?new Date(t*1000).toLocaleString():tr('尚无','none'))].join(' · ');
+      meta.textContent=[model?.label||model?.id,...(rlt?[]:[`d ${o.rtc_delay??'—'}`,`Edit ${fmt(o.edit_scale)}`]),`Actor ${payload?.actor_version??'—'}`,`Learner ${learner?.learner_version??'—'}`,tr('最近学习记录：','Last learning sample: ')+(t?new Date(t*1000).toLocaleString():tr('尚无','none'))].join(' · ');
       for(const [key,name,sub]of definitions()){cards[key].name.textContent=name;cards[key].subtitle.textContent=sub;cards[key].plot.dataset.label=name;}
+      if(rlt){cards.q.subtitle.textContent=tr('平均 Q1（蓝） · 平均 TD target（黄虚线）','Mean Q1 (blue) · Mean TD target (yellow dashed)');cards.loss.subtitle.textContent=tr('Q1 与 Q2 的 TD 均方误差之和','Sum of Q1 and Q2 TD mean squared errors');}
+      if(rlt&&payload?.target_semantics==='training_target')cards.q.subtitle.textContent=tr('平均 Q1（蓝） · 实际训练 target（黄虚线）','Mean Q1 (blue) · Actual training target (yellow dashed)');
       const points=payload?.training?.points||[],last=points.at(-1),updateAxis=tr('Critic 累计更新次数','Cumulative critic updates');
       cards.q.last.textContent=`Q ${fmt(last?.q)} / target ${fmt(last?.target_q_mean)}`;
       cards.loss.last.textContent=fmt(last?.critic_loss);
-      const awaiting=!supported?tr('选择 EXPO Online 模式后显示学习记录','Select EXPO Online to view learning records'):tr('等待真实学习记录；未记录的历史不补值','Awaiting real learning samples; no historical values inferred');
-      chart(cards.q.plot,points,'critic_step',[{key:'q',label:'Q',color:'#47c6ed'},{key:'target_q_mean',label:'TD target',color:'#f2bf66',dash:'5 4'}],{xlabel:updateAxis,empty:awaiting});
+      const awaiting=!supported?tr('选择 EXPO / RLT Online 模式后显示学习记录','Select EXPO / RLT Online to view learning records'):tr('等待真实学习记录；未记录的历史不补值','Awaiting real learning samples; no historical values inferred');
+      chart(cards.q.plot,points,'critic_step',[{key:'q',label:'Q',color:'#47c6ed'},{key:'target_q_mean',label:payload?.target_semantics==='training_target'?'Training target':'TD target',color:'#f2bf66',dash:'5 4'}],{xlabel:updateAxis,empty:awaiting});
       chart(cards.loss.plot,points,'critic_step',[{key:'critic_loss',label:'Critic loss',color:'#b59cf8'}],{nonnegative:true,xlabel:updateAxis,empty:awaiting});
       const successes=payload?.success||{},sp=successes.points||[],sl=sp.at(-1);
       cards.success.last.textContent=sl?`${fmt(sl.rate)}% · ${sl.successes}/${sl.total}`:'—';
@@ -87,8 +91,10 @@
       const rollout=payload?.rollout||{},rp=rollout.points||[];
       cards.rollout.last.textContent=fmt(rp.at(-1)?.q);
       if(rollout.episode_uuid)cards.rollout.subtitle.textContent=(rollout.active?tr('当前回合','Current episode'):tr('最近记录回合','Last recorded episode'))+' · '+rollout.episode_uuid.slice(0,8)+` · Actor ${rollout.actor_version??'—'}`;
-      chart(cards.rollout.plot,rp,'seconds',[{key:'q',label:'Selected Q',color:'#ef94be'}],{integerX:false,xlabel:tr('本回合开始后的时间（秒）','Seconds since episode start'),empty:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
+      if(rlt&&rollout.episode_uuid)cards.rollout.subtitle.textContent+=` · Critic ${rollout.critic_version??'—'}`+tr('（本轮固定）',' (pinned)');
+      chart(cards.rollout.plot,rp,'seconds',[{key:'q',label:'Selected Q',color:'#ef94be'}],{integerX:false,xlabel:tr('本回合开始后的时间（秒）','Seconds since episode start'),empty:rollout.error?tr('Q 评分暂不可用：','Q scoring unavailable: ')+rollout.error:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
       note.textContent=tr('Q 不是成功概率。接管成功不计为自主成功；放弃、未标注及 HIL 信息缺失的回合不进入成功率分母。曲线为原始采样，暂停或断连时不补点。','Q is not a success probability. Assisted successes are not autonomous successes; aborted, unlabeled or unknown-HIL episodes are excluded. Raw samples; no points added while paused or disconnected.')+(successes.excluded?tr(` 已排除 ${successes.excluded} 轮。`,` ${successes.excluded} episodes excluded.`):'');
+      if(rlt)note.textContent+=tr(' 仅显示 Online 更新，Warmup 分开；单轮 Q1 使用本轮固定的已保存 Critic，在 CPU 后台评分，反映执行滤波前已采用的动作块；暂停、接管或丢失采样处断线。',' Online updates only; Warmup excluded. Episode Q1 uses a pinned saved Critic, asynchronously scored on CPU before execution filtering; pause, HIL and missing samples break the line.');
     }
     async function poll(){
       if(!selection||inflight||Date.now()-lastPoll<1900||document.hidden)return;
@@ -103,8 +109,9 @@
       finally{clearTimeout(timeout);if(inflight===controller)inflight=null;}
     }
     function update(chosen,current,selectedOptions){
-      model=chosen;state=current||{};const enabled=chosen?.runtime_adapter==='expo_online';supported=Boolean(enabled);section.hidden=false;
+      model=chosen;state=current||{};const enabled=chosen?.runtime_adapter==='expo_online'||(chosen?.kind==='rlt'&&chosen?.mode==='online'&&chosen?.training_enabled===true);supported=Boolean(enabled);section.hidden=false;
       options=chosen&&state.model?.id===chosen.id&&state.phase!=='offline'?(state.model.execution_settings?.expo||chosen?.expo_online_options?.defaults):(selectedOptions?.expo||chosen?.expo_online_options?.defaults);
+      if(chosen?.kind==='rlt')options=null;
       const key=enabled?JSON.stringify([chosen.id,options]):'';
       if(key!==selection){selection=key;payload=null;error='';lastPoll=0;inflight?.abort();inflight=null;render();}
       if(enabled)poll();else render();

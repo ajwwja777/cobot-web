@@ -20,7 +20,30 @@ def remote_contract():
     return runpy.run_path(str(RLT / 'methods/expo_ft/cobot_adapter/remote_monitor.py'))
 
 
+@lru_cache(maxsize=1)
+def rlt_contract():
+    return runpy.run_path(str(RLT / "methods/openpi_rlt/cobot_adapter/monitoring.py"))
+
+
+def is_rlt_online(model):
+    return model.get("kind") == "rlt" and model.get("mode") == "online" and model.get("training_enabled") is True
+
+
 def run_directory(model, selected=None):
+    if is_rlt_online(model):
+        root = model.get("online_run_root")
+        if not root and model.get("supported_runtime"):
+            from .paths import RLT_MODELS
+            base = Path(model.get("supported_model_root") or RLT_MODELS).resolve()
+            root = (base / model['supported_runtime']).resolve()
+            if base not in root.parents or 'candidates' not in root.parts:
+                raise ValueError('Candidate history must remain in its registered directory')
+        if not root and model.get("runtime_profile"):
+            root = runpy.run_path(str(RLT / "integrations/cobot_runtime/experiment_profiles.py"))["resolve"](model["id"], RLT)["run_dir"]
+        if not root:
+            from .paths import path
+            root = path("rlt_run_root", RLT / "outputs/rlt/plug_v3_yyshadow")
+        return Path(root) / "online"
     root = model.get('online_run_dir')
     if not root or model.get('runtime_adapter') != 'expo_online':
         raise ValueError('This model has no EXPO online history')
@@ -103,7 +126,42 @@ class MonitoringReader:
         api['write_json'](cache_path, dict(episodes=summaries))
         return api['success_series']([p['summary'] for p in summaries.values()])
 
+    def read_rlt(self, model, state):
+        root = run_directory(model)
+        key = 'rlt-' + hashlib.sha256(str(root).encode()).hexdigest()[:20]
+        with self.lock:
+            job = self.jobs.setdefault(key, dict(future=None, next_scan=0, result={}, error=None))
+            if job['future'] and job['future'].done():
+                try:
+                    job['result'] = job['future'].result()
+                    job['error'] = None
+                except Exception as exc:
+                    job['error'] = str(exc)
+                job['future'] = None
+                job['next_scan'] = time.monotonic() + 2
+            if not job['future'] and time.monotonic() >= job['next_scan']:
+                job['future'] = self.pool.submit(rlt_contract()['read_history'], root)
+            value, error = job['result'], job['error']
+        learner = dict(value.get('learner') or dict(supported=True, connected=False, loading=True, running=False))
+        if error:
+            learner.update(connected=False, loading=False, running=False, error=error)
+        same = (state.get('model') or {}).get('id') == model['id']
+        session = state.get('session') or {} if same else {}
+        rollout = dict(value.get('rollout') or {})
+        active = session.get('task5_episode_uuid') if session.get('phase') in ('rollout','hil','paused','finalizing','replay_committing') else None
+        if active and active != rollout.get('episode_uuid'):
+            rollout = dict(episode_uuid=active, points=[])
+        rollout['active'] = bool(active and active == rollout.get('episode_uuid'))
+        return dict(schema=1, algorithm='rlt', target_semantics='training_target' if model.get('supported_runtime') or model.get('runtime_profile') else 'td_target', run_key=key, model_id=model['id'], model_label=model.get('label'),
+                    options=None, learner=learner, live=learner.get('running', False),
+                    actor_loaded=bool(same and state.get('phase') not in ('offline','error','loading')),
+                    actor_version=session.get('actor_version'), training=value.get('training', {}),
+                    success={**value.get('success', {}), 'loading': not bool(value), 'error': error},
+                    rollout=rollout, sampled_at=time.time())
+
     def read(self, model, state, selected=None):
+        if is_rlt_online(model):
+            return self.read_rlt(model, state)
         api = contract()
         root = run_directory(model, selected)
         key = hashlib.sha256(str(root).encode()).hexdigest()[:20]

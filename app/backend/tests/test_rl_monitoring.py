@@ -115,3 +115,33 @@ def test_independent_snapshot_survives_actor_unload_and_connection_loss(api,tmp_
         result=second.read(chosen,dict(phase='offline'),options)
         assert result['learner']['connected'] and result['learner']['phase']=='stopped' and not result['live']
     finally:second.close()
+
+
+def test_rlt_history_independent_of_loaded_model_and_run_isolation(tmp_path, monkeypatch):
+    import runpy
+    root=Path(__file__).resolve().parents[3].parent/'rl-platform/methods/openpi_rlt/cobot_adapter'
+    monkeypatch.setattr(module,'rlt_contract',lambda:runpy.run_path(str(root/'monitoring.py')))
+    chosen=dict(id='rlt-online',kind='rlt',mode='online',training_enabled=True,online_run_root=str(tmp_path/'one'))
+    run=tmp_path/'one/online/metrics';run.mkdir(parents=True)
+    (run/'learner_status.json').write_text(json.dumps(dict(global_step=101,warmup_required_updates=100,timestamp=time.time())))
+    (run/'learner_metrics.jsonl').write_text(json.dumps(dict(global_step=101,q1_mean=.25,target_q_mean=.3,critic_loss=.02,timestamp=1))+'\n')
+    reader=module.MonitoringReader(tmp_path/'cache')
+    try:
+        state=dict(model=dict(id='frozen'),phase='ready')
+        result=reader.read(chosen,state)
+        for _ in range(100):
+            if result['training'].get('points'):break
+            time.sleep(.01);result=reader.read(chosen,state)
+        assert result['algorithm']=='rlt' and result['training']['points'][0]['q']==.25
+        assert result['live'] and not result['actor_loaded']
+        other=reader.read(dict(chosen,id='branch2',online_run_root=str(tmp_path/'two')),state)
+        assert other['run_key']!=result['run_key'] and not other['training']
+        assert not module.is_rlt_online(dict(chosen,mode='frozen'))
+    finally:reader.close()
+
+
+def test_supported_rlt_uses_candidate_run_not_original_replay(tmp_path):
+    chosen=dict(id='teacher',kind='rlt',mode='online',training_enabled=True,
+                supported_model_root=str(tmp_path),supported_runtime='candidates/teacher')
+    assert module.run_directory(chosen)==tmp_path/'candidates/teacher/online'
+    with pytest.raises(ValueError):module.run_directory(dict(chosen,supported_runtime='../other'))

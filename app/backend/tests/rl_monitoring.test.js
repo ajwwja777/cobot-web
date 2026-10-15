@@ -42,3 +42,20 @@ test('independent learner remains live with unloaded Actor; stopped and disconne
   ui=w.CobotRLMonitoring.create(w.document.querySelector('#grid'));ui.update(model,{phase:'offline'});await tick();assert.match(w.document.body.textContent,/指标连接中断 · 保留曲线/);assert.equal(w.document.querySelectorAll('svg').length,4);ui.destroy();
  }finally{dom.window.close();}
 });
+
+test('RLT Online reuses four plots with Q1 semantics and no EXPO parameter query',async()=>{
+ const dom=setup(),w=dom.window,calls=[];
+ try{
+  w.fetch=async(url)=>{calls.push(url);return {ok:true,json:async()=>({...data,algorithm:'rlt',rollout:{...data.rollout,critic_version:7000}})}};
+  const ui=w.CobotRLMonitoring.create(w.document.querySelector('#grid'));
+  const rlt={id:'rlt-online',kind:'rlt',mode:'online',training_enabled:true,label:'RLT Online'};
+  ui.update(rlt,{phase:'offline'});await tick();
+  assert.equal(w.document.querySelectorAll('svg').length,4);
+  assert.match(w.document.body.textContent,/平均 Q1/);
+  assert.match(w.document.body.textContent,/Q1 与 Q2/);
+  assert.match(w.document.body.textContent,/Critic 7000/);
+  assert.doesNotMatch(calls[0],/rtc_delay|edit_scale/);
+  ui.update({...rlt,mode:'frozen',training_enabled:false},{});
+  assert.match(w.document.body.textContent,/当前模式无在线学习/);ui.destroy();
+ }finally{w.close();}
+});
