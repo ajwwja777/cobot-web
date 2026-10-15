@@ -29,3 +29,16 @@ test('empty history renders missing-data text instead of zero curves; English su
  assert.equal(w.document.querySelectorAll('svg').length,0);assert.match(w.document.body.textContent,/no historical values inferred/);assert.match(w.document.body.textContent,/History \/ awaiting connection/);ui.destroy();
  }finally{dom.window.close();}
 });
+test('independent learner remains live with unloaded Actor; stopped and disconnected are distinct',async()=>{
+ const dom=setup(),w=dom.window;
+ try{
+  let value={...data,actor_version:null,actor_loaded:false,learner:{supported:true,connected:true,running:true,learner_version:49}};
+  w.fetch=async()=>({ok:true,json:async()=>value});
+  let ui=w.CobotRLMonitoring.create(w.document.querySelector('#grid'));ui.update(model,{phase:'offline'});await tick();
+  assert.match(w.document.body.textContent,/Learner 运行中 · Actor 未加载/);assert.match(w.document.body.textContent,/Learner 49/);assert.equal(w.document.querySelectorAll('svg').length,4);ui.destroy();
+  value={...value,live:false,learner:{supported:true,connected:true,running:false}};
+  ui=w.CobotRLMonitoring.create(w.document.querySelector('#grid'));ui.update(model,{phase:'offline'});await tick();assert.match(w.document.body.textContent,/训练已停止 · 历史记录/);ui.destroy();
+  value={...value,learner:{supported:true,connected:false,running:false}};
+  ui=w.CobotRLMonitoring.create(w.document.querySelector('#grid'));ui.update(model,{phase:'offline'});await tick();assert.match(w.document.body.textContent,/指标连接中断 · 保留曲线/);assert.equal(w.document.querySelectorAll('svg').length,4);ui.destroy();
+ }finally{dom.window.close();}
+});

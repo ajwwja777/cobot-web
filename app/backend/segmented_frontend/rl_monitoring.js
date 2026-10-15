@@ -62,10 +62,17 @@
     let selection='',supported=false,model=null,state={},options=null,payload=null,inflight=null,lastPoll=0,error='',timer=null;
     function render(){
       title.textContent=tr('RL 在线学习','RL online learning');
-      badge.textContent=!supported?tr('当前模式无在线学习','No online learning in this mode'):error?tr('连接中断 · 保留曲线','Disconnected · history retained'):payload?.live?tr('已连接','Connected'):tr('历史 / 等待连接','History / awaiting connection');
+      const learner=payload?.learner;
+      let connection=payload?.live?tr('已连接','Connected'):tr('历史 / 等待连接','History / awaiting connection');
+      if(learner?.supported){
+        connection=learner.connected?(learner.running?tr('Learner 运行中','Learner running'):tr('训练已停止 · 历史记录','Learner stopped · history')):
+          learner.loading?tr('正在连接 Learner','Connecting to learner'):tr('指标连接中断 · 保留曲线','Metrics disconnected · history retained');
+        if(learner.connected&&learner.running&&!payload?.actor_loaded)connection+=tr(' · Actor 未加载',' · Actor unloaded');
+      }
+      badge.textContent=!supported?tr('当前模式无在线学习','No online learning in this mode'):error?tr('网页连接中断 · 保留曲线','Web disconnected · history retained'):connection;
       badge.dataset.live=String(Boolean(payload?.live&&!error));
       const o=payload?.options||options||{},t=payload?.training?.updated_at;
-      meta.textContent=[model?.label||model?.id,`d ${o.rtc_delay??'—'}`,`Edit ${fmt(o.edit_scale)}`,`Actor ${payload?.actor_version??'—'}`,tr('最近学习记录：','Last learning sample: ')+(t?new Date(t*1000).toLocaleString():tr('尚无','none'))].join(' · ');
+      meta.textContent=[model?.label||model?.id,`d ${o.rtc_delay??'—'}`,`Edit ${fmt(o.edit_scale)}`,`Actor ${payload?.actor_version??'—'}`,`Learner ${learner?.learner_version??'—'}`,tr('最近学习记录：','Last learning sample: ')+(t?new Date(t*1000).toLocaleString():tr('尚无','none'))].join(' · ');
       for(const [key,name,sub]of definitions()){cards[key].name.textContent=name;cards[key].subtitle.textContent=sub;cards[key].plot.dataset.label=name;}
       const points=payload?.training?.points||[],last=points.at(-1),updateAxis=tr('Critic 累计更新次数','Cumulative critic updates');
       cards.q.last.textContent=`Q ${fmt(last?.q)} / target ${fmt(last?.target_q_mean)}`;
