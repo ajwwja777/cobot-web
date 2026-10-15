@@ -23,3 +23,13 @@
 现场回执：`/home/agilex/jiaan/project/cobot-web/runtime/verification/rl-charts-20261015/{install,activation}.json`；LFT2证据：上述scratch根的`live-browser.json`、`live-panel.png`。浏览器验证拦截所有非GET控制请求，未触发机器人动作。交付后的说明更新另行校验，不覆盖其他任务文件。
 
 2026-10-15 缓存修正：09846d1将index.html中unified_collection.js的查询版本从20261014-expo-start-history更新为20261015-rl-charts。已在Cobot备份旧入口并按SHA原子替换；实际HTTP200、HTML与新脚本内容校验通过。未重启后端或操作模型/硬件；其他电脑刷新后请求新脚本。证据runtime/verification/rl-charts-20261015/cache-version.json。
+
+## 2026-10-15 独立 Learner 指标同步
+
+原回传依赖Actor的SSH通道，释放模型后Web只保留第820步。新增受限monitor命令，只读已登记profile和d/Edit隔离目录内的status/telemetry；不获取owner锁、不启动Learner、不探测GPU、不改权重/Replay、不创建训练目录。Cobot Web后台独立SSH拉取、有超时与缓存；离线/失败保留历史，重新连接按远端实际历史恢复。浏览器分开显示Learner运行、训练停止和指标连接中断，不用Actor加载状态判断Learner存活。参数与model身份核验，旧PID复用不视为正在学习。
+
+源码RL1daa10e、Web84e4d73；115项RL检查、5项Web后端、4项前端通过。现场5文件逐SHA安装、Python3.8编译、真实受限SSH及独立MonitoringReader通过：Actor offline时读取Critic1100/15points，Learner55，未启动模型或机器人。保留并行RLT发布改动和既有EXPO权重回传worker。证据：cobot-web/runtime/verification/rl-charts-20261015/independent/{install,ssh-snapshot,reader-acceptance}.json。
+
+激活完成：等待并行RLT于19:19释放窗口后，仅重载Web106306→162962；保留已加载realtime-expo-rlt-online supervisor119227及Stage1/learner。22个模型/ROS/相机相关进程身份一致，Session始终disarmed/policy_paused，emitted_commands=0；临时三相机只读订阅正常退出。未启动或释放任何模型、未修改训练预算/Replay/权重。
+
+正式HTTP接口在EXPO Actor未加载时connected=true/running=true，追到Critic1260/23points；随后实际生产JS+正式API的独立浏览器组件读取到1300/25points，显示“Learner运行中 · Actor未加载”，四图存在且无JS异常。这是同一真实Learner持续更新的记录，不是合成曲线。完整主页面目前选中并行任务的RLT模型，按既有模型过滤不显示EXPO图；组件验收使用实际catalogue和API，未改生产模型选择。现场回执independent/{reload,http-acceptance}.json；LFT2证据independent-component-browser.json与independent-component.png。模型释放后可持续查看EXPO学习指标；没有遗留测试进程或自动重启任务。
