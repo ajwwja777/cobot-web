@@ -903,3 +903,8 @@ Web5e7a9a5增加Online本批x/5和待执行更新组数，中英文切换保持�
 ## 2026-10-15 Cobot Wi-Fi address update
 
 After Wi-Fi recovery Cobot uses 10.12.166.118; its SSH host key matches the previously trusted 10.7.165.64 key. User requested scripts/ui_up.sh. The existing Web service responds HTTP200 on the new address, but the startup message still used the old fallback. Update only the normal Web startup public-address fallback and include PUBLIC_HOST in the proxy bypass list; explicit TASK5_PUBLIC_HOST overrides remain supported. No model, Session or hardware startup/restart is performed. bash -n passed; field URL/startup-message verification follows hash installation.
+
+
+## 2026-10-15 realtime_expo Reference基线入口
+
+用户要求先采Reference再Warmup。新增显式Reference版本显示/Stage1资产可用性判断，禁止把Reference显示成Actor3500或隐藏；保留原7k为纯专家冻结对照，两者训练关闭。36Python通过/1跳过、9DOM通过；待按源文件SHA安装激活。RL详见 /data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/warmup/tasks/2026-10-15-reference-rollout-first/TASK.md。

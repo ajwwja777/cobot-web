@@ -135,3 +135,20 @@ test('loaded identity uses observed counters and cannot call evaluation Online l
  assert.match(api.runtimeIdentity({model,session:{}}),/登记 Learner 7000.*登记 Actor 3500.*推理未观测/);
  dom.window.close();
 });
+
+
+test('explicit Reference baseline stays visible without pretending to be an RL Actor',()=>{
+ const {dom,w,picker,select}=setup();
+ const ref={id:'ref2cam',kind:'rlt',family:'RLT',task:'plug_left_2cam',step:4999,mode:'reference',
+   checkpoint:'/stage1',available:true,training_enabled:false,show_reference_baseline:true,
+   training_method:'realtime-expo-rlt',version_label_zh:'Reference 原策略'};
+ const actor={...ref,id:'actor7k',mode:'frozen',step:7000,checkpoint:'/actor',
+   actor_version:3500,show_reference_baseline:false,version_label_zh:'纯专家 Warmup 对照'};
+ picker.update([ref,actor],'ref2cam');
+ assert.deepEqual([...select.options].map(o=>o.textContent),
+   ['Choose steps','4999 · Reference 原策略','7000 · 纯专家 Warmup 对照 · Actor 3500']);
+ assert.equal(select.value,'ref2cam');
+ assert.equal(w.CobotModelPicker.modeOf(ref),'reference');
+ assert.match(w.CobotModelPicker.runtimeIdentity({model:ref,session:{actor_version:-1}}),/Reference.*Learner 关闭.*绕过 RL Actor/);
+ dom.window.close();
+});

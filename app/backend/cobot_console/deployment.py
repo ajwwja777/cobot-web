@@ -64,7 +64,7 @@ def catalog():
         if item["kind"] == "rlt":
             item_base = item.get("base_checkpoint") or base
             available = available and bool(item_base) and (Path(item_base) / "params").is_dir()
-            if item.get("custom"):
+            if item.get("custom") and item.get("checkpoint_type") != "stage1_reference":
                 available = available and (checkpoint.parent.parent / "action_norm_stats.json").is_file()
         elif item.get("runtime_adapter") in {"expo_left", "expo_online"}:
             entry = RLT / item["entry_relative"]
@@ -74,7 +74,11 @@ def catalog():
         else:
             entry_root = DAGGER if item["id"].endswith("dagger") else LEGACY
             available = available and (entry_root / "run_checkpoint_rtc_task2.sh").is_file()
-        if item.get("io_contract") == "rlt-left-arm-2cam-10hz":
+        if item.get("io_contract") == "rlt-left-arm-2cam-10hz" and item.get("mode") == "reference":
+            available = available and checkpoint.resolve() == Path(item_base).resolve()
+            item.update(publication_tracked=False, actor_version=None, learner_step=None,
+                        learner_actor_version=None, step=item.get("stage1_step"))
+        elif item.get("io_contract") == "rlt-left-arm-2cam-10hz":
             from .rlt_progress import published_actor
             publication = published_actor(checkpoint)
             learner = read_json(Path(item["online_run_root"]) / "online/metrics/learner_status.json")

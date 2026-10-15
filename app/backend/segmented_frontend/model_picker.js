@@ -13,24 +13,29 @@
   }
   const methodOf=model=>String(model?.training_method || ((model.kind==='rlt'||model.family==='RLT')?(model.runtime_profile==='credit_mc30'?'mc30':'original'):model.parent_step!=null?'dagger':'original'));
   const methodLabel=method=>method==='original'?text('原版','Original'):method==='mc30'?text('MC30 优化','MC30 optimized'):method==='dagger'?'DAgger':method;
-  const visible=model=>/^\d+$/.test(stepLabel(model))&&model?.capabilities?.load!==false&&!['unregistered','base_model','cli_only'].includes(model.availability)&&!((model.kind==='rlt'||model.family==='RLT')&&['stage1','reference'].includes(model.stage||model.mode));
+  const visible=model=>/^\d+$/.test(stepLabel(model))&&model?.capabilities?.load!==false&&!['unregistered','base_model','cli_only'].includes(model.availability)&&!((model.kind==='rlt'||model.family==='RLT')&&['stage1','reference'].includes(model.stage||model.mode)&&!model.show_reference_baseline);
   const isRlt = model => model?.kind === "rlt" || model?.family === "RLT";
   function modeOf(model) {
     if (!isRlt(model)) return "";
+    if (model.mode === "reference") return "reference";
     if (model.training_enabled === false || model.mode === "frozen" || model.stage === "frozen") return "frozen";
     if (model.training_enabled === true || model.mode === "online" || model.stage === "online") return "online";
     return "unknown";
   }
   function modeLabel(model) {
-    return ({frozen:text("冻结", "Frozen"), online:"Online", unknown:text("模式待核验", "Mode unverified")})[modeOf(model)] || "";
+    return ({reference:"Reference", frozen:text("冻结", "Frozen"), online:"Online", unknown:text("模式待核验", "Mode unverified")})[modeOf(model)] || "";
   }
   function optionLabel(model) {
-    return [stepLabel(model), modeLabel(model), isRlt(model) && model.actor_version != null ? "Actor " + model.actor_version : ""].filter(Boolean).join(" · ");
+    return [stepLabel(model), (english() ? model.version_label_en : model.version_label_zh) || modeLabel(model), isRlt(model) && model.actor_version != null ? "Actor " + model.actor_version : ""].filter(Boolean).join(" · ");
   }
   function runtimeIdentity(state) {
     const model = state?.model;
     if (!isRlt(model)) return "";
     const session = state.session || {};
+    if (modeOf(model) === "reference") return [
+      text("实际加载：Reference 原策略", "Loaded: Reference"),
+      text("Learner 关闭", "Learner disabled"),
+      text("绕过 RL Actor", "RL Actor bypassed"), model.id].join(" · ");
     const frozen = session.evaluation_only === true || modeOf(model) === "frozen";
     const enabled = model.training_enabled;
     const learner = session.learner_version;
