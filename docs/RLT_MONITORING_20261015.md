@@ -5,3 +5,5 @@
 曲线为平均 Q1/实际训练 target、原生双 Critic loss、近20轮自主成功率，以及本轮固定已保存 Critic 的动作块 Q1。Warmup、评测、缺标签和接管口径与 RL 方法层一致。MC 混合 target 按实际训练目标命名。单轮 Q 在 CPU 后台计算，显示 Actor/Critic 各自版本；旧回合缺失值不补造。
 
 方法与测试证据：rl-platform/docs/online/tasks/2026-10-15-rlt-monitoring/TASK.md。保留 EXPO 独立远程 Learner 监控；未改模型参数、Replay、权重、机器人状态机或注册模型的训练授权。当前 realtime-expo RLT 入口被另一任务暂改为 Reference/Frozen，未在本任务恢复 Online。
+
+交付：RL e607859 / Web ed2320c；81 RL CPU、7 Web Python、5 DOM通过。Cobot10文件SHA同步并保留Reference440116，独立读取真实历史成功。Web后端重载暂等用户真机操作暂停窗口；不能声称已激活。证据 runtime/verification/rlt-charts-20261015/{install,cpu-score}.json。
