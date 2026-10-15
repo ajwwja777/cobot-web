@@ -21,3 +21,5 @@
 实际网页只读核验通过：数据采集原有区域下方四卡片，页面无JavaScript异常，真实历史成功率曲线可见。当前batch5/d5/Edit0.01目录共6条完成记录，排除1条后5个有效尝试、2次自主成功（40%）；此为该目录历史统计，不代表其他任务或整个训练的成功率。Q、loss及单轮Q尚无历史遥测，正确显示等待；从下次EXPO Online加载后开始记录，真实GPU在线流尚待运行验证。
 
 现场回执：`/home/agilex/jiaan/project/cobot-web/runtime/verification/rl-charts-20261015/{install,activation}.json`；LFT2证据：上述scratch根的`live-browser.json`、`live-panel.png`。浏览器验证拦截所有非GET控制请求，未触发机器人动作。交付后的说明更新另行校验，不覆盖其他任务文件。
+
+2026-10-15 缓存修正：09846d1将index.html中unified_collection.js的查询版本从20261014-expo-start-history更新为20261015-rl-charts。已在Cobot备份旧入口并按SHA原子替换；实际HTTP200、HTML与新脚本内容校验通过。未重启后端或操作模型/硬件；其他电脑刷新后请求新脚本。证据runtime/verification/rl-charts-20261015/cache-version.json。
