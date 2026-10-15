@@ -17,3 +17,11 @@ Web 校验并传入 COBOT_EXECUTION_OPTIONS.expo；RL 同一验证模块控制 C
 补充：发布过渡保护回归12项通过（包含新增门禁测试）；此前完整前端101项通过。现场回执：cobot-web/runtime/verification/expo-online-options-20261015/install.json；lft2 task目录field-install.json、validation.json。
 
 工作树：scratch/cobot-web/expo-online-options-20261015/{cobot-web,rl-platform}。详细测试/截图与现场回执位于同任务目录。
+
+## 2026-10-15 后端已激活
+
+用户明确授权重载后端。预检查末轮 committed/finalized、没有活动录制；结束空闲采集Session，再执行网页ui-down/up。Web492808→1155862，Runtime475551及8个采样模型/硬件进程身份保持，Sessioninactive。临时三相机订阅已退出，正式API三路相机ready。新版catalogue返回d5/edit0.01控件能力，刷新页面可见；模型加载期间参数锁定，释放后可选择。未卸载/加载Actor、启动Learner、训练或机器人运动。原有Learner断连故障保留，不算本次恢复。
+
+续训只读核验：原默认参数checkpoint2共713文件、7,945,185,368bytes，逐SHA256全部通过；committed记录Actor11/Critic220/12回合/1924在线步。保持d5/edit0.01时原恢复契约和目录不变。此次未执行实际GPU恢复加载。
+
+现场证据：cobot-web/runtime/verification/expo-online-options-20261015/{activation.json,reload-before.json,cameras-after.json,install.json}。
