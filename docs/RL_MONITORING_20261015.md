@@ -14,4 +14,10 @@
 
 ## 当前交付状态
 
-LFT2主仓库及GitHub源码已发布：Web4d8b02e、RL5ec409f（后续监控写盘去重补丁另见HEAD）。现场源文件尚未安装，Web尚未重载。准备安装时10.7.165.64的22/8015从Mac和LFT2均连接超时；尚未执行任何现场写入/模型或服务生命周期操作。现有安装包和旧SHA守卫脚本位于上述scratch根release.tar/release.json/install.py。连接恢复后仍须重新核对当前分支、现场状态、文件SHA和协调归属；没有留下自动安装/重启任务。
+2026-10-15 网络恢复后已交付到 `agilex@10.12.166.118`，网页地址 `http://10.12.166.118:8015/`。现有 SSH 公钥可用，无认证配置变更。Web 源码4d8b02e、RL源码5ec409f及c731655，保留现场夹爪修正和其他任务的新地址启动脚本f7feb99。
+
+安装前重新核验现场空闲、旧模型PID不存在和14个文件旧SHA；在模型操作锁内备份、安装12个运行文件及2个说明文件。仅重载Web，14文件及HTTP静态资源SHA校验通过。未启动模型、Learner、Session、相机、ROS或机器人运动，未改权重、Replay与学习配置。现场重启后保存的旧模型状态仍为error，采集idle。
+
+实际网页只读核验通过：数据采集原有区域下方四卡片，页面无JavaScript异常，真实历史成功率曲线可见。当前batch5/d5/Edit0.01目录共6条完成记录，排除1条后5个有效尝试、2次自主成功（40%）；此为该目录历史统计，不代表其他任务或整个训练的成功率。Q、loss及单轮Q尚无历史遥测，正确显示等待；从下次EXPO Online加载后开始记录，真实GPU在线流尚待运行验证。
+
+现场回执：`/home/agilex/jiaan/project/cobot-web/runtime/verification/rl-charts-20261015/{install,activation}.json`；LFT2证据：上述scratch根的`live-browser.json`、`live-panel.png`。浏览器验证拦截所有非GET控制请求，未触发机器人动作。交付后的说明更新另行校验，不覆盖其他任务文件。
