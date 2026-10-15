@@ -898,3 +898,8 @@ Web 7438333仅对expo_online启用该录像，回放/HIL分别计数；旧零HIL
 Web5e7a9a5增加Online本批x/5和待执行更新组数，中英文切换保持；102前端测试通过。仅安装unified_collection.js，实际HTTP已返回新字段；未重启Web、相机、模型或Session。RL可选realtime-expo-ft-edit001-batch5已登记且API available=true，后端与HIL/录制状态机未改。
 
 当前Runtime1172181/RTC-SFT2000保持，独立LFT2双卡Learner的真实SSH加载/退出不改变该模型；没有机器人命令。184 RL CPU、真实批量恢复与单/双卡验证见 `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/online/tasks/2026-10-14-expo-native-sync/BATCH5_DUAL_GPU.md`。用户完成固定权重评测后自行刷新/切换；本轮未做新模型现场rollout或声称收益。安装/状态/SSH证据位于rl-platform既有outputs/expo-native-remote-20261014/verification/edit001-online/batch5，现场静态文件备份位于rl-platform/runtime/verification/batch5-20261015。
+
+
+## 2026-10-15 Cobot Wi-Fi address update
+
+After Wi-Fi recovery Cobot uses 10.12.166.118; its SSH host key matches the previously trusted 10.7.165.64 key. User requested scripts/ui_up.sh. The existing Web service responds HTTP200 on the new address, but the startup message still used the old fallback. Update only the normal Web startup public-address fallback and include PUBLIC_HOST in the proxy bypass list; explicit TASK5_PUBLIC_HOST overrides remain supported. No model, Session or hardware startup/restart is performed. bash -n passed; field URL/startup-message verification follows hash installation.

@@ -8,7 +8,7 @@ PYTHON="${TASK5_PYTHON:-/home/agilex/miniconda3/envs/cobot-station/bin/python}"
 ROS_SETUP="${TASK5_ROS_SETUP:-/home/agilex/cobot_magic/Piper_ros_private-ros-noetic/devel/setup.bash}"
 HOST="${COBOT_DATA_UI_HOST:-0.0.0.0}"
 PORT="${COBOT_DATA_UI_PORT:-8015}"
-PUBLIC_HOST="${TASK5_PUBLIC_HOST:-10.7.165.64}"
+PUBLIC_HOST="${TASK5_PUBLIC_HOST:-10.12.166.118}"
 APP="cobot_console.api:app"
 PID_FILE="$RUNTIME_DIR/service.pid"
 LOG_DIR="$RUNTIME_DIR/logs"
@@ -41,7 +41,7 @@ set -u
 # ROS XML-RPC resolves the local master through the machine hostname.  The
 # workstation exports an HTTP proxy globally, so explicitly bypass it for all
 # local ROS and console traffic inherited by this service and its child jobs.
-local_no_proxy="localhost,127.0.0.1,agilex,192.168.1.50,10.7.165.64"
+local_no_proxy="localhost,127.0.0.1,agilex,192.168.1.50,10.7.165.64,$PUBLIC_HOST"
 export NO_PROXY="${NO_PROXY:+$NO_PROXY,}$local_no_proxy"
 export no_proxy="${no_proxy:+$no_proxy,}$local_no_proxy"
 
