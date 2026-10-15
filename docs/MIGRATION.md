@@ -908,3 +908,5 @@ After Wi-Fi recovery Cobot uses 10.12.166.118; its SSH host key matches the prev
 ## 2026-10-15 realtime_expo Reference基线入口
 
 用户要求先采Reference再Warmup。新增显式Reference版本显示/Stage1资产可用性判断，禁止把Reference显示成Actor3500或隐藏；保留原7k为纯专家冻结对照，两者训练关闭。36Python通过/1跳过、9DOM通过；待按源文件SHA安装激活。RL详见 /data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/warmup/tasks/2026-10-15-reference-rollout-first/TASK.md。
+
+现场交付补记：a7e3b5b页面/后端与RL868b015登记已按SHA安装；Web426526返回Reference4999和纯专家7k对照available、train=false。保留原已暂停RLT353814，不替用户切模型。Web SIGTERM等待超时后正常退出再ui_up恢复，未强制kill；新Reference仍需用户加载/采集。回执 /home/agilex/jiaan/project/rl-platform/runtime/verification/realtime-expo-reference-20261015/acceptance.json。
