@@ -25,6 +25,11 @@ def rlt_contract():
     return runpy.run_path(str(RLT / "methods/openpi_rlt/cobot_adapter/monitoring.py"))
 
 
+@lru_cache(maxsize=1)
+def archive_contract():
+    return runpy.run_path(str(RLT / 'integrations/cobot_runtime/rollout_archive.py'))
+
+
 def is_rlt_online(model):
     return model.get("kind") == "rlt" and model.get("mode") == "online" and model.get("training_enabled") is True
 
@@ -62,8 +67,63 @@ class MonitoringReader:
         self.remote_jobs = {}
         self.lock = threading.Lock()
         self.jobs = {}
+        self.archive_roots = set()
+        self.archive_stop = threading.Event()
+        self.archive_thread = None
+
+    def start_archiving(self, manager, catalog):
+        def collect():
+            stamps = {}
+            next_catalog = 0
+            while not self.archive_stop.is_set():
+                if time.monotonic() >= next_catalog:
+                    try:
+                        state = manager.status()
+                        models = list(catalog()) + [state.get('model') or {}]
+                        for model in models:
+                            try:
+                                options = (model.get('execution_settings') or {}).get('expo')
+                                self.register_archive(run_directory(model, options))
+                            except (ValueError, KeyError, OSError):
+                                pass
+                    except Exception:
+                        pass
+                    next_catalog = time.monotonic() + 15
+                with self.lock:
+                    roots = list(self.archive_roots)
+                for root in roots:
+                    try:
+                        stamp = (root/'telemetry/rollout.json').stat().st_mtime_ns
+                        if stamps.get(root) != stamp:
+                            archive_contract()['capture_current'](root)
+                            stamps[root] = stamp
+                    except Exception:
+                        pass
+                self.archive_stop.wait(.25)
+        self.archive_thread = threading.Thread(target=collect, name='rl-q-history', daemon=True)
+        self.archive_thread.start()
+
+    def register_archive(self, root):
+        with self.lock:
+            self.archive_roots.add(Path(root))
+
+    def read_history_view(self, model, state, selected=None, episode=None):
+        root = run_directory(model, selected)
+        self.register_archive(root)
+        value = self.read(model, state, selected)
+        api = archive_contract()
+        api['capture_current'](root)
+        listing, historical = api['history'](root, episode)
+        if episode:
+            if historical is None:
+                raise ValueError('No saved Q data for this episode')
+            value['rollout'] = dict(historical, active=False, historical=True)
+        value['rollout_episodes'] = listing
+        value['selected_episode'] = episode
+        return value
 
     def close(self):
+        self.archive_stop.set()
         self.pool.shutdown(wait=False)
         self.remote_pool.shutdown(wait=False)
 
@@ -209,9 +269,10 @@ def install_routes(app, manager):
     from .deployment import catalog
     reader = MonitoringReader()
     app.add_event_handler('shutdown', reader.close)
+    app.add_event_handler('startup', lambda: reader.start_archiving(manager, catalog))
 
     @app.get('/api/collection/rl-monitoring')
-    def monitoring(model_id: str, rtc_delay: int = None, edit_scale: float = None):
+    def monitoring(model_id: str, rtc_delay: int = None, edit_scale: float = None, episode: str = None):
         state = manager.status()
         current = state.get('model') or {}
         model = current if current.get('id') == model_id else next((m for m in catalog() if m['id'] == model_id), None)
@@ -224,7 +285,7 @@ def install_routes(app, manager):
                 if rtc_delay is not None or edit_scale is not None:
                     from .execution_options import expo_contract
                     selected = expo_contract()['normalize'](dict(rtc_delay=rtc_delay, edit_scale=edit_scale))
-            return reader.read(model, state, selected)
+            return reader.read_history_view(model, state, selected, episode)
         except ValueError as exc:
             raise HTTPException(422, str(exc))
         except (OSError, ImportError) as exc:

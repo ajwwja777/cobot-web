@@ -145,3 +145,45 @@ def test_supported_rlt_uses_candidate_run_not_original_replay(tmp_path):
                 supported_model_root=str(tmp_path),supported_runtime='candidates/teacher')
     assert module.run_directory(chosen)==tmp_path/'candidates/teacher/online'
     with pytest.raises(ValueError):module.run_directory(dict(chosen,supported_runtime='../other'))
+
+
+def test_saved_rollout_selectable_after_next_round_and_without_actor(api,tmp_path):
+    chosen=model(tmp_path/'run');root=Path(chosen['online_run_dir'])
+    reader=module.MonitoringReader(tmp_path/'cache')
+    try:
+        api['write_json'](root/'telemetry/rollout.json',dict(episode_uuid='one',actor_version=1,points=[dict(seconds=1,timestamp=10,q=.1)]))
+        first=reader.read_history_view(chosen,dict(phase='offline'))
+        assert len(first['rollout_episodes'])==1
+        api['write_json'](root/'telemetry/rollout.json',dict(episode_uuid='two',actor_version=2,points=[dict(seconds=2,timestamp=20,q=.2)]))
+        old=reader.read_history_view(chosen,dict(phase='offline'),episode='one')
+        assert old['rollout']['historical'] and not old['rollout']['active']
+        assert old['rollout']['points'][0]['q']==.1 and len(old['rollout_episodes'])==2
+        with pytest.raises(ValueError):reader.read_history_view(chosen,{},episode='../../etc/passwd')
+    finally:reader.close()
+    new=module.MonitoringReader(tmp_path/'cache')
+    try:assert new.read_history_view(chosen,{},episode='one')['rollout']['actor_version']==1
+    finally:new.close()
+
+
+def test_background_archive_without_browser(tmp_path):
+    import time
+    from types import SimpleNamespace
+    from cobot_console.rl_monitoring import MonitoringReader, archive_contract
+    root = tmp_path / 'run'
+    (root / 'telemetry').mkdir(parents=True)
+    model = dict(id='background', runtime_adapter='expo_online', online_run_dir=str(root))
+    reader = MonitoringReader(tmp_path / 'cache')
+    reader.start_archiving(SimpleNamespace(status=lambda: {'model': model}), lambda: [model])
+    try:
+        for uid in ('one', 'two'):
+            (root / 'telemetry/rollout.json').write_text(json.dumps(dict(episode_uuid=uid, points=[dict(seconds=1, timestamp=time.time(), q=.2)])))
+            deadline = time.monotonic() + 3
+            while time.monotonic() < deadline:
+                rows, item = archive_contract()['history'](root, uid)
+                if item:
+                    break
+                time.sleep(.05)
+            assert item and item['episode_uuid'] == uid
+        assert len(rows) == 2
+    finally:
+        reader.close()

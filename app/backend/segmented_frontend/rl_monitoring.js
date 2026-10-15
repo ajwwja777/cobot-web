@@ -58,8 +58,10 @@
       const subtitle=document.createElement('p'),plot=document.createElement('div');plot.className='rl-chart-plot';
       card.append(head,subtitle,plot);grid.append(card);cards[key]={name,last,subtitle,plot};
     }
+    const episodePicker=document.createElement('select');episodePicker.className='rl-episode-picker';episodePicker.setAttribute('aria-label','查看回合 / Select episode');cards.rollout.subtitle.after(episodePicker);
     const note=document.createElement('p');note.className='rl-monitor-note';section.append(heading,meta,grid,note);after.after(section);
-    let selection='',supported=false,model=null,state={},options=null,payload=null,inflight=null,lastPoll=0,error='',timer=null;
+    let rolloutSelection='',selection='',supported=false,model=null,state={},options=null,payload=null,inflight=null,lastPoll=0,error='',timer=null;
+    episodePicker.addEventListener('change',()=>{rolloutSelection=episodePicker.value;inflight?.abort();inflight=null;lastPoll=0;if(payload)payload={...payload,rollout:{}};render();poll();});
     function render(){
       title.textContent=tr('RL 在线学习','RL online learning');
       const learner=payload?.learner;
@@ -88,24 +90,31 @@
       cards.success.last.textContent=sl?`${fmt(sl.rate)}% · ${sl.successes}/${sl.total}`:'—';
       cards.success.subtitle.textContent=sl?tr(`最近 ${sl.total} 轮 · 含接管 ${sl.assisted} 轮`,`Last ${sl.total} attempts · ${sl.assisted} assisted`):definitions()[2][2];
       chart(cards.success.plot,sp,'episode',[{key:'rate',label:tr('自主成功率','Autonomous success rate'),color:'#47cf9b'}],{percent:true,xlabel:tr('已完成在线回合编号','Completed online episode number'),empty:successes.error?tr('回合记录读取失败，等待重试','Episode history unavailable; retrying'):successes.loading?tr('正在读取真实回合记录…','Reading episode history…'):tr('暂无有效完成回合','No valid completed episodes')});
+      const choices=payload?.rollout_episodes||[];
+      episodePicker.replaceChildren();
+      const currentOption=document.createElement('option');currentOption.value='';currentOption.textContent=tr('跟随当前 / 最近回合','Follow current / latest episode');episodePicker.append(currentOption);
+      for(const item of choices){const option=document.createElement('option');option.value=item.episode_uuid;option.textContent=(item.started_at?new Date(item.started_at*1000).toLocaleString()+' · ':'')+item.episode_uuid.slice(0,8)+` · Actor ${item.actor_version??'—'}`;episodePicker.append(option);}
+      if(rolloutSelection&&!choices.some(p=>p.episode_uuid===rolloutSelection)){const option=document.createElement('option');option.value=rolloutSelection;option.textContent=rolloutSelection.slice(0,8);episodePicker.append(option);}
+      episodePicker.value=rolloutSelection;episodePicker.disabled=!supported;
       const rollout=payload?.rollout||{},rp=rollout.points||[];
       cards.rollout.last.textContent=fmt(rp.at(-1)?.q);
-      if(rollout.episode_uuid)cards.rollout.subtitle.textContent=(rollout.active?tr('当前回合','Current episode'):tr('最近记录回合','Last recorded episode'))+' · '+rollout.episode_uuid.slice(0,8)+` · Actor ${rollout.actor_version??'—'}`;
+      if(rollout.episode_uuid)cards.rollout.subtitle.textContent=(rolloutSelection?tr('历史回合','Historical episode'):rollout.active?tr('当前回合','Current episode'):tr('最近记录回合','Last recorded episode'))+' · '+rollout.episode_uuid.slice(0,8)+` · Actor ${rollout.actor_version??'—'}`;
       if(rlt&&rollout.episode_uuid)cards.rollout.subtitle.textContent+=` · Critic ${rollout.critic_version??'—'}`+tr('（本轮固定）',' (pinned)');
       chart(cards.rollout.plot,rp,'seconds',[{key:'q',label:'Selected Q',color:'#ef94be'}],{integerX:false,xlabel:tr('本回合开始后的时间（秒）','Seconds since episode start'),empty:rollout.error?tr('Q 评分暂不可用：','Q scoring unavailable: ')+rollout.error:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
       note.textContent=tr('Q 不是成功概率。接管成功不计为自主成功；放弃、未标注及 HIL 信息缺失的回合不进入成功率分母。曲线为原始采样，暂停或断连时不补点。','Q is not a success probability. Assisted successes are not autonomous successes; aborted, unlabeled or unknown-HIL episodes are excluded. Raw samples; no points added while paused or disconnected.')+(successes.excluded?tr(` 已排除 ${successes.excluded} 轮。`,` ${successes.excluded} episodes excluded.`):'');
+      note.textContent+=tr(' 可选择已保存回合查看 Q 历史；上线前被覆盖的回合无法恢复。',' Select a saved episode to view Q history; overwritten records from before archiving cannot be recovered.');
       if(rlt)note.textContent+=tr(' 仅显示 Online 更新，Warmup 分开；单轮 Q1 使用本轮固定的已保存 Critic，在 CPU 后台评分，反映执行滤波前已采用的动作块；暂停、接管或丢失采样处断线。',' Online updates only; Warmup excluded. Episode Q1 uses a pinned saved Critic, asynchronously scored on CPU before execution filtering; pause, HIL and missing samples break the line.');
     }
     async function poll(){
       if(!selection||inflight||Date.now()-lastPoll<1900||document.hidden)return;
-      lastPoll=Date.now();const key=selection,controller=new AbortController();inflight=controller;
+      lastPoll=Date.now();const key=selection+'|'+rolloutSelection,controller=new AbortController();inflight=controller;
       const timeout=setTimeout(()=>controller.abort(),5000);
       try{
-        const params=new URLSearchParams({model_id:model.id});if(options){params.set('rtc_delay',options.rtc_delay);params.set('edit_scale',options.edit_scale);}
+        const params=new URLSearchParams({model_id:model.id});if(rolloutSelection)params.set('episode',rolloutSelection);if(options){params.set('rtc_delay',options.rtc_delay);params.set('edit_scale',options.edit_scale);}
         const response=await root.fetch('/api/collection/rl-monitoring?'+params,{cache:'no-store',signal:controller.signal});
         if(!response.ok)throw Error(String(response.status));const value=await response.json();
-        if(selection!==key)return;payload=value;error='';render();
-      }catch(e){if(selection===key){error=String(e);render();}}
+        if(selection+'|'+rolloutSelection!==key)return;payload=value;error='';render();
+      }catch(e){if(selection+'|'+rolloutSelection===key){error=String(e);render();}}
       finally{clearTimeout(timeout);if(inflight===controller)inflight=null;}
     }
     function update(chosen,current,selectedOptions){
@@ -113,7 +122,7 @@
       options=chosen&&state.model?.id===chosen.id&&state.phase!=='offline'?(state.model.execution_settings?.expo||chosen?.expo_online_options?.defaults):(selectedOptions?.expo||chosen?.expo_online_options?.defaults);
       if(chosen?.kind==='rlt')options=null;
       const key=enabled?JSON.stringify([chosen.id,options]):'';
-      if(key!==selection){selection=key;payload=null;error='';lastPoll=0;inflight?.abort();inflight=null;render();}
+      if(key!==selection){selection=key;rolloutSelection='';payload=null;error='';lastPoll=0;inflight?.abort();inflight=null;render();}
       if(enabled)poll();else render();
     }
     timer=setInterval(poll,2000);document.addEventListener('cobot:language',render);

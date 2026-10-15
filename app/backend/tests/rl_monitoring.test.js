@@ -59,3 +59,16 @@ test('RLT Online reuses four plots with Q1 semantics and no EXPO parameter query
   assert.match(w.document.body.textContent,/当前模式无在线学习/);ui.destroy();
  }finally{w.close();}
 });
+test('episode selection keeps historical Q while current episode advances and can return live',async()=>{
+ const dom=setup(),w=dom.window,calls=[];
+ try{
+  w.fetch=async(url)=>{calls.push(url);const historical=url.includes('episode=old');return {ok:true,json:async()=>({...data,rollout_episodes:[{episode_uuid:'old',started_at:1,actor_version:3}],rollout:historical?{episode_uuid:'old',actor_version:3,points:[{seconds:1,q:.8}],historical:true}:data.rollout})}};
+  const ui=w.CobotRLMonitoring.create(w.document.querySelector('#grid'));ui.update(model,{});await tick();
+  const picker=w.document.querySelector('.rl-episode-picker');assert.equal(picker.options.length,2);
+  picker.value='old';picker.dispatchEvent(new w.Event('change'));await tick();
+  assert.match(calls.at(-1),/episode=old/);assert.match(w.document.body.textContent,/历史回合 · old · Actor 3/);
+  ui.update(model,{phase:'offline'});assert.equal(picker.value,'old');
+  picker.value='';picker.dispatchEvent(new w.Event('change'));await tick();
+  assert.doesNotMatch(calls.at(-1),/episode=/);assert.match(w.document.body.textContent,/最近记录回合 · one/);ui.destroy();
+ }finally{w.close();}
+});

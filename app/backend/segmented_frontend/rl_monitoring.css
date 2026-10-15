@@ -12,3 +12,5 @@
 .rl-chart-point{opacity:0;outline:none}.rl-chart-point:only-of-type,.rl-chart-point:hover,.rl-chart-point:focus{opacity:1}.rl-chart-plot svg circle[r="4"]{opacity:1}
 .rl-chart-empty{color:var(--muted,#9b9da5);font-size:12px;line-height:1.7;text-align:center;margin:20px}
 @media(max-width:760px){.rl-chart-grid{grid-template-columns:minmax(0,1fr);padding:0 12px}.rl-monitor-meta,.rl-monitor-note{margin:12px}.rl-monitoring>.panel-head{padding:14px}}
+
+.rl-episode-picker{width:100%;max-width:100%;margin:0 0 12px;padding:8px 10px;color:inherit;background:#202124;border:1px solid #474951;border-radius:8px;font:inherit;font-size:13px;}
