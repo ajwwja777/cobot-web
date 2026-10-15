@@ -10,6 +10,10 @@ Web 校验并传入 COBOT_EXECUTION_OPTIONS.expo；RL 同一验证模块控制 C
 
 验证：136项RL CPU回归、10项Web后端、101项前端通过；80种组合均进入真实 native_online.configuration，N与n_edit_samples保持32。Chromium隔离模型卡渲染、选择与数值payload通过。未执行GPU训练、模型切换或机器人动作。
 
-部署状态：待合并及现场SHA、HTTP核验。当前模型原有 Remote learner connection lost 故障不属于本次参数控件修复。
+部署状态：Web ff2b41b、RL17c7a12 已合并/push；Cobot 11个源码/文档逐SHA校验及3个正式HTTP静态资源校验通过。两端profile已允许有界参数；现场独立导入新版后端与Learner启动命令构造通过。默认checkpoint训练源码签名保持一致。
+
+网页后端尚未重载：模型475551暂停、末轮committed/finalized，但采集Session仍开启，等待用户确认结束空闲Session后仅重载网页。控件通过后端能力字段控制显示，旧后端期间不提交新字段。Actor及原训练数据保持。lft2 Learner1916528和SSH隧道已退出（原因未定），已提交记录12回合、Critic220/Actor11；这是本次修改前的独立故障，未自动重启训练。
+
+补充：发布过渡保护回归12项通过（包含新增门禁测试）；此前完整前端101项通过。现场回执：cobot-web/runtime/verification/expo-online-options-20261015/install.json；lft2 task目录field-install.json、validation.json。
 
 工作树：scratch/cobot-web/expo-online-options-20261015/{cobot-web,rl-platform}。详细测试/截图与现场回执位于同任务目录。
