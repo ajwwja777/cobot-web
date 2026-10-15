@@ -891,3 +891,10 @@ Web 7438333仅对expo_online启用该录像，回放/HIL分别计数；旧零HIL
 上一轮局部测试遗漏完整初始化竞争。真实Chromium复现：EXPO目录同步已开始，但initializeCaptureProfile迟到写入默认datasets/test；syncManagedStorage得到undefined/路径不匹配后保留失败key，使外层按钮一直禁用（内部start已可用）。a5f3beb等待profile初始化完成才同步模型目录；normal历史也遵守模型专用目录。再次刷新还复现默认目录历史请求提前发出，读取无对应sidecar的旧UUID并显示episode_not_found。6c0ce78将历史初始化延后，切目录取消旧选择/预加载，丢弃过期响应和不在当前索引的选择；当前目录真实错误仍报告。
 
 录制检查误判零HIL残件由Dagger e238ffa严格识别已完成的节点回合解决，原文件未改。53后端/100前端通过。实际部署Chromium首次加载、重新加载、按钮actionability trial均通过，未点击真实开始；两次目录均为EXPO专用目录，2条历史，提示为空，无页面JS错误；POST recorder-check为ok/next3。5文件加后续2静态文件按SHA/锁安装；仅首次UI重载，Runtime475551与Learner1916528保留，相机订阅临时保活后退出，三路新鲜。Session因重载inactive。真实运动仍由用户验收。证据：/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/outputs/expo-native-remote-20261014/verification/edit001-online/start-blocker。
+
+
+## 2026-10-15 EXPO批次状态与固定SFT评测保护
+
+Web5e7a9a5增加Online本批x/5和待执行更新组数，中英文切换保持；102前端测试通过。仅安装unified_collection.js，实际HTTP已返回新字段；未重启Web、相机、模型或Session。RL可选realtime-expo-ft-edit001-batch5已登记且API available=true，后端与HIL/录制状态机未改。
+
+当前Runtime1172181/RTC-SFT2000保持，独立LFT2双卡Learner的真实SSH加载/退出不改变该模型；没有机器人命令。184 RL CPU、真实批量恢复与单/双卡验证见 `/data/LFT-W02_data/jiaan/jiaan/projects/rl-platform/docs/online/tasks/2026-10-14-expo-native-sync/BATCH5_DUAL_GPU.md`。用户完成固定权重评测后自行刷新/切换；本轮未做新模型现场rollout或声称收益。安装/状态/SSH证据位于rl-platform既有outputs/expo-native-remote-20261014/verification/edit001-online/batch5，现场静态文件备份位于rl-platform/runtime/verification/batch5-20261015。
