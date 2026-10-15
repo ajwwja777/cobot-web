@@ -62,7 +62,8 @@ def catalog():
         checkpoint = Path(item["checkpoint"]) if item["checkpoint"] else None
         available = checkpoint is not None and checkpoint.exists()
         if item["kind"] == "rlt":
-            available = available and bool(base) and (Path(base) / "params").is_dir()
+            item_base = item.get("base_checkpoint") or base
+            available = available and bool(item_base) and (Path(item_base) / "params").is_dir()
             if item.get("custom"):
                 available = available and (checkpoint.parent.parent / "action_norm_stats.json").is_file()
         elif item.get("runtime_adapter") in {"expo_left", "expo_online"}:
@@ -73,6 +74,15 @@ def catalog():
         else:
             entry_root = DAGGER if item["id"].endswith("dagger") else LEGACY
             available = available and (entry_root / "run_checkpoint_rtc_task2.sh").is_file()
+        if item.get("io_contract") == "rlt-left-arm-2cam-10hz":
+            from .rlt_progress import published_actor
+            publication = published_actor(checkpoint)
+            learner = read_json(Path(item["online_run_root"]) / "online/metrics/learner_status.json")
+            item.update(**publication, publication_tracked=True,
+                        learner_step=learner.get("global_step", publication.get("published_learner_step")),
+                        learner_actor_version=learner.get("actor_version", publication.get("published_actor_version")),
+                        actor_version=publication.get("published_actor_version"),
+                        step=publication.get("published_learner_step"))
         if item.get("runtime_profile"):
             import runpy
             from .rlt_progress import published_actor
@@ -151,7 +161,12 @@ def model_for_use(model, use):
         model.update(mode='reference' if model.get('mode')=='reference' else 'frozen',
                      training_enabled=False,evaluation_allowed=True,deterministic=True)
         model['capabilities']={**model.get('capabilities',{}),'train':False}
-        if model['mode']=='frozen':model.update(custom=True,adapter_id='plug-v3-warmup-5k')
+        if model['mode']=='frozen':
+            adapter = 'realtime-expo-rlt' if model.get('io_contract') == 'rlt-left-arm-2cam-10hz' else 'plug-v3-warmup-5k'
+            model.update(custom=True,adapter_id=adapter)
+            if adapter == 'realtime-expo-rlt':
+                model.update(online_run_root=str(RLT/'outputs/realtime-expo-runtime/frozen'),
+                             online_config=str(RLT/'runtime/realtime-expo/frozen.yaml'))
     elif model.get('online_seed_available'):
         seed=Path(model['checkpoint']).parent.parent
         if not (seed/'checkpoints/latest.pkl').is_file():

@@ -10,6 +10,11 @@ source "$TASK5_ROS_SETUP"
 set -u
 MODEL_ENTRY="${COBOT_DEPLOYMENT_ADAPTER:-${1:-}}"
 case "$MODEL_ENTRY" in
+  realtime-expo-rlt)
+    export COBOT_RLT_SHARED_MODEL=1 COBOT_DEPLOYMENT_MODEL_ID="$1"
+    export COBOT_EVAL_SNAPSHOT="${2:?snapshot required}" COBOT_EVAL_CONFIG="${3:?configuration required}"
+    exec "$PLATFORM/../rl-platform/scripts/rlt_realtime_expo_up.sh" "${COBOT_RLT_LOAD_MODE:-frozen}"
+    ;;
   plug-v3-reference|plug-v3-warmup-5k|plug_v3-frozen-latest|plug_v3-online-latest)
     unset COBOT_RLT_EVALUATION
     export COBOT_RLT_SHARED_MODEL=1
