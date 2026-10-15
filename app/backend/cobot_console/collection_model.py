@@ -102,6 +102,8 @@ class CollectionModel:
 
 
 def install_routes(app, manager):
+    from .rl_monitoring import install_routes as install_monitoring
+    install_monitoring(app, manager)
     controller = CollectionModel(manager)
     app.state.collection_model = controller
     manager.collection_session = False

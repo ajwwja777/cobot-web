@@ -1,0 +1,14 @@
+#collection-rl-monitoring[hidden]{display:none!important}
+#collection-rl-monitoring{margin-top:18px;padding:0;overflow:hidden;min-width:0}
+.rl-monitoring>.panel-head{padding:18px 22px;margin:0;border-bottom:1px solid var(--border,#303139)}
+.rl-monitor-badge{font-size:12px;color:var(--muted,#9b9da5)}.rl-monitor-badge[data-live=true]{color:#47cf9b}
+.rl-monitor-meta,.rl-monitor-note{font-size:12px;line-height:1.65;color:var(--muted,#9b9da5);margin:14px 22px;overflow-wrap:anywhere}
+.rl-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px}
+.rl-chart-card{min-width:0;padding:16px 14px 6px;border:1px solid var(--border,#303139);border-radius:12px;background:var(--panel-bg,#191a1d)}
+.rl-chart-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}.rl-chart-head h4{font-size:14px;margin:0;color:var(--text,#e7e8eb)}
+.rl-chart-head>span{font-size:12px;color:var(--muted,#9b9da5);font-variant-numeric:tabular-nums}.rl-chart-card>p{font-size:11px;color:var(--muted,#9b9da5);margin:7px 0}
+.rl-chart-plot{min-height:200px;display:flex;align-items:center;justify-content:center}.rl-chart-plot svg{display:block;width:100%;height:auto;min-width:0}
+.rl-chart-gridline{stroke:var(--border,#303139);stroke-width:1}.rl-chart-tick,.rl-chart-axis{fill:var(--muted,#9b9da5);font-size:11px;font-family:inherit}.rl-chart-axis{font-size:12px}
+.rl-chart-point{opacity:0;outline:none}.rl-chart-point:only-of-type,.rl-chart-point:hover,.rl-chart-point:focus{opacity:1}.rl-chart-plot svg circle[r="4"]{opacity:1}
+.rl-chart-empty{color:var(--muted,#9b9da5);font-size:12px;line-height:1.7;text-align:center;margin:20px}
+@media(max-width:760px){.rl-chart-grid{grid-template-columns:minmax(0,1fr);padding:0 12px}.rl-monitor-meta,.rl-monitor-note{margin:12px}.rl-monitoring>.panel-head{padding:14px}}

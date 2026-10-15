@@ -2,6 +2,7 @@
 (function(root){
   const $=s=>document.querySelector(s);
   let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null,recorderRecovery=null,runtimeRecovery=null,executionOptions=null,deferUncertain=false;
+  let rlMonitoring=null;
   let managedStorageKey='',managedStorageApplied='',managedStoragePending=false,managedStorageError='';
   const managedPath=()=>useModel()&&selectedModel()?.collection_directory_policy==='model'?selectedModel()?.data_directories?.collection:null;
   const english=()=>root.CobotPreferences?.language==='en';
@@ -91,6 +92,7 @@
     const rlt=isRlt(),use=useModel(),chosen=selectedModel(),state=modelState();
     executionOptions?.update(chosen,state,active()||changing||Boolean(context.busy)||!use);
     root.CobotModelPicker.renderDetails($('#collection-model-details'),executionOptions?.describe(state.model?.id===chosen?.id&&state.phase!=='offline'?state.model:chosen)||chosen);
+    rlMonitoring?.update(use?chosen:null,state,executionOptions?.value);
     const processing=modelBusy||root.CobotCollectionModel?.busy;
     const loading=root.CobotCollectionModel?.pendingAction==='load'||state.phase==='loading';
     const locked=active()||changing||managedStoragePending||context.busy||processing||loading;
@@ -231,6 +233,7 @@
       node.dataset.workspacePanel=area;grid.append(node);
     }
     root.CobotWorkspaceUI?.registerWorkspaceGrid?.(grid,'collection-workspace');
+    rlMonitoring=root.CobotRLMonitoring?.create(grid);
     panel.insertAdjacentHTML('afterbegin','<div class="panel-head"><h3 data-zh="采集控制" data-en="Collection controls">采集控制</h3><strong class="state-badge" id="collection-state">—</strong></div><div class="mini-stats"><span><small data-zh="帧数" data-en="Frames">帧数</small><strong id="collection-frame-count">0</strong></span><span><small data-zh="节点" data-en="Markers">节点</small><strong id="collection-node-count">0</strong></span><span><small data-zh="版本" data-en="Version">版本</small><strong id="collection-generation">0</strong></span></div><div class="button-grid collection-episode-actions"></div><div class="collection-results"><label class="collection-result-toggle"><input type="checkbox" id="collection-label-results"/><span data-zh="启用成功 / 失败" data-en="Enable success / failure">启用成功 / 失败</span></label><div class="button-grid collection-result-actions"></div></div>');
     const deferButton=document.createElement('button');deferButton.type='button';deferButton.id='collection-defer';deferButton.className='secondary';
     label(deferButton,'暂存并跳过本轮','Defer and skip episode');panel.querySelector('.collection-episode-actions').append(deferButton);
