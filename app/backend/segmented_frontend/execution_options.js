@@ -15,7 +15,7 @@
     setRates(false);
     let model=null,state={},locked=false,busy=false,modelId='',uncertain=false,notice='';
     const defaults=()=>model?.execution_settings||{publish_hz:model?.publish_hz||model?.control_hz||20,rtc:false,smoothing:false};
-    const supportsExpo=()=>model?.runtime_adapter==='expo_online'&&Boolean(model?.expo_online_options);
+    const supportsExpo=()=>model?.runtime_adapter==='expo_online'&&Boolean(model?.expo_online_options)&&Boolean(model?.execution_settings?.expo);
     const expoDefaults=()=>model?.expo_online_options?.defaults||{rtc_delay:5,edit_scale:0.01};
     const value=()=>{const d=defaults(),v={enabled:true,publish_hz:custom.checked?Number(hz.value):d.publish_hz,rtc:rtc.checked,smoothing:smoothing.checked};if(supportsExpo())v.expo={rtc_delay:Number(delay.value),edit_scale:Number(scale.value)};return !supportsExpo()&&!custom.checked&&v.rtc===Boolean(d.rtc)&&v.smoothing===Boolean(d.smoothing)?{enabled:false}:v;};
     const isLoaded=()=>state.model?.id===model?.id&&state.phase!=='offline';

@@ -115,7 +115,7 @@ test('EXPO online keeps RTC required while frequency and filtering remain select
 
 test('EXPO parameters persist as numbers, are model-scoped and locked to loaded values',()=>{
  const [dom,w]=setup(),host=w.document.querySelector('#options'),ui=w.CobotExecutionOptions.create(host);
- const model={id:'editable-expo',kind:'vla',runtime_adapter:'expo_online',expo_online_options:{defaults:{rtc_delay:5,edit_scale:.01}},execution_settings:{publish_hz:10,rtc:true,smoothing:false}};
+ const model={id:'editable-expo',kind:'vla',runtime_adapter:'expo_online',expo_online_options:{defaults:{rtc_delay:5,edit_scale:.01}},execution_settings:{publish_hz:10,rtc:true,smoothing:false,expo:{rtc_delay:5,edit_scale:.01}}};
  ui.update(model,{});
  const delay=host.querySelector('.execution-delay'),scale=host.querySelector('.execution-edit-scale');
  assert.equal(delay.options.length,8);assert.equal(scale.options.length,10);assert.equal(delay.value,'5');assert.equal(scale.value,'0.01');
@@ -126,5 +126,13 @@ test('EXPO parameters persist as numbers, are model-scoped and locked to loaded 
  ui.update(model,{model:active,phase:'paused'});assert.equal(delay.disabled,true);assert.equal(scale.disabled,true);assert.equal(scale.value,'0.01');
  ui.update({id:'rlt',kind:'rlt'},{});assert.equal(host.querySelector('.execution-expo-fields').hidden,true);assert.equal(ui.value.expo,undefined);
  ui.update(model,{});assert.equal(scale.value,'0.07');assert.equal(delay.disabled,false);
+ dom.window.close();
+});
+
+
+test('staged frontend waits for backend EXPO capability before sending new fields',()=>{
+ const [dom,w]=setup(),host=w.document.querySelector('#options'),ui=w.CobotExecutionOptions.create(host);
+ const model={id:'staged',kind:'vla',runtime_adapter:'expo_online',expo_online_options:{defaults:{rtc_delay:5,edit_scale:.01}},execution_settings:{publish_hz:10,rtc:true,smoothing:false}};
+ ui.update(model,{});assert.equal(host.querySelector('.execution-expo-fields').hidden,true);assert.equal(ui.value.expo,undefined);
  dom.window.close();
 });
