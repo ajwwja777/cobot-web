@@ -29,3 +29,8 @@
 #review-panel{display:none!important}
 .history-outcome{width:100px!important;min-height:30px!important}
 .execution-options [hidden],.history-labels [hidden]{display:none!important}
+
+.execution-expo-fields{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:12px}
+.execution-expo-fields label{display:flex!important;align-items:center;gap:7px;margin:0!important;white-space:nowrap;font-size:12px}
+.execution-expo-fields select{width:auto!important;min-width:85px;height:32px!important;padding:2px 8px!important;font-size:12px}
+.execution-expo-hint{flex-basis:100%;font-size:12px;color:var(--muted,#9a9a9a)}

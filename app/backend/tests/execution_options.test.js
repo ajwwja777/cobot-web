@@ -111,3 +111,20 @@ test('EXPO online keeps RTC required while frequency and filtering remain select
  assert.equal(ui.value.publish_hz,50);assert.equal(ui.value.rtc,true);assert.equal(ui.value.smoothing,true);
  dom.window.close();
 });
+
+
+test('EXPO parameters persist as numbers, are model-scoped and locked to loaded values',()=>{
+ const [dom,w]=setup(),host=w.document.querySelector('#options'),ui=w.CobotExecutionOptions.create(host);
+ const model={id:'editable-expo',kind:'vla',runtime_adapter:'expo_online',expo_online_options:{defaults:{rtc_delay:5,edit_scale:.01}},execution_settings:{publish_hz:10,rtc:true,smoothing:false}};
+ ui.update(model,{});
+ const delay=host.querySelector('.execution-delay'),scale=host.querySelector('.execution-edit-scale');
+ assert.equal(delay.options.length,8);assert.equal(scale.options.length,10);assert.equal(delay.value,'5');assert.equal(scale.value,'0.01');
+ delay.value='3';delay.dispatchEvent(new w.Event('change'));scale.value='0.07';scale.dispatchEvent(new w.Event('change'));
+ assert.deepEqual(JSON.parse(JSON.stringify(ui.value.expo)),{rtc_delay:3,edit_scale:.07});
+ ui.update(model,{});assert.equal(scale.value,'0.07');
+ const active={...model,execution_options:{enabled:true,publish_hz:50,rtc:true,smoothing:true,expo:{rtc_delay:5,edit_scale:.01}}};
+ ui.update(model,{model:active,phase:'paused'});assert.equal(delay.disabled,true);assert.equal(scale.disabled,true);assert.equal(scale.value,'0.01');
+ ui.update({id:'rlt',kind:'rlt'},{});assert.equal(host.querySelector('.execution-expo-fields').hidden,true);assert.equal(ui.value.expo,undefined);
+ ui.update(model,{});assert.equal(scale.value,'0.07');assert.equal(delay.disabled,false);
+ dom.window.close();
+});
