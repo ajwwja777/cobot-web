@@ -335,7 +335,7 @@ test("EXPO managed normal storage unlocks start only after confirmation and keep
   const calls=[];let complete;
   w.prepareStorage=async()=>{calls.push(w.document.querySelector('#capture-form input[name=data_root]').value);return new Promise(resolve=>complete=resolve);};
   await tick();await w.chooseCollection("normal");await w.refreshConsole();
-  setState({phase:"paused",model,started_at:10,session_active:true,online:{phase:"ready",learner_step:8,actor_version:8,actor_updates:3,replay_steps:200,recipe:"native_sync",critic_updates:160,seed_episodes:25,seed_steps:3301,online_steps:200,completed_episodes:9,warmup_remaining:1}});
+  setState({phase:"paused",model,started_at:10,session_active:true,online:{phase:"ready",learner_step:8,actor_version:8,actor_updates:3,replay_steps:200,recipe:"native_sync",critic_updates:160,seed_episodes:25,seed_steps:3301,online_steps:200,completed_episodes:9,warmup_remaining:1,episodes_per_update:5,batch_episodes_collected:3,pending_update_calls:15}});
   await w.CobotCollectionModel.refresh();
   const $=id=>w.document.getElementById(id);
   $("start").disabled=false;w.CobotUnifiedCollection.render();
@@ -348,7 +348,9 @@ test("EXPO managed normal storage unlocks start only after confirmation and keep
   w.CobotPreferences.setLanguage('en');
   assert.match($("collection-model-state").textContent,/Learner 8.*Actor 8.*VLA.*3.*Replay 200/);
   assert.match($("collection-model-state").textContent,/Critic 160.*Seed 25 episodes.*3301 frames.*Online transitions 200.*Collected 9 episodes.*Warmup remaining 1/);
+  assert.match($("collection-model-state").textContent,/Batch 3\/5 episodes.*Pending update calls 15/);
   w.CobotPreferences.setLanguage('zh');
+  assert.match($("collection-model-state").textContent,/本批 3\/5 回合.*待执行更新组 15/);
   assert.match($("collection-model-state").textContent,/Learner 8.*Actor 8.*VLA.*3.*Replay 200/);
   assert.match($("collection-model-state").textContent,/Critic 160.*初始示教 25 回合.*3301 帧.*在线步数 200.*已采集 9 回合.*热身剩余 1/);
   await w.refreshConsole();await tick();assert.equal(calls.length,1);
