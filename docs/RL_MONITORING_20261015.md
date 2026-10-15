@@ -30,6 +30,6 @@
 
 源码RL1daa10e、Web84e4d73；115项RL检查、5项Web后端、4项前端通过。现场5文件逐SHA安装、Python3.8编译、真实受限SSH及独立MonitoringReader通过：Actor offline时读取Critic1100/15points，Learner55，未启动模型或机器人。保留并行RLT发布改动和既有EXPO权重回传worker。证据：cobot-web/runtime/verification/rl-charts-20261015/independent/{install,ssh-snapshot,reader-acceptance}.json。
 
-激活完成：等待并行RLT于19:19释放窗口后，仅重载Web106306→162962；保留已加载realtime-expo-rlt-online supervisor119227及Stage1/learner。22个模型/ROS/相机相关进程身份一致，Session始终disarmed/policy_paused，emitted_commands=0；临时三相机只读订阅正常退出。未启动或释放任何模型、未修改训练预算/Replay/权重。
+激活完成：等待并行RLT于19:19释放窗口后，仅重载Web106306→162962；保留已加载realtime-expo-rlt-online supervisor119227及Stage1/learner。21个模型/ROS/相机相关进程身份一致，Session始终disarmed/policy_paused，emitted_commands=0；临时三相机只读订阅正常退出。未启动或释放任何模型、未修改训练预算/Replay/权重。
 
 正式HTTP接口在EXPO Actor未加载时connected=true/running=true，追到Critic1260/23points；随后实际生产JS+正式API的独立浏览器组件读取到1300/25points，显示“Learner运行中 · Actor未加载”，四图存在且无JS异常。这是同一真实Learner持续更新的记录，不是合成曲线。完整主页面目前选中并行任务的RLT模型，按既有模型过滤不显示EXPO图；组件验收使用实际catalogue和API，未改生产模型选择。现场回执independent/{reload,http-acceptance}.json；LFT2证据independent-component-browser.json与independent-component.png。模型释放后可持续查看EXPO学习指标；没有遗留测试进程或自动重启任务。
