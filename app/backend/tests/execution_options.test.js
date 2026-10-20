@@ -136,3 +136,20 @@ test('staged frontend waits for backend EXPO capability before sending new field
  ui.update(model,{});assert.equal(host.querySelector('.execution-expo-fields').hidden,true);assert.equal(ui.value.expo,undefined);
  dom.window.close();
 });
+
+for(const method of ['realtime-expo-ft-532-batch5','realtime-expo-ft-532-hpc4'])test(method+' saves future choices without live requests',()=>{
+ const [dom,w]=setup(),host=w.document.querySelector('#options'),ui=w.CobotExecutionOptions.create(host);
+ const hpc=method.endsWith('hpc4');let requests=0;w.fetch=()=>{requests++;throw Error('No live requests allowed');};
+ const model={id:method,training_method:method,kind:'vla',runtime_adapter:'expo_online',execution_settings:{publish_hz:10,rtc:true,smoothing:false,...(!hpc?{expo:{rtc_delay:5,edit_scale:.01}}:{})},...(!hpc?{expo_online_options:{defaults:{rtc_delay:5,edit_scale:.01}}}:{})};
+ const state={model,phase:'paused',session_active:true,online:{rtc_delay:5,edit_scale:.01}};
+ ui.update(model,state,true);
+ const delay=host.querySelector('.execution-delay'),scale=host.querySelector('.execution-edit-scale');
+ assert.equal(host.querySelector('.execution-expo-fields').hidden,false);assert.equal(delay.disabled,false);
+ delay.value='4';delay.dispatchEvent(new w.Event('change'));scale.value='0.03';scale.dispatchEvent(new w.Event('change'));
+ ui.update(model,state,true);assert.equal(delay.value,'4');assert.equal(scale.value,'0.03');
+ const saved=JSON.parse(w.localStorage.getItem('cobot-execution-options'))[method];assert.deepEqual(saved.expo,{rtc_delay:4,edit_scale:.03});
+ assert.match(host.querySelector('.execution-expo-hint').textContent,/d 5/);assert.equal(requests,0);
+ if(hpc){assert.equal(ui.value.expo,undefined);assert.match(host.querySelector('.execution-expo-hint').textContent,/does not apply/);}
+ else{assert.equal(ui.value.expo.rtc_delay,4);assert.equal(ui.describe().execution_settings.expo.rtc_delay,5);}
+ ui.update({id:'other'},{});ui.update(model,{});assert.equal(scale.value,'0.03');assert.equal(requests,0);dom.window.close();
+});
