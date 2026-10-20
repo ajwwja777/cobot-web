@@ -928,3 +928,10 @@ Added optional async EXPO status rendering: upload queue, untrained backlog/limi
 2026-10-20 user requested no10-episode cap: explicit async_max_pending=0 now renders Untrained N/unlimited; current counts remain visible. Existing finite-limit and button gating behavior retained.113 Node tests passed; cache key20261020-expo-unlimited. RL owns remote admission/continuation and separate scheduling audit.
 
 Unlimited-backlog field activation verified through Web: ready/paused, Sessioninactive, async_max_pending0, servedActor20. No backend restart or robot action. Evidence RL outputs/expo-async-20261020/unlimited-acceptance.json.
+
+
+## 2026-10-20：原生 EXPO 训练指标
+
+新增native_expo_metrics.js读取独立观察器静态JSON，原四图保持，新增Actor/Edit/Filter/梯度/耗时等10图和全部原生字段表。按model/d/edit隔离；只GET、不调用控制；原生指标不重算、未记录历史不补值。7项DOM通过。仅静态发布并更新缓存版本，不重启Web/HPC/Actor。W&B凭据不属于用户，用户明确延期，不上传。RL记录docs/online/tasks/2026-10-20-native-metrics/TASK.md。
+
+现场验收：RL1f6fee8/Web1442dd4已推送并SHA安装；static HTTP返回新版本及schema1指标。Cobot观察器1427342运行，读取当前异步实验run18eafdadb8ebc3f4e8e7。Runtime1357120/Learner3181876/job740494身份保持，Sessioninactive；Critic400/Actor20/Replay5152。尚无新更新metrics，完整指标点0，未运行训练来造验收数据。证据Cobot rl-platform/runtime/verification/native-metrics-20261020/acceptance.json。W&B按用户要求延期，无上传。

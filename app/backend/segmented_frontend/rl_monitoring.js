@@ -60,6 +60,7 @@
     }
     const episodePicker=document.createElement('select');episodePicker.className='rl-episode-picker';episodePicker.setAttribute('aria-label','查看回合 / Select episode');cards.rollout.subtitle.after(episodePicker);
     const note=document.createElement('p');note.className='rl-monitor-note';section.append(heading,meta,grid,note);after.after(section);
+    const nativeMetrics=root.CobotNativeExpoMetrics?.create(section);
     let rolloutSelection='',selection='',supported=false,model=null,state={},options=null,payload=null,inflight=null,lastPoll=0,error='',timer=null;
     episodePicker.addEventListener('change',()=>{rolloutSelection=episodePicker.value;inflight?.abort();inflight=null;lastPoll=0;if(payload)payload={...payload,rollout:{}};render();poll();});
     function render(){
@@ -121,12 +122,13 @@
       model=chosen;state=current||{};const enabled=chosen?.runtime_adapter==='expo_online'||(chosen?.kind==='rlt'&&chosen?.mode==='online'&&chosen?.training_enabled===true);supported=Boolean(enabled);section.hidden=false;
       options=chosen&&state.model?.id===chosen.id&&state.phase!=='offline'?(state.model.execution_settings?.expo||chosen?.expo_online_options?.defaults):(selectedOptions?.expo||chosen?.expo_online_options?.defaults);
       if(chosen?.kind==='rlt')options=null;
+      nativeMetrics?.update(chosen,options);
       const key=enabled?JSON.stringify([chosen.id,options]):'';
       if(key!==selection){selection=key;rolloutSelection='';payload=null;error='';lastPoll=0;inflight?.abort();inflight=null;render();}
       if(enabled)poll();else render();
     }
     timer=setInterval(poll,2000);document.addEventListener('cobot:language',render);
-    return {update,render,destroy(){clearInterval(timer);inflight?.abort();document.removeEventListener('cobot:language',render);section.remove();}};
+    return {update,render,destroy(){nativeMetrics?.destroy();clearInterval(timer);inflight?.abort();document.removeEventListener('cobot:language',render);section.remove();}};
   }
   root.CobotRLMonitoring={create,chart};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.CobotRLMonitoring;
