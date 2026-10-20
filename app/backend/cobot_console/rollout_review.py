@@ -67,7 +67,7 @@ def alignment(video, rollout):
                 segments=segments)
 
 
-def read_rollouts(root, limit=300):
+def read_rollouts(root, limit=300, strict=False):
     """Read SQLite in mode=ro; never invoke the archive's create/write helpers."""
     result = {}
     path = Path(root) / "telemetry/rollout-history.sqlite3"
@@ -80,7 +80,8 @@ def read_rollouts(root, limit=300):
                 if value.get("episode_uuid") == uid:
                     result[uid] = value
         except (sqlite3.Error, ValueError, OSError):
-            pass
+            if strict:
+                raise
     current = read_json(Path(root) / "telemetry/rollout.json")
     uid = current.get("episode_uuid")
     if isinstance(uid, str) and uid:
@@ -145,11 +146,12 @@ def review_for(uid, rollout, finished, sidecar_path, spec, cached_summary=None):
         training_eligible=finished.get("training_eligible"), transition_count=finished.get("count"))
 
 
-def read_run(spec, cache_root=None, limit=300):
+def read_run(spec, cache_root=None, limit=300, include_rollouts=False,
+             success_series=None, strict_archive=False):
     """Only inspect explicitly registered local run/data roots."""
     root = Path(spec["run_dir"])
     key = hashlib.sha256(str(root).encode()).hexdigest()[:20]
-    rollouts = read_rollouts(root, limit)
+    rollouts = read_rollouts(root, limit, strict=strict_archive)
     finished = {}
     stamps = {}
     for path in (root / "episodes").glob("*/finished.json"):
@@ -168,9 +170,13 @@ def read_run(spec, cache_root=None, limit=300):
     cached = read_json(Path(cache_root) / (key + ".json")).get("episodes", {}) if cache_root else {}
     sidecars = find_sidecars(spec["data_root"])
     identities = sorted(set(rollouts) | set(ordered[-limit:]),
-                        key=lambda uid: finished.get(uid, {}).get("finished_at") or rollouts.get(uid, {}).get("started_at") or 0,
+                        key=lambda uid: (finished.get(uid, {}).get("finished_at") or rollouts.get(uid, {}).get("started_at") or 0, uid),
                         reverse=True)[:limit]
-    entries, outcomes = [], []
+    entries, outcomes, summaries = [], [], []
+    for uid in ordered:
+        record = cached.get(uid, {})
+        summary = record.get("summary") if record.get("stamp") == stamps.get(uid) else None
+        summaries.append(dict(finished[uid], hil_steps=(summary or {}).get("hil_steps")))
     for uid in identities:
         # URL path IDs are constrained independently of on-disk metadata.
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", uid):
@@ -178,15 +184,34 @@ def read_run(spec, cache_root=None, limit=300):
         record = cached.get(uid, {})
         summary = record.get("summary") if record.get("stamp") == stamps.get(uid) else None
         review = review_for(uid, rollouts.get(uid, {}), finished.get(uid, {}), sidecars.get(uid), spec, summary)
-        entries.append(dict(episode_uuid=uid, review=review))
+        rollout = rollouts.get(uid, {})
+        points = rollout.get("points") or []
+        started = rollout.get("started_at", finished.get(uid, {}).get("started_at"))
+        if not finite(started) and points:
+            first = points[0]
+            if finite(first.get("timestamp")) and finite(first.get("seconds")):
+                started = first["timestamp"] - first["seconds"]
+        entry = dict(episode_uuid=uid, review=review, started_at=started,
+                     actor_version=review["actor_version"], count=len(points))
+        if points:
+            entry["rollout_url"] = "/rollout-review/" + key + "/" + uid + ".json"
+            if include_rollouts:
+                entry["_rollout"] = dict(rollout, review=review, started_at=started,
+                                          historical=True, active=False)
+        entries.append(entry)
         if uid in finished:
             outcomes.append(dict(episode=numbers[uid], episode_uuid=uid, **{
                 k: review[k] for k in ("duration_seconds", "outcome", "hil", "actor_version",
                                        "training_eligible", "options", "transition_count")},
                                  assisted=review["hil"]))
     outcomes.sort(key=lambda item: item["episode"])
+    available = [entry for entry in entries if entry.get("rollout_url")]
+    latest = max(available, key=lambda entry: entry.get("started_at") or 0) if available else None
+    success = success_series(summaries) if success_series is not None else dict(completed=len(ordered))
     return dict(model_id=spec["model_id"], options=spec.get("options"), run_key=key,
-                episodes=entries, success=dict(episodes=outcomes, completed=len(ordered)))
+                episodes=entries, latest_episode_uuid=latest["episode_uuid"] if latest else None,
+                training=read_json(root / "telemetry/learner.json"),
+                success=dict(success, episodes=outcomes))
 
 
 def catalog_runs(catalog, data_root=None):
@@ -211,7 +236,7 @@ def catalog_runs(catalog, data_root=None):
         spec = dict(model_id=model["id"], run_dir=root, data_root=data, options=options)
         if Path(root).is_dir():
             result.append(spec)
-        for variant in Path(root).parent.glob(Path(root).name + "--d*-edit*"):
+        for variant in sorted(Path(root).parent.glob(Path(root).name + "--d*-edit*")):
             match = re.fullmatch(re.escape(Path(root).name) + r"--d([1-8])-edit(00[1-9]|010)", variant.name)
             if match and variant.is_dir():
                 result.append(dict(spec, run_dir=str(variant),

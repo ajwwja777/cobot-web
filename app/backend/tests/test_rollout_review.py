@@ -132,3 +132,52 @@ def test_alignment_rejects_wall_clock_jump_backwards_and_nonoverlap():
     points[1]["seconds"] = 4
     video["frame_timestamps"] = [200, 201]
     assert alignment(video, dict(points=points))["status"] == "unavailable"
+
+
+def exporter():
+    import runpy
+    return runpy.run_path(str(Path(__file__).resolve().parents[3] / "scripts/export_rollout_review.py"))
+
+
+def test_static_export_preserves_full_q_and_writes_only_changes(tmp_path):
+    from types import SimpleNamespace
+    spec = fixture(tmp_path)
+    manifest = tmp_path / "manifest.json"
+    write(manifest, dict(runs=[spec]))
+    training = dict(points=[dict(critic_step=20, q=.1, target_q_mean=.2, critic_loss=.03)], updated_at=123)
+    write(Path(spec["run_dir"]) / "telemetry/learner.json", training)
+    args = SimpleNamespace(manifest=str(manifest), catalog=None, data_root=None, cache_root=None,
+                           limit=300, success_module=None, output=str(tmp_path / "static/rollout-review.json"))
+    api = exporter()
+    assert api["export"](args)["changed"] == 2
+    index = json.loads(Path(args.output).read_text())
+    run = index["runs"][0]
+    assert run["latest_episode_uuid"] == "one" and run["training"] == training
+    assert run["episodes"][0]["count"] == 2 and run["episodes"][0]["started_at"] == 100
+    point_file = Path(args.output).parent / run["episodes"][0]["rollout_url"].lstrip("/")
+    q = json.loads(point_file.read_text())
+    assert q["points"][0] == dict(seconds=1, timestamp=101, q=.2)
+    assert q["historical"] is True and q["active"] is False
+    before = {path: path.stat().st_mtime_ns for path in (Path(args.output), point_file)}
+    assert api["export"](args)["changed"] == 0
+    assert before == {path: path.stat().st_mtime_ns for path in before}
+    # Database corruption cannot delete the last known good index or Q points.
+    (Path(spec["run_dir"]) / "telemetry/rollout-history.sqlite3").write_bytes(b"invalid sqlite")
+    failure = api["export"](args)
+    assert failure["errors"][0]["error"] == "DatabaseError"
+    retained = json.loads(Path(args.output).read_text())["runs"][0]
+    assert retained == run
+    assert point_file.stat().st_mtime_ns == before[point_file]
+
+
+def test_existing_success_function_reused_without_importing_runtime(tmp_path):
+    module = tmp_path / "monitoring.py"
+    module.write_text("raise RuntimeError('must not execute module')\n"
+                      "def success_series(episodes):\n"
+                      "    return {'points': [{'episode': len(episodes), 'rate': 12}], 'marker': 'original'}\n")
+    function = exporter()["original_success_series"](module)
+    spec = fixture(tmp_path)
+    result = read_run(spec, success_series=function)
+    assert result["success"]["points"] == [dict(episode=1, rate=12)]
+    assert result["success"]["marker"] == "original"
+    assert result["success"]["episodes"][0]["duration_seconds"] == 12
