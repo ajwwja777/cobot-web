@@ -409,3 +409,23 @@ test('model directory waits for profile defaults to finish initializing',async()
   assert.doesNotMatch(w.document.querySelector('#collection-storage-policy').textContent,/mismatch/);
  }finally{dom.window.close();}
 });
+
+
+test("async EXPO keeps collection enabled during learning and closes at the bounded queue",async()=>{
+ const {dom,w,models,setState}=setup();
+ try {
+  const model={id:'expo-async',family:'EXPO',kind:'vla',runtime_adapter:'expo_online',task:'plug_left_2cam',step:2000,available:true,collection_directory_policy:'model',data_directories:{collection:'/data/expo-async'}};
+  models.push(model);w.prepareStorage=async()=>({data_root:'/data/expo-async'});
+  await tick();await w.chooseCollection('normal');await w.refreshConsole();
+  const online={async_mode:'bounded_async_v1',phase:'ready',ready:true,learner_phase:'updating',learner_step:26,actor_version:25,published_actor_version:25,downloaded_actor_version:20,served_actor_version:20,pending_episodes:4,async_max_pending:10};
+  setState({phase:'paused',model,started_at:14,session_active:true,online});
+  await w.CobotCollectionModel.refresh();await tick();
+  const $=id=>w.document.getElementById(id);$('start').disabled=false;w.CobotUnifiedCollection.render();
+  assert.equal($('collection-start').disabled,false);
+  assert.match($('collection-model-state').textContent,/Async learner updating.*Published 25.*Downloaded 20.*Served 20/);
+  setState({online:{...online,phase:'backlog',ready:false,pending_episodes:10,collection_waiting_for:'backlog'}});
+  await w.CobotCollectionModel.refresh();w.CobotUnifiedCollection.render();
+  assert.equal($('collection-start').disabled,true);
+  assert.match($('collection-model-state').textContent,/Wait for learner backlog/);
+ } finally {dom.window.close();}
+});

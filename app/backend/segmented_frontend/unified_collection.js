@@ -4,6 +4,7 @@
   function asyncSummary(o,language){
     if(o.async_mode!=='bounded_async_v1')return '';
     const t=(zh,en)=>language?en:zh;
+    const waits={backlog:t('\u7b49\u5f85\u5b66\u4e60\u6d88\u5316\u79ef\u538b','Wait for learner backlog'),policy_lag:t('\u7b49\u5f85\u65b0\u6743\u91cd','Wait for newer policy'),installing:t('\u6b63\u5728\u5b89\u88c5\u6743\u91cd','Installing policy'),install_failed:t('\u6743\u91cd\u5b89\u88c5\u5931\u8d25','Policy install failed'),learner_fault:t('Learner \u5f02\u5e38','Learner fault')};
     return ' | '+t('\u5f02\u6b65\u5b66\u4e60 ','Async learner ')+(o.learner_phase??'-')
       +' | '+t('\u5f85\u4e0a\u4f20 ','Upload queue ')+(o.pending_upload_episodes??0)
       +' | '+t('\u5f85\u8bad\u7ec3 ','Untrained ')+(o.pending_episodes??0)+'/'+(o.async_max_pending??10)
@@ -11,6 +12,7 @@
       +' | '+t('\u5df2\u4e0b\u8f7d ','Downloaded ')+(o.downloaded_actor_version??'-')
       +' | '+t('\u6b63\u5728\u6267\u884c ','Served ')+(o.served_actor_version??'-')
       +' | '+t('\u843d\u540e\u7248\u6570 ','Lag ')+(o.policy_generation_lag??0)
+      +(o.collection_waiting_for?' | '+(waits[o.collection_waiting_for]||o.collection_waiting_for):'')
       +(o.network_error?' | '+t('\u7f51\u7edc\u91cd\u8bd5\u4e2d','Network retry'):'')
       +(o.install_error?' | '+o.install_error:'');
   }

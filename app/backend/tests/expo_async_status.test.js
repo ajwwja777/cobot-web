@@ -7,3 +7,5 @@ const s=asyncSummary(o,1);
 for(const text of ['updating','Upload queue 2','Untrained 7/10','Published 40','Downloaded 20','Served 20','Lag 1'])assert.ok(s.includes(text),text);
 assert.ok(asyncSummary({...o,network_error:'disconnected'},1).includes('Network retry'));
 console.log('PASS async counters distinguish collection, training and served policy');
+
+assert.ok(asyncSummary({...o,collection_waiting_for:'backlog'},1).includes('Wait for learner backlog'));
