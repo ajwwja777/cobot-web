@@ -448,7 +448,7 @@ test("native continuous EXPO reports independent learner progress and keeps real
   w.updateButtons();
   const $=id=>w.document.getElementById(id);
   assert.equal($('start').disabled,false);assert.equal($('collection-start').disabled,false);
-  assert.match($('collection-model-state').textContent,/Continuous learning.*GPU updating.*Learner 26.*Critic 520.*VLA updates 26/);
+  assert.match($('collection-model-state').textContent,/Continuous learning.*Training update \(including compilation \/ parameter sync\).*Learner 26.*Critic 520.*VLA updates 26/);
   assert.match($('collection-model-state').textContent,/Replay 6000.*Inserted episodes 16.*Collected 17.*Upload queue 2.*Awaiting Replay insertion 1/);
   assert.match($('collection-model-state').textContent,/Published 25.*Downloaded 24.*Served 20/);
   assert.doesNotMatch($('collection-model-state').textContent,/Warmup|Batch|Untrained|Lag/);
