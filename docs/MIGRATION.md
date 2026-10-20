@@ -935,3 +935,14 @@ Unlimited-backlog field activation verified through Web: ready/paused, Sessionin
 新增native_expo_metrics.js读取独立观察器静态JSON，原四图保持，新增Actor/Edit/Filter/梯度/耗时等10图和全部原生字段表。按model/d/edit隔离；只GET、不调用控制；原生指标不重算、未记录历史不补值。7项DOM通过。仅静态发布并更新缓存版本，不重启Web/HPC/Actor。W&B凭据不属于用户，用户明确延期，不上传。RL记录docs/online/tasks/2026-10-20-native-metrics/TASK.md。
 
 现场验收：RL1f6fee8/Web1442dd4已推送并SHA安装；static HTTP返回新版本及schema1指标。Cobot观察器1427342运行，读取当前异步实验run18eafdadb8ebc3f4e8e7。Runtime1357120/Learner3181876/job740494身份保持，Sessioninactive；Critic400/Actor20/Replay5152。尚无新更新metrics，完整指标点0，未运行训练来造验收数据。证据Cobot rl-platform/runtime/verification/native-metrics-20261020/acceptance.json。W&B按用户要求延期，无上传。
+
+
+## 2026-10-20：Rollout 监控与回合录像
+
+用户批准执行侧四项监控，并明确保持 HPC 进程。新增回合录像/Q 查看、真实选择的 Edit 与 normalized full-chunk L2 幅度、precache/select 计算与 RTC 就绪后等待、回合结果/墙钟时长；训练 Q/loss 与原生 Actor/Critic 指标默认折叠。Q 是 target critic 对执行滤波前所选动作块的预测，不是成功概率或物理反馈评分。
+
+独立 `scripts/export_rollout_review.py` 只读本地登记目录、journal metadata 与 SQLite(mode=ro)，原子生成静态 `rollout-review.json`，不联系 Learner、不编码录像、不导入机器人/模型服务。model_id + run_key + episode_uuid 隔离数据；固定 HPC 无参数元数据时保留 null。现有 API 的自主成功率定义不变，辅助数据只添加回合结果和时长。
+
+录像 frame_timestamps 使用 monotonic，旧 Q 使用 wall clock，没有可靠历史桥接。新生产端记录同机 monotonic 锚，按实际 frame index/fps 分段映射；旧历史录像/Q 可独立查看，不伪造同步。数据稽核发现 86 个回合条目/55 个可关联视频，当前旧数据全部未对齐。RL 新采点需未来正常 Actor 加载；本任务不重载 HPC/Actor/Learner/Session/Web。
+
+验证：8 Python metadata 测试通过；前端127项全量通过，集成后19项相关DOM通过。覆盖掉帧/暂停映射、无映射降级、跨模型/回合响应隔离、null options的HPC、键盘控制不冒泡到机器人快捷键。实际静态交付与回执后补；真实新回合同步待以后新采点验收，未以测试样例冒充线上记录。
