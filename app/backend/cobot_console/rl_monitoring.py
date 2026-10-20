@@ -244,7 +244,7 @@ class MonitoringReader:
         # The remote history is authoritative after a successful snapshot (including
         # checkpoint restore/truncation). During outages retain the newest local cache.
         if remote_training is not None and (learner.get('connected') or
-                remote_training.get('updated_at', 0) >= training.get('updated_at', 0)):
+                (remote_training.get('updated_at') or 0) >= (training.get('updated_at') or 0)):
             training = remote_training
         rollout = api['read_json'](root / 'telemetry/rollout.json')
         same_model = state.get('model', {}).get('id') == model['id']
