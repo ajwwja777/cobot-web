@@ -4,7 +4,7 @@
   const nativeContinuous=o=>o.async_mode==='native_async_v1'||o.learning_schedule==='native_continuous';
   function continuousSummary(o,language){
     const t=(zh,en)=>language?en:zh;
-    const phases={updating:t('GPU 正在更新','GPU updating'),waiting_episode:t('连续 '+(o.ep_timeout_secs??120)+' 秒未收到新回合，等待新回合；不是故障',(o.ep_timeout_secs??120)+'s without a new episode; waiting for a new episode; not a failure'),loading:t('Learner 加载中','Learner loading'),ready:t('Learner 就绪','Learner ready'),fault:t('Learner 故障','Learner fault'),publishing:t('正在保存发布快照','Saving publication snapshot')};
+    const phases={sampling:t('准备训练批次','Preparing native training batches'),waiting_replay:t('等待 Replay 数据','Waiting for Replay data'),updating:t('GPU 正在更新','GPU updating'),waiting_episode:t('连续 '+(o.ep_timeout_secs??120)+' 秒未收到新回合，等待新回合；不是故障',(o.ep_timeout_secs??120)+'s without a new episode; waiting for a new episode; not a failure'),loading:t('Learner 加载中','Learner loading'),ready:t('Learner 就绪','Learner ready'),fault:t('Learner 故障','Learner fault'),publishing:t('正在保存发布快照','Saving publication snapshot')};
     const parts=[t('持续学习','Continuous learning'),phases[o.learner_phase]||o.learner_phase||'—',
       'Learner '+(o.learner_step??'—'),'Critic '+(o.critic_updates??'—'),t('VLA 更新 ','VLA updates ')+(o.actor_updates??'—'),
       t('逐回合写入 Replay；采集与学习独立进行','Each episode enters Replay; collection and learning run independently'),
