@@ -9,3 +9,5 @@ assert.ok(asyncSummary({...o,network_error:'disconnected'},1).includes('Network 
 console.log('PASS async counters distinguish collection, training and served policy');
 
 assert.ok(asyncSummary({...o,collection_waiting_for:'backlog'},1).includes('Wait for learner backlog'));
+
+assert.ok(asyncSummary({...o,async_max_pending:0,pending_episodes:12},1).includes('Untrained 12/unlimited'));
