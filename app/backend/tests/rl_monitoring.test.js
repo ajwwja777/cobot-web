@@ -66,7 +66,7 @@ test('episode selection keeps historical Q while current episode advances and ca
   const ui=w.CobotRLMonitoring.create(w.document.querySelector('#grid'));ui.update(model,{});await tick();
   const picker=w.document.querySelector('.rl-episode-picker');assert.equal(picker.options.length,2);
   picker.value='old';picker.dispatchEvent(new w.Event('change'));await tick();
-  const chunkCard=[...w.document.querySelectorAll('.rl-chart-card')].find(c=>c.querySelector('h4').textContent==='回合回放 · 动作块 Critic 评分');assert(chunkCard);assert.match(chunkCard.textContent,/已记录动作块序号/);assert.match(chunkCard.querySelector('circle title').textContent,/动作块序号: 1[\s\S]*Selected Q: 0.8/);assert(![...w.document.querySelectorAll('h4')].some(h=>h.textContent==='回合时长'));assert.match(calls.at(-1),/episode=old/);assert.match(w.document.body.textContent,/历史回合 · old · Actor 3/);
+  const chunkCard=[...w.document.querySelectorAll('.rl-chart-card')].find(c=>c.querySelector('h4').textContent==='回合回放 · 动作块 Critic 评分');assert(chunkCard);assert.match(chunkCard.textContent,/回合时间（秒）/);assert.match(chunkCard.querySelector('circle title').textContent,/回合时间（秒）: 1[\s\S]*Selected Q: 0.8[\s\S]*Action chunk: 1/);assert(![...w.document.querySelectorAll('h4')].some(h=>h.textContent==='回合时长'));assert.match(calls.at(-1),/episode=old/);assert.match(w.document.body.textContent,/历史回合 · old · Actor 3/);
   ui.update(model,{phase:'offline'});assert.equal(picker.value,'old');
   picker.value='';picker.dispatchEvent(new w.Event('change'));await tick();
   assert.doesNotMatch(calls.at(-1),/episode=/);assert.match(w.document.body.textContent,/最近记录回合 · one/);ui.destroy();

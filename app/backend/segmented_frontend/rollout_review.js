@@ -42,13 +42,11 @@
    const time=mapTime(video.currentTime,segments,'video','episode');
    if(time===null){chartHandle?.setCursor(null);readout.textContent=tr('录像与 Q 待对齐；不显示同步游标','Video/Q alignment unavailable; synchronized cursor disabled');return;}
    const point=chunkPoints.filter(p=>finite(p.seconds)&&p.seconds<=time).at(-1);
-   chartHandle?.setCursor(point?.recorded_chunk);
+   chartHandle?.setCursor(point?time:null);
    readout.textContent=(point?tr('动作块 #','Chunk #')+point.recorded_chunk+' · ':'')+tr('回合时间 ','Episode time ')+fmt(time)+tr(' 秒 · 最近已记录 Q：',' s · Last recorded Q: ')+fmt(point?.q)+(point?tr('（采样时刻 ',' (sample at ')+fmt(point.seconds)+' s)':'')+(finite(point?.actor_version)?` · Actor ${point.actor_version}`:'')+(finite(point?.precache_actor_version)&&point.precache_actor_version!==point.actor_version?tr(` · 预计算 Actor ${point.precache_actor_version}`,` · Precache Actor ${point.precache_actor_version}`):'');
   }
-  function seek(chunk){
-   const point=chunkPoints[Math.max(0,Math.min(chunkPoints.length-1,Math.round(chunk)-1))];
-   if(!point||!finite(point.q))return;
-   const target=mapTime(point.seconds,segments,'episode','video');
+  function seek(time){
+   const target=mapTime(time,segments,'episode','video');
    if(target===null)return;
    video.currentTime=target;updateCursor();
   }
@@ -73,8 +71,8 @@
      if(previous&&finite(point.seconds)&&finite(previous.seconds)&&segments.some((s,i)=>{const next=segments[i+1];return next&&next.episode_start-s.episode_end>1e-6&&previous.seconds<next.episode_start&&point.seconds>s.episode_end;}))rows.push({recorded_chunk:null,seconds:null,q:null});
      rows.push(point);
     }
-    chartHandle=root.CobotRLMonitoring.chart(plot,rows,'recorded_chunk',series,{visiblePoints:true,xlabel:tr('已记录动作块序号','Recorded action chunk number'),onSeek:url&&segments.length?seek:null,empty:current.error?tr('Q 评分暂不可用：','Q unavailable: ')+current.error:tr('等待动作块 Q 记录；未记录的历史不补值','Awaiting action-chunk Q; no historical values inferred')});
-    alignmentNote.textContent=url&&segments.length?tr('每个点是一个已记录所选动作块的 Critic Q。拖动录像查看对应动作块，点击动作块定位录像；按记录时间同步，暂停间隙不补点。','Each point scores a recorded selected action chunk. Scrub video to follow chunks, or click a chunk to seek video. Recorded timestamps align playback; no inferred pause samples.'):
+    chartHandle=root.CobotRLMonitoring.chart(plot,rows,'seconds',series,{step:true,integerX:false,xlabel:tr('回合时间（秒）','Episode time (seconds)'),onSeek:url&&segments.length?seek:null,empty:current.error?tr('Q 评分暂不可用：','Q unavailable: ')+current.error:tr('等待动作块 Q 记录；未记录的历史不补值','Awaiting action-chunk Q; no historical values inferred')});
+    alignmentNote.textContent=url&&segments.length?tr('阶梯线：从本次动作选择记录到下次选择，保持该动作块的 Q，切换时跳变。按记录时间与录像同步；暂停间隙断线，最后一段未记录的结束时间不外推。','Step trace: hold each selected chunk Q until the next recorded selection. Video uses recorded timestamps; pause gaps stay blank and the final unrecorded endpoint is not extrapolated.'):
       tr('录像与 Q 待对齐：缺少明确时间映射时可分别查看，不把两个时间轴直接等同。','Video/Q alignment pending: view separately until an explicit time map is available.');
     updateCursor();
    },destroy(){disposed=true;video.removeEventListener('timeupdate',updateCursor);video.removeEventListener('seeking',updateCursor);if(video.getAttribute('src'))video.pause();layout.remove();facts.remove();versionNote.remove();alignmentNote.remove();}

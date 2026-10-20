@@ -11,7 +11,7 @@
     return {versions,start:rollout?.actor_version??points[0]?.actor_version,end:rollout?.last_actor_version??points.at(-1)?.actor_version??rollout?.actor_version};
   }
   function svgNode(name,attrs,text){const n=document.createElementNS(ns,name);for(const [k,v]of Object.entries(attrs||{}))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n;}
-  function chart(host,rows,xkey,series,{percent=false,nonnegative=false,integerX=true,xlabel='',empty='',onSeek=null,visiblePoints=false}={}){
+  function chart(host,rows,xkey,series,{percent=false,nonnegative=false,integerX=true,xlabel='',empty='',onSeek=null,visiblePoints=false,step=false}={}){
     host.replaceChildren();
     const valid=rows.filter(p=>number(p[xkey])&&series.some(s=>number(p[s.key])));
     if(!valid.length){const p=document.createElement('p');p.className='rl-chart-empty';p.textContent=empty;host.append(p);return;}
@@ -35,12 +35,12 @@
     svg.append(svgNode('text',{x:L+pw/2,y:H-5,'text-anchor':'middle',class:'rl-chart-axis'},xlabel));
     for(const s of series){
       let d='',pen=false;
-      for(const p of rows){if(!number(p[xkey])||!number(p[s.key])){pen=false;continue;}d+=(pen?' L':' M')+x(p[xkey])+','+y(p[s.key]);pen=true;}
+      for(const p of rows){if(!number(p[xkey])||!number(p[s.key])){pen=false;continue;}d+=pen?(step?' H'+x(p[xkey])+' V'+y(p[s.key]):' L'+x(p[xkey])+','+y(p[s.key])):' M'+x(p[xkey])+','+y(p[s.key]);pen=true;}
       svg.append(svgNode('path',{d,fill:'none',stroke:s.color,'stroke-width':2,'stroke-dasharray':s.dash||'','vector-effect':'non-scaling-stroke'}));
       for(const p of valid.filter(p=>number(p[s.key]))){
         const dot=svgNode('circle',{cx:x(p[xkey]),cy:y(p[s.key]),r:valid.length===1?4:3,fill:s.colorFor?.(p)||s.color,class:'rl-chart-point'+(visiblePoints?' rl-outcome-point':''),tabindex:0});
         if(onSeek){dot.setAttribute('role','button');dot.addEventListener('click',e=>{e.stopPropagation();onSeek(p[xkey]);});dot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSeek(p[xkey]);}});}
-        dot.append(svgNode('title',{},`${xlabel}: ${fmt(p[xkey])}\n${s.label}: ${fmt(p[s.key])}${percent?'%':''}${p.total?`\n${p.successes}/${p.total}`:''}${p.actor_version!==undefined?`\nActor: ${p.actor_version}`:''}${p.outcome?`\n${p.outcome}`:''}${p.precache_actor_version!==undefined?`\nPrecache Actor: ${p.precache_actor_version}`:''}`));svg.append(dot);
+        dot.append(svgNode('title',{},`${xlabel}: ${fmt(p[xkey])}\n${s.label}: ${fmt(p[s.key])}${percent?'%':''}${p.recorded_chunk?`\nAction chunk: ${p.recorded_chunk}`:''}${p.total?`\n${p.successes}/${p.total}`:''}${p.actor_version!==undefined?`\nActor: ${p.actor_version}`:''}${p.outcome?`\n${p.outcome}`:''}${p.precache_actor_version!==undefined?`\nPrecache Actor: ${p.precache_actor_version}`:''}`));svg.append(dot);
       }
     }
     const cursor=svgNode('line',{x1:L,x2:L,y1:T,y2:H-B,class:'rl-chart-cursor',visibility:'hidden'});svg.append(cursor);
@@ -117,7 +117,7 @@
       const provenance=policyProvenance(rollout);
       if(rollout.episode_uuid&&provenance.versions.length>1)cards.rollout.subtitle.textContent+=tr(` · 起始 ${provenance.start??'—'} / 末尾 ${provenance.end??'—'} · 本轮版本 ${provenance.versions.join(' / ')}`,` · start ${provenance.start??'—'} / last ${provenance.end??'—'} · episode versions ${provenance.versions.join(' / ')}`);
       if(rlt&&rollout.episode_uuid)cards.rollout.subtitle.textContent+=` · Critic ${rollout.critic_version??'—'}`+tr('（本轮固定）',' (pinned)');
-      if(review)review.update(rollout,{rlt});else chart(cards.rollout.plot,rp.map((p,index)=>({...p,recorded_chunk:index+1})),'recorded_chunk',[{key:'q',label:'Selected Q',color:'#ef94be'}],{visiblePoints:true,xlabel:tr('已记录动作块序号','Recorded action chunk number'),empty:rollout.error?tr('Q 评分暂不可用：','Q scoring unavailable: ')+rollout.error:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
+      if(review)review.update(rollout,{rlt});else chart(cards.rollout.plot,rp.map((p,index)=>({...p,recorded_chunk:index+1})),'seconds',[{key:'q',label:'Selected Q',color:'#ef94be'}],{step:true,integerX:false,xlabel:tr('回合时间（秒）','Episode time (seconds)'),empty:rollout.error?tr('Q 评分暂不可用：','Q scoring unavailable: ')+rollout.error:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
       const editRows=rp.map(p=>({...p,edit_choice:p.edit_selected===true?1:p.edit_selected===false?0:null}));
       cards.edit.card.hidden=rlt;
       cards.edit.last.textContent=typeof rp.at(-1)?.edit_selected==='boolean'?(rp.at(-1).edit_selected?tr('采用 Edit','Edit selected'):tr('原候选','Unedited selected')):'—';
