@@ -924,3 +924,7 @@ Added optional async EXPO status rendering: upload queue, untrained backlog/limi
 113 Node tests passed, including actual collection-button rendering while the async learner updates and when the queue limit blocks new starts. Source0bc6192 was pushed before SHA-verified static installation on Cobot10.12.166.118; no Web restart required for these static changes. RL delivery and real GPU evidence belong to rl-platform/docs/online/tasks/2026-10-20-expo-async/. No robot motion or production recording was initiated by this work.
 
 2026-10-20 15:25 CST activation: new async entry loaded with50Hz/RTC/filtering, local Actor20 and HPC4 Learner20, phasepaused, Sessioninactive, pending0. Catalogue refreshed automatically; static assets require browser refresh. Multi-hop startup refusals cleared as the route established; final live8043/8044 and Web identities matched. No backend restart or robot motion. Detailed final acceptance is in RL outputs/expo-async-20261020/final-acceptance.json.
+
+2026-10-20 user requested no10-episode cap: explicit async_max_pending=0 now renders Untrained N/unlimited; current counts remain visible. Existing finite-limit and button gating behavior retained.113 Node tests passed; cache key20261020-expo-unlimited. RL owns remote admission/continuation and separate scheduling audit.
+
+Unlimited-backlog field activation verified through Web: ready/paused, Sessioninactive, async_max_pending0, servedActor20. No backend restart or robot action. Evidence RL outputs/expo-async-20261020/unlimited-acceptance.json.
