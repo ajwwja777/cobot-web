@@ -8,6 +8,7 @@ test('native charts preserve raw values, parameter/model identity and GET-only b
  w.fetch=async(url,opts)=>{calls.push([url,opts]);return{ok:true,json:async()=>({schema:1,runs:[run]})}};
  const ui=w.CobotNativeExpoMetrics.create(w.document.querySelector('main'));ui.update({id:'expo',runtime_adapter:'expo_online'},{rtc_delay:5,edit_scale:.01});await tick();
  assert.equal(w.document.querySelectorAll('svg').length,5);assert.match(w.document.body.textContent,/actor_loss/);assert.match(w.document.body.textContent,/不是机械臂执行比例/);assert.equal(calls[0][1].method,undefined);assert.equal(calls[0][0],'/native-expo-metrics.json');
+ run.progress.network_error='refused';ui.update({id:'expo',runtime_adapter:'expo_online'},null);assert.match(w.document.body.textContent,/上游连接中断/);assert.match(w.document.body.textContent,/无需 W&B/);assert.doesNotMatch(w.document.body.textContent,/暂未配置上传/);
  ui.update({id:'other',runtime_adapter:'expo_online'},null);assert.equal(w.document.querySelectorAll('svg').length,0);await tick();assert.equal(w.document.querySelectorAll('svg').length,0);
  ui.update({id:'expo',runtime_adapter:'expo_online'},{rtc_delay:3,edit_scale:.01});assert.equal(w.document.querySelectorAll('svg').length,0);
  ui.destroy();dom.window.close();

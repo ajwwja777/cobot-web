@@ -952,3 +952,5 @@ Unlimited-backlog field activation verified through Web: ready/paused, Sessionin
 
 
 2026-10-20 用户要求将回合时长图替换为动作块 Critic 评分。新图复用所选回合原始 selected Q，横轴为已记录动作块序号（不是关节控制步，也不推断漏记动作），保留负值/大于1的值和历史选择。上方按时间的Q/录像保留；仅静态JS与HTML版本修改，不重新评分、不操作HPC/模型/Session/后端。
+
+2026-10-20 用户取消W&B：原生训练指标改为内网直传状态提示，区分网页同步、上游断连和旧状态；保留Learner原始更新时间。独立观察器通过Cobot用户服务运行，不重启网页或模型。只同步native_expo_metrics.js和HTML缓存版本，工作区位于xiqing个人LFT2目录。

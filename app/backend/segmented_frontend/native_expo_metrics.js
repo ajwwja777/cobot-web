@@ -20,14 +20,18 @@
   const grid=document.createElement('div');grid.className='rl-chart-grid';
   const cards=definitions.map(([name,x,keys])=>{const card=document.createElement('article');card.className='rl-chart-card';const h=document.createElement('h4');h.textContent=name;const legend=document.createElement('p');legend.textContent=keys.join(' / ');const plot=document.createElement('div');plot.className='rl-chart-plot';card.append(h,legend,plot);grid.append(card);return {plot,x,keys};});
   const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='全部原生指标（最新一次更新）';const table=document.createElement('table');details.append(summary,table);
-  const note=document.createElement('p');note.textContent='直接复用 Learner 更新返回值。候选采用 Edit 比例是训练 batch 统计，不是机械臂执行比例；Actor loss 不是机器人成功率。每组更新采一个状态点，不展示组内每个梯度步。接入前未记录的指标不补值。';
+  const note=document.createElement('p');note.textContent='直接复用 Learner 更新返回值。候选采用 Edit 比例是训练 batch 统计，不是机械臂执行比例；Actor loss 不是机器人成功率。独立观察器每2秒读取最新状态，可能漏过中间更新，不展示组内每个梯度步。接入前未记录的指标不补值。';
   section.append(title,status,progress,grid,details,note);parent.append(section);
   let model=null,options=null,selected='',busy=false,last=0,timer=null,disposed=false,payload=null;
   function render(){
    section.hidden=model?.runtime_adapter!=='expo_online';if(section.hidden)return;
-   const run=(payload?.runs||[]).find(r=>r.model_id===model.id&&(!options||(r.options.rtc_delay===options.rtc_delay&&r.options.edit_scale===options.edit_scale)));
+   const run=(payload?.runs||[]).find(r=>r.model_id===model.id&&(!options||(r.options?.rtc_delay===options.rtc_delay&&r.options?.edit_scale===options.edit_scale)));
    const age=run?(Date.now()/1000-run.observed_at):Infinity;
-   status.textContent=(run?(age<15&&!payload.read_error?'指标观察器已连接':'指标暂未更新，保留历史'):'等待原生训练指标')+' · W&B：暂未配置上传';
+   const upstream=run?.progress||{},sourceTime=upstream.updated_at;
+   const staleSource=typeof sourceTime==='number'&&Date.now()/1000-sourceTime>30;
+   const state=!run?'等待原生训练指标':age>=15||payload.read_error?'网页指标同步中断 · 保留历史':upstream.network_error?'上游连接中断 · 保留最后指标':staleSource?'上游状态未刷新 · 保留最后指标':'网页指标同步正常';
+   const updated=upstream.last_update_at||run?.points?.at(-1)?.timestamp;
+   status.textContent=state+' · 内网直传，无需 W&B'+(updated?' · 最近训练更新：'+new Date(updated*1000).toLocaleString():'');
    const p=run?.progress||{};progress.textContent=`Critic ${p.critic_updates??'—'} · Actor 更新 ${p.actor_updates??'—'} · 执行版本 ${p.served_actor_version??'—'} · 已发布版本 ${p.published_actor_version??'—'} · Replay ${p.replay_steps??'—'} · 待处理回合 ${p.pending_episodes??'—'} · 待更新组 ${p.pending_update_calls??'—'}`;
    const points=run?.points||[],rows=points.map(p=>({...p.metrics,...p.timings,critic_step:p.critic_step,actor_step:p.actor_step}));
    for(const c of cards)root.CobotRLMonitoring.chart(c.plot,rows,c.x,c.keys.map((key,i)=>({key,label:key,color:['#47c6ed','#f2bf66','#b59cf8','#47cf9b'][i%4]})),{xlabel:c.x==='actor_step'?'基础 Actor 累计更新次数':'Critic 累计更新次数',empty:'等待真实更新记录；不补造历史'});
