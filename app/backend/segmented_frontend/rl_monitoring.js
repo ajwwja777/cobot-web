@@ -76,7 +76,7 @@
     section.addEventListener('keydown',event=>{if(event.target.closest?.('select,video,summary,button,[role=button]'))event.stopPropagation();});
     const nativeMetrics=root.CobotNativeExpoMetrics?.create(diagnostics);
     const review=root.CobotRolloutReview?.create(cards.rollout.card,cards.rollout.plot);
-    let rolloutSelection='',selection='',supported=false,model=null,state={},options=null,payload=null,reviewPayload=null,inflight=null,lastPoll=0,error='',timer=null;
+    let rolloutSelection='',selection='',supported=false,model=null,state={},options=null,payload=null,reviewPayload=null,inflight=null,lastPoll=0,apiRetryAfter=0,error='',timer=null;
     episodePicker.addEventListener('change',()=>{rolloutSelection=episodePicker.value;inflight?.abort();inflight=null;lastPoll=0;if(payload)payload={...payload,rollout:{}};render();poll();});
     function render(){
       title.textContent=tr('RL 在线执行监控','RL online rollout monitoring');diagnosticsTitle.textContent=tr('训练诊断 · Q 学习与 Actor / Critic 指标','Training diagnostics · Q learning and Actor / Critic metrics');
@@ -89,7 +89,7 @@
         if(learner.connected&&learner.phase==='stale')connection=tr('Learner 暂无心跳 · 历史记录','No learner heartbeat · history');
         if(learner.connected&&learner.running&&!payload?.actor_loaded)connection+=tr(' · Actor 未加载',' · Actor unloaded');
       }
-      badge.textContent=!supported?tr('当前模式无在线学习','No online learning in this mode'):error?tr('网页连接中断 · 保留曲线','Web disconnected · history retained'):connection;
+      badge.textContent=!supported?tr('当前模式无在线学习','No online learning in this mode'):payload?.monitoring_source==='static_history'?tr('网页 API 暂不可用 · 只读历史快照','Web API unavailable · read-only historical snapshot'):error?tr('网页连接中断 · 保留曲线','Web disconnected · history retained'):connection;
       badge.dataset.live=String(Boolean(payload?.live&&!error));
       const o=payload?.options||options||{},t=payload?.training?.updated_at;
       meta.textContent=[model?.label||model?.id,...(rlt?[]:[`d ${o.rtc_delay??'—'}`,`Edit ${fmt(o.edit_scale)}`]),`Actor ${payload?.actor_version??'—'}`,`Learner ${learner?.learner_version??'—'}`,tr('最近学习记录：','Last learning sample: ')+(t?new Date(t*1000).toLocaleString():tr('尚无','none'))].join(' · ');
@@ -142,15 +142,38 @@
       try{
         const params=new URLSearchParams({model_id:model.id});if(rolloutSelection)params.set('episode',rolloutSelection);if(options){params.set('rtc_delay',options.rtc_delay);params.set('edit_scale',options.edit_scale);}
         const readJSON=async url=>{const response=await root.fetch(url,{cache:'no-store',signal:controller.signal});if(!response.ok)throw Error(String(response.status));return response.json();};
-        const tasks=[readJSON('/api/collection/rl-monitoring?'+params)];
+        const retryAPI=Date.now()>=apiRetryAfter;
+        const tasks=[retryAPI?readJSON('/api/collection/rl-monitoring?'+params):Promise.reject(Error('API retry deferred'))];
         if(review&&model?.runtime_adapter==='expo_online')tasks.push(readJSON('/rollout-review.json'));
         const results=await Promise.allSettled(tasks);
         if(selection+'|'+rolloutSelection!==key)return;
         if(results[1]?.status==='fulfilled'&&results[1].value?.schema===1)reviewPayload=results[1].value;
-        if(results[0].status!=='fulfilled')throw results[0].reason;
-        payload=results[0].value;
         const candidates=(reviewPayload?.runs||[]).filter(r=>r.model_id===model.id);
-        const run=payload.run_key?candidates.find(r=>r.run_key===payload.run_key):options?candidates.find(r=>r.options?.rtc_delay===options.rtc_delay&&r.options?.edit_scale===options.edit_scale):candidates.length===1?candidates[0]:null;
+        const matchingRun=value=>{const matches=value?.run_key?candidates.filter(r=>r.run_key===value.run_key):options?candidates.filter(r=>r.options?.rtc_delay===options.rtc_delay&&r.options?.edit_scale===options.edit_scale):candidates;return matches.length===1?matches[0]:null;};
+        let value,run;
+        if(results[0].status==='fulfilled'){
+          value=results[0].value;run=matchingRun(value);apiRetryAfter=0;
+        }else{
+          if(retryAPI)apiRetryAfter=Date.now()+15000;
+          run=matchingRun(payload);if(!run)throw results[0].reason;
+          const previous=payload?.run_key===run.run_key?payload:null;
+          const uuid=rolloutSelection||run.latest_episode_uuid;
+          const saved=(run.episodes||[]).find(e=>e.episode_uuid===uuid);
+          let rollout={episode_uuid:uuid,points:[]};
+          if(saved?.rollout_url){
+            const url=new URL(saved.rollout_url,root.location.href);
+            const expected='/rollout-review/'+encodeURIComponent(run.run_key)+'/'+encodeURIComponent(uuid)+'.json';
+            if(url.origin!==root.location.origin||url.pathname!==expected||url.search||url.hash)throw Error('Invalid recorded-rollout URL');
+            try{rollout=await readJSON(url.pathname);}catch(e){if(previous?.rollout?.episode_uuid!==uuid)throw e;rollout=previous.rollout;}
+            if(rollout.episode_uuid!==uuid)throw Error('Recorded-rollout identity mismatch');
+          }
+          if(selection+'|'+rolloutSelection!==key)return;
+          value={schema:1,model_id:model.id,model_label:model.label,run_key:run.run_key,options:run.options,live:false,actor_loaded:false,
+            learner:{supported:true,connected:false,running:false,phase:'unavailable'},monitoring_source:'static_history',
+            training:run.training??previous?.training??{},success:{...(previous?.success||{}),...(run.success||{})},
+            rollout:{...rollout,active:false,historical:true},rollout_episodes:(run.episodes||[]).filter(e=>e.rollout_url),sampled_at:reviewPayload.sampled_at};
+        }
+        payload=value;
         if(run){
           const saved=(run.episodes||[]).find(e=>e.episode_uuid===payload.rollout?.episode_uuid);
           if(saved)payload={...payload,rollout:{...payload.rollout,review:saved.review}};
@@ -167,7 +190,7 @@
       if(chosen?.kind==='rlt')options=null;
       nativeMetrics?.update(chosen,options);
       const key=enabled?JSON.stringify([chosen.id,options]):'';
-      if(key!==selection){selection=key;rolloutSelection='';payload=null;error='';lastPoll=0;inflight?.abort();inflight=null;render();}
+      if(key!==selection){selection=key;rolloutSelection='';payload=null;error='';lastPoll=0;apiRetryAfter=0;inflight?.abort();inflight=null;render();}
       if(enabled)poll();else render();
     }
     timer=setInterval(poll,2000);document.addEventListener('cobot:language',render);
