@@ -915,3 +915,10 @@ After Wi-Fi recovery Cobot uses 10.12.166.118; its SSH host key matches the prev
 ## 2026-10-20：532 参数草稿，不影响 HPC 进程
 
 用户要求保持HPC进程并先选择保存参数。两种532在已加载/Session期间也可保存d1–8、Edit.01–.10草稿，按模型存浏览器localStorage；轮询不覆盖，显示当前生效值。普通532沿原load接口应用。HPC532固定Learner尚无参数切换协议，因此只保存草稿，不发送未经支持的expo字段，明确提示当前加载不会应用新值；HPC下次加载自动同步仍未实现。14项DOM测试通过，未调用模型/Session/Slurm操作、未重启后端。静态脚本版本号更新避免缓存。
+
+
+## 2026-10-20: bounded asynchronous EXPO status
+
+Added optional async EXPO status rendering: upload queue, untrained backlog/limit, published/downloaded/served versions, learner phase, network retry and bounded-start reason. Local rollout identity is provided by the RL runtime separately from its remote optimizer job. Existing synchronous controls and backend state machines are unchanged. Cache key20261020-expo-async2 activates the new static script on refresh.
+
+113 Node tests passed, including actual collection-button rendering while the async learner updates and when the queue limit blocks new starts. Source0bc6192 was pushed before SHA-verified static installation on Cobot10.12.166.118; no Web restart required for these static changes. RL delivery and real GPU evidence belong to rl-platform/docs/online/tasks/2026-10-20-expo-async/. No robot motion or production recording was initiated by this work.
