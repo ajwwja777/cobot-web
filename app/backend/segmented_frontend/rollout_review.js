@@ -37,17 +37,18 @@
   qPanel.append(plot,readout);layout.append(media,qPanel);
   const alignmentNote=document.createElement('p');alignmentNote.className='rl-alignment-note';
   card.append(facts,versionNote,layout,alignmentNote);
-  let current={},segments=[],chartHandle=null,identity='',disposed=false;
+  let current={},chunkPoints=[],segments=[],chartHandle=null,identity='',disposed=false;
   function updateCursor(){
    const time=mapTime(video.currentTime,segments,'video','episode');
-   chartHandle?.setCursor(time);
-   if(time===null){readout.textContent=tr('录像与 Q 待对齐；不显示同步游标','Video/Q alignment unavailable; synchronized cursor disabled');return;}
-   const points=(current.points||[]).filter(p=>finite(p.seconds)&&p.seconds<=time);
-   const point=points.at(-1);
-   readout.textContent=tr('回合时间 ','Episode time ')+fmt(time)+tr(' 秒 · 最近已记录 Q：',' s · Last recorded Q: ')+fmt(point?.q)+(point?tr('（采样时刻 ',' (sample at ')+fmt(point.seconds)+' s)':'')+(finite(point?.actor_version)?` · Actor ${point.actor_version}`:'')+(finite(point?.precache_actor_version)&&point.precache_actor_version!==point.actor_version?tr(` · 预计算 Actor ${point.precache_actor_version}`,` · Precache Actor ${point.precache_actor_version}`):'');
+   if(time===null){chartHandle?.setCursor(null);readout.textContent=tr('录像与 Q 待对齐；不显示同步游标','Video/Q alignment unavailable; synchronized cursor disabled');return;}
+   const point=chunkPoints.filter(p=>finite(p.seconds)&&p.seconds<=time).at(-1);
+   chartHandle?.setCursor(point?.recorded_chunk);
+   readout.textContent=(point?tr('动作块 #','Chunk #')+point.recorded_chunk+' · ':'')+tr('回合时间 ','Episode time ')+fmt(time)+tr(' 秒 · 最近已记录 Q：',' s · Last recorded Q: ')+fmt(point?.q)+(point?tr('（采样时刻 ',' (sample at ')+fmt(point.seconds)+' s)':'')+(finite(point?.actor_version)?` · Actor ${point.actor_version}`:'')+(finite(point?.precache_actor_version)&&point.precache_actor_version!==point.actor_version?tr(` · 预计算 Actor ${point.precache_actor_version}`,` · Precache Actor ${point.precache_actor_version}`):'');
   }
-  function seek(time){
-   const target=mapTime(time,segments,'episode','video');
+  function seek(chunk){
+   const point=chunkPoints[Math.max(0,Math.min(chunkPoints.length-1,Math.round(chunk)-1))];
+   if(!point||!finite(point.q))return;
+   const target=mapTime(point.seconds,segments,'episode','video');
    if(target===null)return;
    video.currentTime=target;updateCursor();
   }
@@ -55,7 +56,7 @@
   video.addEventListener('error',()=>{videoEmpty.hidden=false;videoEmpty.textContent=tr('录像暂不可用，Q 历史仍保留','Video unavailable; Q history retained');});
   return {
    update(rollout,{rlt=false}={}){
-    if(disposed)return;current=rollout||{};const review=current.review||{};
+    if(disposed)return;current=rollout||{};chunkPoints=(current.points||[]).map((p,index)=>({...p,recorded_chunk:index+1}));const review=current.review||{};
     const url=safeVideoURL(review.video_url),nextIdentity=String(current.episode_uuid||'')+'|'+url;
     segments=url?validSegments(review.alignment):[];
     if(nextIdentity!==identity){identity=nextIdentity;if(video.getAttribute('src')){video.pause();video.removeAttribute('src');}if(url)video.setAttribute('src',url);video.currentTime=0;}
@@ -66,15 +67,14 @@
     facts.textContent=items.join(' · ');
     const provenance=root.CobotRLMonitoring.policyProvenance(current);versionNote.hidden=provenance.versions.length<=1;versionNote.textContent=versionNote.hidden?'':tr('本回合使用了多个模型版本：Q 的变化也可能来自权重变化，不能只解释为任务状态变化。','Multiple policy versions were used in this episode: Q changes may reflect weight updates as well as task-state changes.');
     const series=[{key:'q',label:tr('所选动作块 Q','Selected action chunk Q'),color:'#ef94be'}];
-    if(!rlt&&(current.points||[]).some(p=>finite(p.best_unedited_q)))series.push({key:'best_unedited_q',label:tr('最佳未编辑候选 Q','Best unedited candidate Q'),color:'#f2bf66',dash:'5 4'});
     const rows=[];
-    for(const point of current.points||[]){
+    for(const point of chunkPoints){
      const previous=rows.at(-1);
-     if(previous&&finite(point.seconds)&&finite(previous.seconds)&&segments.some((s,i)=>{const next=segments[i+1];return next&&next.episode_start-s.episode_end>1e-6&&previous.seconds<next.episode_start&&point.seconds>s.episode_end;}))rows.push({seconds:null,q:null});
+     if(previous&&finite(point.seconds)&&finite(previous.seconds)&&segments.some((s,i)=>{const next=segments[i+1];return next&&next.episode_start-s.episode_end>1e-6&&previous.seconds<next.episode_start&&point.seconds>s.episode_end;}))rows.push({recorded_chunk:null,seconds:null,q:null});
      rows.push(point);
     }
-    chartHandle=root.CobotRLMonitoring.chart(plot,rows,'seconds',series,{integerX:false,xlabel:tr('本回合开始后的时间（秒）','Seconds since episode start'),onSeek:url&&segments.length?seek:null,empty:current.error?tr('Q 评分暂不可用：','Q unavailable: ')+current.error:tr('等待动作块 Q 记录；未记录的历史不补值','Awaiting action-chunk Q; no historical values inferred')});
-    alignmentNote.textContent=url&&segments.length?tr('粉线：所选动作块 Q；黄虚线：最佳未编辑候选 Q（有记录时）。拖动录像或点击曲线定位；按实际时间映射同步，暂停间隙不补点。','Pink: selected chunk Q; dashed yellow: best unedited Q when recorded. Scrub video or click the chart. Explicit time mapping; no samples inferred during pauses.'):
+    chartHandle=root.CobotRLMonitoring.chart(plot,rows,'recorded_chunk',series,{visiblePoints:true,xlabel:tr('已记录动作块序号','Recorded action chunk number'),onSeek:url&&segments.length?seek:null,empty:current.error?tr('Q 评分暂不可用：','Q unavailable: ')+current.error:tr('等待动作块 Q 记录；未记录的历史不补值','Awaiting action-chunk Q; no historical values inferred')});
+    alignmentNote.textContent=url&&segments.length?tr('每个点是一个已记录所选动作块的 Critic Q。拖动录像查看对应动作块，点击动作块定位录像；按记录时间同步，暂停间隙不补点。','Each point scores a recorded selected action chunk. Scrub video to follow chunks, or click a chunk to seek video. Recorded timestamps align playback; no inferred pause samples.'):
       tr('录像与 Q 待对齐：缺少明确时间映射时可分别查看，不把两个时间轴直接等同。','Video/Q alignment pending: view separately until an explicit time map is available.');
     updateCursor();
    },destroy(){disposed=true;video.removeEventListener('timeupdate',updateCursor);video.removeEventListener('seeking',updateCursor);if(video.getAttribute('src'))video.pause();layout.remove();facts.remove();versionNote.remove();alignmentNote.remove();}
