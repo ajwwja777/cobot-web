@@ -429,3 +429,44 @@ test("async EXPO keeps collection enabled during learning and closes at the boun
   assert.match($('collection-model-state').textContent,/Wait for learner backlog/);
  } finally {dom.window.close();}
 });
+
+
+test("native continuous EXPO reports independent learner progress and keeps real start buttons ready",async()=>{
+ const {dom,w,models,setState}=setup();
+ try {
+  const model={id:'expo-continuous',family:'EXPO',kind:'vla',runtime_adapter:'expo_online',task:'plug_left_2cam',step:2000,available:true,collection_directory_policy:'model',data_directories:{collection:'/data/expo-continuous'}};
+  models.push(model);w.prepareStorage=async()=>({data_root:'/data/expo-continuous'});
+  await tick();await w.chooseCollection('normal');await w.refreshConsole();
+  const online={async_mode:'native_async_v1',learning_schedule:'native_continuous',phase:'ready',ready:true,learner_phase:'updating',recipe:'native_sync',learner_step:26,critic_updates:520,actor_updates:26,replay_steps:6000,replay_online_episodes:16,completed_episodes:17,pending_upload_episodes:2,pending_episodes:1,published_actor_version:25,downloaded_actor_version:24,served_actor_version:20,episodes_per_update:5,warmup_remaining:10,ep_timeout_secs:120};
+  setState({phase:'paused',model,started_at:15,session_active:true,online});
+  await w.CobotCollectionModel.refresh();await tick();
+  const source=fs.readFileSync('segmented_frontend/app.js','utf8');
+  Object.assign(w,{$:s=>w.document.querySelector(s),$$:s=>w.document.querySelectorAll(s),
+   captureHomeBusy:false,manualHomeBusy:false,storagePrepared:true,normalPathPicker:null,rltSession:null,rltOperationBusy:false,
+   consoleStatus:{selected_mode:'normal',active_mode:null},current:{capture_state:'committed',buttons:{}},updateManualHomeControls(){},updateEpisodeBrowserControls(){},hideDirectorySuggestions(){}});
+  w.eval(source.slice(source.indexOf('function updateButtons()'),source.indexOf('async function refreshCaptureHomePoses()')));
+  w.updateButtons();
+  const $=id=>w.document.getElementById(id);
+  assert.equal($('start').disabled,false);assert.equal($('collection-start').disabled,false);
+  assert.match($('collection-model-state').textContent,/Continuous learning.*GPU updating.*Learner 26.*Critic 520.*VLA updates 26/);
+  assert.match($('collection-model-state').textContent,/Replay 6000.*Inserted episodes 16.*Collected 17.*Upload queue 2.*Awaiting Replay insertion 1/);
+  assert.match($('collection-model-state').textContent,/Published 25.*Downloaded 24.*Served 20/);
+  assert.doesNotMatch($('collection-model-state').textContent,/Warmup|Batch|Untrained|Lag/);
+  setState({online:{...online,learner_phase:'waiting_episode'}});await w.CobotCollectionModel.refresh();w.updateButtons();
+  assert.equal($('collection-start').disabled,false);
+  assert.match($('collection-model-state').textContent,/120s.*waiting for a new episode.*not a failure/);
+  w.eval(fs.readFileSync('segmented_frontend/preferences.js','utf8'));w.CobotPreferences.setLanguage('zh');
+  assert.match($('collection-model-state').textContent,/持续学习.*120.*等待新回合.*不是故障/);
+  assert.match($('collection-model-state').textContent,/逐回合.*Replay.*已发布 25.*已下载 24.*正在执行 20/);
+  assert.doesNotMatch($('collection-model-state').textContent,/热身|本批|落后版数/);
+  setState({online:{...online,install_error:'stage failed; retaining Actor 20'}});await w.CobotCollectionModel.refresh();w.updateButtons();
+  assert.equal($('collection-start').disabled,false);
+  assert.match($('collection-model-state').textContent,/stage failed; retaining Actor 20/);
+  for(const fault of [{phase:'fault',ready:false,error:'learner_failed'},{phase:'install_failed',ready:false,install_error:'bad checkpoint'}]){
+   setState({online:{...online,...fault}});await w.CobotCollectionModel.refresh();w.updateButtons();
+   assert.equal($('collection-start').disabled,true);
+  }
+  setState({online,status_stale:true});await w.CobotCollectionModel.refresh();w.updateButtons();
+  assert.equal($('collection-start').disabled,true);
+ }finally{dom.window.close();}
+});

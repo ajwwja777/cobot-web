@@ -1,7 +1,41 @@
 "use strict";
 (function(root){
   const $=s=>document.querySelector(s);
+  const nativeContinuous=o=>o.async_mode==='native_async_v1'||o.learning_schedule==='native_continuous';
+  function continuousSummary(o,language){
+    const t=(zh,en)=>language?en:zh;
+    const phases={updating:t('GPU 正在更新','GPU updating'),waiting_episode:t('连续 '+(o.ep_timeout_secs??120)+' 秒未收到新回合，等待新回合；不是故障',(o.ep_timeout_secs??120)+'s without a new episode; waiting for a new episode; not a failure'),loading:t('Learner 加载中','Learner loading'),ready:t('Learner 就绪','Learner ready'),fault:t('Learner 故障','Learner fault'),publishing:t('正在保存发布快照','Saving publication snapshot')};
+    const parts=[t('持续学习','Continuous learning'),phases[o.learner_phase]||o.learner_phase||'—',
+      'Learner '+(o.learner_step??'—'),'Critic '+(o.critic_updates??'—'),t('VLA 更新 ','VLA updates ')+(o.actor_updates??'—'),
+      t('逐回合写入 Replay；采集与学习独立进行','Each episode enters Replay; collection and learning run independently'),
+      'Replay '+(o.replay_steps??'—'),t('已入库回合 ','Inserted episodes ')+(o.replay_online_episodes??'—'),
+      t('已采集 ','Collected ')+(o.completed_episodes??'—'),t('待上传 ','Upload queue ')+(o.pending_upload_episodes??0),
+      t('等待写入 Replay ','Awaiting Replay insertion ')+(o.pending_episodes??0),
+      t('已发布 ','Published ')+(o.published_actor_version??'—'),t('已下载 ','Downloaded ')+(o.downloaded_actor_version??'—'),
+      t('正在执行 ','Served ')+(o.served_actor_version??'—')];
+    const upload=o.upload||{},download=o.download||{};
+    if(upload.state)parts.push(t('上传 ','Upload ')+upload.state+(upload.files_total!==undefined?' '+(upload.files_sent??0)+'/'+upload.files_total+t(' 文件',' files'):'')+(upload.bytes!==undefined?' / '+upload.bytes+' bytes':'')+(upload.seconds!==undefined?' / '+upload.seconds+'s':''));
+    if(download.state){
+      const states={downloading:t('正在下载 Actor ','Downloading Actor '),staged:t('已下载 Actor ','Downloaded Actor '),installed:t('已安装 Actor ','Installed Actor '),retrying:t('重试下载 Actor ','Retrying Actor download ')};
+      parts.push((states[download.state]||download.state+' ')+(download.actor_version??'—')+(download.state==='staged'?t('；等待本地安装','; awaiting local installation'):'')+(download.seconds!==undefined?' / '+download.seconds+'s':'')+(download.install_seconds!==undefined?t(' / 安装 ',' / Install ')+download.install_seconds+'s':''));
+    }
+    const stamp=(value)=>{
+      if(value===undefined||value===null||value==='')return null;
+      const date=new Date(typeof value==='number'?value*1000:value);
+      return Number.isFinite(date.getTime())?date.toISOString().replace('T',' ').replace('.000Z',' UTC'):null;
+    };
+    for(const [value,zh,en] of [[o.last_episode_at,'最近回合','Last episode'],[o.last_replay_insert_at,'Replay 入库','Replay insertion'],[o.last_update_at,'最近更新','Last update'],[o.published_at,'发布于','Published at'],[download.started_at,'下载开始','Download started'],[download.downloaded_at,'下载完成','Download completed'],[download.installed_at,'安装完成','Installed at']]){
+      const time=stamp(value);if(time)parts.push(t(zh,en)+' '+time);
+    }
+    for(const [key,zh,en] of [['sampling_seconds','采样','Sampling'],['update_seconds','更新','Update'],['checkpoint_seconds','检查点保存','Checkpoint'],['snapshot_seconds','发布快照','Snapshot']]){
+      const seconds=o.timings?.[key];if(seconds!==undefined&&seconds!==null)parts.push(t(zh,en)+' '+seconds+'s');
+    }
+    if(o.network_error)parts.push(t('网络重试：','Network retry: ')+o.network_error);
+    if(o.install_error)parts.push(t('权重安装失败：','Policy install failed: ')+o.install_error);
+    return ' | '+parts.join(' · ');
+  }
   function asyncSummary(o,language){
+    if(nativeContinuous(o))return continuousSummary(o,language);
     if(o.async_mode!=='bounded_async_v1')return '';
     const t=(zh,en)=>language?en:zh;
     const waits={backlog:t('\u7b49\u5f85\u5b66\u4e60\u6d88\u5316\u79ef\u538b','Wait for learner backlog'),policy_lag:t('\u7b49\u5f85\u65b0\u6743\u91cd','Wait for newer policy'),installing:t('\u6b63\u5728\u5b89\u88c5\u6743\u91cd','Installing policy'),install_failed:t('\u6743\u91cd\u5b89\u88c5\u5931\u8d25','Policy install failed'),learner_fault:t('Learner \u5f02\u5e38','Learner fault')};
@@ -132,7 +166,7 @@
     else if(failure)label($('#collection-model-state'),state.model_ready&&state.session?.phase==='fault'?'模型已加载；录制需要恢复（见下方）':String(failure),state.model_ready&&state.session?.phase==='fault'?'Model loaded; recording needs recovery (below)':root.CobotPreferences?.text(String(failure))||String(failure));
     if(expoOnline&&state.model?.id===chosen.id&&state.phase!=='offline'&&state.online){
       const o=state.online,names={ready:['等待下一回合','Ready for next episode'],rollout:['采样中','Collecting'],updating:['正在学习和保存','Learning and saving'],fault:['学习故障','Learning fault'],loading:['加载中','Loading'],transferring:['同步回合数据','Transferring episode'],publishing:['同步并加载本地权重','Publishing local Actor']};
-      const status=language=>'EXPO Online · '+(names[o.phase]?.[language]||o.phase)+' · Learner '+(o.learner_step??'—')+' · Actor '+(o.actor_version??'—')+(o.served_actor_version!==undefined?' · '+(language?'Local version ':'本地版本 ')+o.served_actor_version:'')+' · '+(language?'VLA updates ':'VLA 更新 ')+(o.actor_updates??'—')+' · Replay '+(o.replay_steps??'—')+(o.recipe==='native_sync'?' · Critic '+(o.critic_updates??0)+' · '+(language?'Seed ':'初始示教 ')+(o.seed_episodes??0)+(language?' episodes / ':' 回合 / ')+(o.seed_steps??0)+(language?' frames · Online transitions ':' 帧 · 在线步数 ')+(o.online_steps??0)+(language?' · Collected ':' · 已采集 ')+(o.completed_episodes??0)+(language?' episodes · Warmup remaining ':' 回合 · 热身剩余 ')+(o.warmup_remaining??0):'')+(o.episodes_per_update>1?' · '+(language?'Batch ':'本批 ')+(o.batch_episodes_collected??0)+'/'+o.episodes_per_update+(language?' episodes · Pending update calls ':' 回合 · 待执行更新组 ')+(o.pending_update_calls??0):'')+(o.compute_host?' · '+o.compute_host:'')+(o.error?' · '+o.error:'')+asyncSummary(o,language);
+      const status=language=>nativeContinuous(o)?'EXPO Online · '+(names[o.phase]?.[language]||o.phase)+asyncSummary(o,language)+(o.compute_host?' · '+o.compute_host:'')+(o.error?' · '+o.error:''):'EXPO Online · '+(names[o.phase]?.[language]||o.phase)+' · Learner '+(o.learner_step??'—')+' · Actor '+(o.actor_version??'—')+(o.served_actor_version!==undefined?' · '+(language?'Local version ':'本地版本 ')+o.served_actor_version:'')+' · '+(language?'VLA updates ':'VLA 更新 ')+(o.actor_updates??'—')+' · Replay '+(o.replay_steps??'—')+(o.recipe==='native_sync'?' · Critic '+(o.critic_updates??0)+' · '+(language?'Seed ':'初始示教 ')+(o.seed_episodes??0)+(language?' episodes / ':' 回合 / ')+(o.seed_steps??0)+(language?' frames · Online transitions ':' 帧 · 在线步数 ')+(o.online_steps??0)+(language?' · Collected ':' · 已采集 ')+(o.completed_episodes??0)+(language?' episodes · Warmup remaining ':' 回合 · 热身剩余 ')+(o.warmup_remaining??0):'')+(o.episodes_per_update>1?' · '+(language?'Batch ':'本批 ')+(o.batch_episodes_collected??0)+'/'+o.episodes_per_update+(language?' episodes · Pending update calls ':' 回合 · 待执行更新组 ')+(o.pending_update_calls??0):'')+(o.compute_host?' · '+o.compute_host:'')+(o.error?' · '+o.error:'')+asyncSummary(o,language);
       label($('#collection-model-state'),status(0),status(1));
     }
     $('#collection-model-state').dataset.tone=failure?'error':ready?'ready':'idle';
