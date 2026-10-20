@@ -6,6 +6,10 @@
   const english=()=>root.CobotPreferences?.language==='en';
   const tr=(zh,en)=>english()?en:zh;
   const fmt=v=>!number(v)?'—':Math.abs(v)>=10000?v.toPrecision(3):Math.abs(v)>0&&Math.abs(v)<.001?v.toExponential(2):Number(v.toFixed(4)).toString();
+  function policyProvenance(rollout){
+    const points=rollout?.points||[],versions=[...new Set([rollout?.actor_version,...(rollout?.policy_versions||[]),...points.flatMap(p=>[p.precache_actor_version,p.actor_version]),rollout?.last_actor_version].filter(number))];
+    return {versions,start:rollout?.actor_version??points[0]?.actor_version,end:rollout?.last_actor_version??points.at(-1)?.actor_version??rollout?.actor_version};
+  }
   function svgNode(name,attrs,text){const n=document.createElementNS(ns,name);for(const [k,v]of Object.entries(attrs||{}))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n;}
   function chart(host,rows,xkey,series,{percent=false,nonnegative=false,integerX=true,xlabel='',empty='',onSeek=null,visiblePoints=false}={}){
     host.replaceChildren();
@@ -36,7 +40,7 @@
       for(const p of valid.filter(p=>number(p[s.key]))){
         const dot=svgNode('circle',{cx:x(p[xkey]),cy:y(p[s.key]),r:valid.length===1?4:3,fill:s.colorFor?.(p)||s.color,class:'rl-chart-point'+(visiblePoints?' rl-outcome-point':''),tabindex:0});
         if(onSeek){dot.setAttribute('role','button');dot.addEventListener('click',e=>{e.stopPropagation();onSeek(p[xkey]);});dot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSeek(p[xkey]);}});}
-        dot.append(svgNode('title',{},`${xlabel}: ${fmt(p[xkey])}\n${s.label}: ${fmt(p[s.key])}${percent?'%':''}${p.total?`\n${p.successes}/${p.total}`:''}${p.actor_version!==undefined?`\nActor: ${p.actor_version}`:''}${p.outcome?`\n${p.outcome}`:''}`));svg.append(dot);
+        dot.append(svgNode('title',{},`${xlabel}: ${fmt(p[xkey])}\n${s.label}: ${fmt(p[s.key])}${percent?'%':''}${p.total?`\n${p.successes}/${p.total}`:''}${p.actor_version!==undefined?`\nActor: ${p.actor_version}`:''}${p.outcome?`\n${p.outcome}`:''}${p.precache_actor_version!==undefined?`\nPrecache Actor: ${p.precache_actor_version}`:''}`));svg.append(dot);
       }
     }
     const cursor=svgNode('line',{x1:L,x2:L,y1:T,y2:H-B,class:'rl-chart-cursor',visibility:'hidden'});svg.append(cursor);
@@ -111,6 +115,8 @@
       const rollout=payload?.rollout||{},rp=rollout.points||[];
       cards.rollout.last.textContent=tr('末次 Q ','Last Q ')+fmt(rp.at(-1)?.q);
       if(rollout.episode_uuid)cards.rollout.subtitle.textContent=(rolloutSelection?tr('历史回合','Historical episode'):rollout.active?tr('当前回合','Current episode'):tr('最近记录回合','Last recorded episode'))+' · '+rollout.episode_uuid.slice(0,8)+` · Actor ${rollout.actor_version??'—'}`;
+      const provenance=policyProvenance(rollout);
+      if(rollout.episode_uuid&&provenance.versions.length>1)cards.rollout.subtitle.textContent+=tr(` · 起始 ${provenance.start??'—'} / 末尾 ${provenance.end??'—'} · 本轮版本 ${provenance.versions.join(' / ')}`,` · start ${provenance.start??'—'} / last ${provenance.end??'—'} · episode versions ${provenance.versions.join(' / ')}`);
       if(rlt&&rollout.episode_uuid)cards.rollout.subtitle.textContent+=` · Critic ${rollout.critic_version??'—'}`+tr('（本轮固定）',' (pinned)');
       if(review)review.update(rollout,{rlt});else chart(cards.rollout.plot,rp,'seconds',[{key:'q',label:'Selected Q',color:'#ef94be'}],{integerX:false,xlabel:tr('本回合开始后的时间（秒）','Seconds since episode start'),empty:rollout.error?tr('Q 评分暂不可用：','Q scoring unavailable: ')+rollout.error:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
       const editRows=rp.map(p=>({...p,edit_choice:p.edit_selected===true?1:p.edit_selected===false?0:null}));
@@ -167,6 +173,6 @@
     timer=setInterval(poll,2000);document.addEventListener('cobot:language',render);
     return {update,render,destroy(){review?.destroy();nativeMetrics?.destroy();clearInterval(timer);inflight?.abort();document.removeEventListener('cobot:language',render);section.remove();}};
   }
-  root.CobotRLMonitoring={create,chart};
+  root.CobotRLMonitoring={create,chart,policyProvenance};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.CobotRLMonitoring;
 })(typeof window!=='undefined'?window:globalThis);

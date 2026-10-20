@@ -26,6 +26,7 @@
  }
  function create(card,plot){
   const facts=document.createElement('p');facts.className='rl-rollout-facts';
+  const versionNote=document.createElement('p');versionNote.className='rl-policy-version-note';versionNote.hidden=true;
   const layout=document.createElement('div');layout.className='rl-rollout-review';
   const media=document.createElement('div');media.className='rl-rollout-media';
   const video=document.createElement('video');video.controls=true;video.preload='metadata';video.playsInline=true;video.setAttribute('aria-label','历史回合录像 / Recorded episode');
@@ -35,7 +36,7 @@
   const readout=document.createElement('p');readout.className='rl-rollout-readout';readout.setAttribute('aria-live','off');
   qPanel.append(plot,readout);layout.append(media,qPanel);
   const alignmentNote=document.createElement('p');alignmentNote.className='rl-alignment-note';
-  card.append(facts,layout,alignmentNote);
+  card.append(facts,versionNote,layout,alignmentNote);
   let current={},segments=[],chartHandle=null,identity='',disposed=false;
   function updateCursor(){
    const time=mapTime(video.currentTime,segments,'video','episode');
@@ -43,7 +44,7 @@
    if(time===null){readout.textContent=tr('录像与 Q 待对齐；不显示同步游标','Video/Q alignment unavailable; synchronized cursor disabled');return;}
    const points=(current.points||[]).filter(p=>finite(p.seconds)&&p.seconds<=time);
    const point=points.at(-1);
-   readout.textContent=tr('回合时间 ','Episode time ')+fmt(time)+tr(' 秒 · 最近已记录 Q：',' s · Last recorded Q: ')+fmt(point?.q)+(point?tr('（采样时刻 ',' (sample at ')+fmt(point.seconds)+' s)':'');
+   readout.textContent=tr('回合时间 ','Episode time ')+fmt(time)+tr(' 秒 · 最近已记录 Q：',' s · Last recorded Q: ')+fmt(point?.q)+(point?tr('（采样时刻 ',' (sample at ')+fmt(point.seconds)+' s)':'')+(finite(point?.actor_version)?` · Actor ${point.actor_version}`:'')+(finite(point?.precache_actor_version)&&point.precache_actor_version!==point.actor_version?tr(` · 预计算 Actor ${point.precache_actor_version}`,` · Precache Actor ${point.precache_actor_version}`):'');
   }
   function seek(time){
    const target=mapTime(time,segments,'episode','video');
@@ -63,6 +64,7 @@
     const o=review.options||{},items=[tr('结果：','Outcome: ')+(result[review.outcome]||tr('未标注','Unlabeled')),tr('时长：','Duration: ')+fmt(review.duration_seconds)+' s',tr('接管：','Assistance: ')+(review.hil===true?tr('有','yes'):review.hil===false?tr('无','no'):tr('未知','unknown'))];
     if(!rlt)items.push('d '+(o.rtc_delay??'—'),'Edit '+fmt(o.edit_scale));
     facts.textContent=items.join(' · ');
+    const provenance=root.CobotRLMonitoring.policyProvenance(current);versionNote.hidden=provenance.versions.length<=1;versionNote.textContent=versionNote.hidden?'':tr('本回合使用了多个模型版本：Q 的变化也可能来自权重变化，不能只解释为任务状态变化。','Multiple policy versions were used in this episode: Q changes may reflect weight updates as well as task-state changes.');
     const series=[{key:'q',label:tr('所选动作块 Q','Selected action chunk Q'),color:'#ef94be'}];
     if(!rlt&&(current.points||[]).some(p=>finite(p.best_unedited_q)))series.push({key:'best_unedited_q',label:tr('最佳未编辑候选 Q','Best unedited candidate Q'),color:'#f2bf66',dash:'5 4'});
     const rows=[];
@@ -75,7 +77,7 @@
     alignmentNote.textContent=url&&segments.length?tr('粉线：所选动作块 Q；黄虚线：最佳未编辑候选 Q（有记录时）。拖动录像或点击曲线定位；按实际时间映射同步，暂停间隙不补点。','Pink: selected chunk Q; dashed yellow: best unedited Q when recorded. Scrub video or click the chart. Explicit time mapping; no samples inferred during pauses.'):
       tr('录像与 Q 待对齐：缺少明确时间映射时可分别查看，不把两个时间轴直接等同。','Video/Q alignment pending: view separately until an explicit time map is available.');
     updateCursor();
-   },destroy(){disposed=true;video.removeEventListener('timeupdate',updateCursor);video.removeEventListener('seeking',updateCursor);if(video.getAttribute('src'))video.pause();layout.remove();facts.remove();alignmentNote.remove();}
+   },destroy(){disposed=true;video.removeEventListener('timeupdate',updateCursor);video.removeEventListener('seeking',updateCursor);if(video.getAttribute('src'))video.pause();layout.remove();facts.remove();versionNote.remove();alignmentNote.remove();}
   };
  }
  root.CobotRolloutReview={create,validSegments,mapTime,safeVideoURL};
