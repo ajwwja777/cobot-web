@@ -949,3 +949,6 @@ Unlimited-backlog field activation verified through Web: ready/paused, Sessionin
 
 
 交付补记：首次静态文件已 SHA 安装，Web10750 未重启；独立 CPU 元数据观察器启动后可读 86 条回合、55 个已存在录像。旧 API 对空 updated_at 比较触发 HTTP500，已增加空值修复（下次正常 Web 加载生效）；为避免重启，独立观察器同时导出每回合原始 Q JSON，页面 API 不可用时明确显示“只读历史快照”，15秒重试，API恢复后优先API。严格匹配 model/run/options/UUID，无值不补零。本地现有 success_series 只提取原纯函数、使用有效 HIL 缓存，保持原统计口径。532 HPC 历史验证为37个Q回合/724个Q点/20个训练点，旧录像HTTP206。增量14项Python与26项DOM测试通过。缓存版本20261020-rollout-review2。仅更换本任务新建的只读导出器，不操作既有HPC/模型/Session/Web进程；真实新采点仍待未来正常加载与现场回合验证。
+
+
+2026-10-20 用户要求将回合时长图替换为动作块 Critic 评分。新图复用所选回合原始 selected Q，横轴为已记录动作块序号（不是关节控制步，也不推断漏记动作），保留负值/大于1的值和历史选择。上方按时间的Q/录像保留；仅静态JS与HTML版本修改，不重新评分、不操作HPC/模型/Session/后端。

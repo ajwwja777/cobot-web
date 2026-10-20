@@ -55,7 +55,7 @@
     ['rollout',tr('回合回放 · 所选动作块 Q','Episode replay · selected chunk Q'),tr('动作选择时的评分，不是成功概率','Score at action selection, not success probability')],
     ['edit',tr('实际 Edit 选择与幅度','Executed Edit selection and magnitude'),tr('本回合每次重规划的选择记录','Per-replan selection records in this episode')],
     ['timing',tr('动作计算与 RTC 等待','Action compute and RTC wait'),tr('本回合每次重规划的局部耗时','Per-replan component timings in this episode')],
-    ['duration',tr('回合时长','Episode duration'),tr('每个已完成回合的实际时长','Recorded duration of each completed episode')]
+    ['chunkq',tr('动作块 Critic 评分','Action chunk Critic scores'),tr('当前所选回合 · 每个点对应一个已记录的所选动作块','Selected episode · one point per recorded selected action chunk')]
   ];
   function create(after){
     const section=document.createElement('section');section.id='collection-rl-monitoring';section.className='panel rl-monitoring';section.hidden=true;
@@ -70,7 +70,7 @@
       card.append(head,subtitle,plot);grid.append(card);cards[key]={card,name,last,subtitle,plot};
     }
     cards.rollout.card.classList.add('rl-rollout-card');grid.prepend(cards.rollout.card);
-    const diagnostics=document.createElement('details');diagnostics.className='rl-training-diagnostics';const diagnosticsTitle=document.createElement('summary');diagnostics.append(diagnosticsTitle);const trainingGrid=document.createElement('div');trainingGrid.className='rl-chart-grid';trainingGrid.append(cards.q.card,cards.loss.card);diagnostics.append(trainingGrid);grid.append(cards.edit.card,cards.timing.card,cards.success.card,cards.duration.card);
+    const diagnostics=document.createElement('details');diagnostics.className='rl-training-diagnostics';const diagnosticsTitle=document.createElement('summary');diagnostics.append(diagnosticsTitle);const trainingGrid=document.createElement('div');trainingGrid.className='rl-chart-grid';trainingGrid.append(cards.q.card,cards.loss.card);diagnostics.append(trainingGrid);grid.append(cards.edit.card,cards.timing.card,cards.success.card,cards.chunkq.card);
     const episodePicker=document.createElement('select');episodePicker.className='rl-episode-picker';episodePicker.setAttribute('aria-label','查看回合 / Select episode');cards.rollout.subtitle.after(episodePicker);
     const note=document.createElement('p');note.className='rl-monitor-note';section.append(heading,meta,grid,note,diagnostics);after.after(section);
     section.addEventListener('keydown',event=>{if(event.target.closest?.('select,video,summary,button,[role=button]'))event.stopPropagation();});
@@ -127,10 +127,10 @@
       cards.timing.last.textContent=number(rp.at(-1)?.inference_ms)?fmt(rp.at(-1).inference_ms)+' ms':'—';
       cards.timing.subtitle.textContent=tr('选择计算（蓝，不含 π0.5 预计算） · π0.5 预计算（紫） · RTC 等待（橙）；毫秒。等待为预计算就绪至开始选择，不等于机器人卡顿。','Selection compute (blue, excludes π0.5 precache) · π0.5 precache (purple) · RTC wait (orange); ms. Wait is precache ready to selection start, not robot stalling.');
       chart(cards.timing.plot,rp,'seconds',[{key:'inference_ms',label:'Action selection compute ms',color:'#47c6ed'},{key:'precache_ms',label:'π0.5 precache compute ms',color:'#b59cf8'},{key:'wait_ms',label:'Precache ready to select start ms',color:'#f2bf66'}],{integerX:false,nonnegative:true,xlabel:tr('回合时间（秒）','Episode time (seconds)'),empty:tr('该回合尚无动作选择计算 / 等待记录；缺失等待值不计作零','No selection-compute / wait records; missing wait values are not zero')});
-      const episodeResults=successes.episodes||sp,latestResult=episodeResults.at(-1);
-      cards.duration.subtitle.textContent=tr('绿：自主成功 · 红：失败 · 黄：有接管 · 灰：其他 / 未知','Green: autonomous success · red: failure · amber: assisted · gray: other / unknown');
-      cards.duration.last.textContent=number(latestResult?.duration_seconds)?fmt(latestResult.duration_seconds)+' s':'—';
-      chart(cards.duration.plot,episodeResults,'episode',[{key:'duration_seconds',label:tr('回合时长（秒）','Episode duration (seconds)'),color:'#b59cf8',colorFor:p=>p.hil===true?'#f2bf66':p.outcome==='success'&&p.hil===false?'#47cf9b':p.outcome==='failure'?'#f18791':'#9b9da5'}],{visiblePoints:true,nonnegative:true,xlabel:tr('已完成在线回合编号','Completed online episode number'),empty:tr('历史回合未记录时长时不推算','Missing historical durations are not inferred')});
+      const chunkRows=rp.map((p,index)=>({...p,recorded_chunk:index+1}));
+      cards.chunkq.last.textContent='Q '+fmt(rp.at(-1)?.q);
+      cards.chunkq.subtitle.textContent=(rollout.episode_uuid?rollout.episode_uuid.slice(0,8)+' · ':'')+tr('所选动作块的 Critic Q；沿用上方回合选择，仅显示已记录评分','Critic Q of selected chunks; follows episode selection above, recorded scores only');
+      chart(cards.chunkq.plot,chunkRows,'recorded_chunk',[{key:'q',label:rlt?'Q1':'Selected chunk Q',color:'#ef94be'}],{visiblePoints:true,xlabel:tr('已记录动作块序号','Recorded action chunk number'),empty:tr('该回合暂无动作块 Q 记录','No recorded action chunk Q for this episode')});
       note.textContent=tr('Q 不是成功概率。接管成功不计为自主成功；放弃、未标注及 HIL 信息缺失的回合不进入成功率分母。曲线为原始采样，暂停或断连时不补点。','Q is not a success probability. Assisted successes are not autonomous successes; aborted, unlabeled or unknown-HIL episodes are excluded. Raw samples; no points added while paused or disconnected.')+(successes.excluded?tr(` 已排除 ${successes.excluded} 轮。`,` ${successes.excluded} episodes excluded.`):'');
       note.textContent+=tr(' 可选择已保存回合查看 Q 历史；上线前被覆盖的回合无法恢复。',' Select a saved episode to view Q history; overwritten records from before archiving cannot be recovered.');
       if(rlt)note.textContent+=tr(' 仅显示 Online 更新，Warmup 分开；单轮 Q1 使用本轮固定的已保存 Critic，在 CPU 后台评分，反映执行滤波前已采用的动作块；暂停、接管或丢失采样处断线。',' Online updates only; Warmup excluded. Episode Q1 uses a pinned saved Critic, asynchronously scored on CPU before execution filtering; pause, HIL and missing samples break the line.');
