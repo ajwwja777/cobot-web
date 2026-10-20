@@ -1,6 +1,20 @@
 "use strict";
 (function(root){
   const $=s=>document.querySelector(s);
+  function asyncSummary(o,language){
+    if(o.async_mode!=='bounded_async_v1')return '';
+    const t=(zh,en)=>language?en:zh;
+    return ' | '+t('\u5f02\u6b65\u5b66\u4e60 ','Async learner ')+(o.learner_phase??'-')
+      +' | '+t('\u5f85\u4e0a\u4f20 ','Upload queue ')+(o.pending_upload_episodes??0)
+      +' | '+t('\u5f85\u8bad\u7ec3 ','Untrained ')+(o.pending_episodes??0)+'/'+(o.async_max_pending??10)
+      +' | '+t('\u5df2\u53d1\u5e03 ','Published ')+(o.published_actor_version??'-')
+      +' | '+t('\u5df2\u4e0b\u8f7d ','Downloaded ')+(o.downloaded_actor_version??'-')
+      +' | '+t('\u6b63\u5728\u6267\u884c ','Served ')+(o.served_actor_version??'-')
+      +' | '+t('\u843d\u540e\u7248\u6570 ','Lag ')+(o.policy_generation_lag??0)
+      +(o.network_error?' | '+t('\u7f51\u7edc\u91cd\u8bd5\u4e2d','Network retry'):'')
+      +(o.install_error?' | '+o.install_error:'');
+  }
+
   let mounted=false,context={},changing=false,rltCatalog=[],catalog=[],modelBusy=false,modelActionName='',selected='',initialized=false,directoryPicker=null,recentDirectories=null,lastLoadedKey='',modelPicker=null,recorderRecovery=null,runtimeRecovery=null,executionOptions=null,deferUncertain=false;
   let rlMonitoring=null;
   let managedStorageKey='',managedStorageApplied='',managedStoragePending=false,managedStorageError='';
@@ -116,7 +130,7 @@
     else if(failure)label($('#collection-model-state'),state.model_ready&&state.session?.phase==='fault'?'模型已加载；录制需要恢复（见下方）':String(failure),state.model_ready&&state.session?.phase==='fault'?'Model loaded; recording needs recovery (below)':root.CobotPreferences?.text(String(failure))||String(failure));
     if(expoOnline&&state.model?.id===chosen.id&&state.phase!=='offline'&&state.online){
       const o=state.online,names={ready:['等待下一回合','Ready for next episode'],rollout:['采样中','Collecting'],updating:['正在学习和保存','Learning and saving'],fault:['学习故障','Learning fault'],loading:['加载中','Loading'],transferring:['同步回合数据','Transferring episode'],publishing:['同步并加载本地权重','Publishing local Actor']};
-      const status=language=>'EXPO Online · '+(names[o.phase]?.[language]||o.phase)+' · Learner '+(o.learner_step??'—')+' · Actor '+(o.actor_version??'—')+(o.served_actor_version!==undefined?' · '+(language?'Local version ':'本地版本 ')+o.served_actor_version:'')+' · '+(language?'VLA updates ':'VLA 更新 ')+(o.actor_updates??'—')+' · Replay '+(o.replay_steps??'—')+(o.recipe==='native_sync'?' · Critic '+(o.critic_updates??0)+' · '+(language?'Seed ':'初始示教 ')+(o.seed_episodes??0)+(language?' episodes / ':' 回合 / ')+(o.seed_steps??0)+(language?' frames · Online transitions ':' 帧 · 在线步数 ')+(o.online_steps??0)+(language?' · Collected ':' · 已采集 ')+(o.completed_episodes??0)+(language?' episodes · Warmup remaining ':' 回合 · 热身剩余 ')+(o.warmup_remaining??0):'')+(o.episodes_per_update>1?' · '+(language?'Batch ':'本批 ')+(o.batch_episodes_collected??0)+'/'+o.episodes_per_update+(language?' episodes · Pending update calls ':' 回合 · 待执行更新组 ')+(o.pending_update_calls??0):'')+(o.compute_host?' · '+o.compute_host:'')+(o.error?' · '+o.error:'');
+      const status=language=>'EXPO Online · '+(names[o.phase]?.[language]||o.phase)+' · Learner '+(o.learner_step??'—')+' · Actor '+(o.actor_version??'—')+(o.served_actor_version!==undefined?' · '+(language?'Local version ':'本地版本 ')+o.served_actor_version:'')+' · '+(language?'VLA updates ':'VLA 更新 ')+(o.actor_updates??'—')+' · Replay '+(o.replay_steps??'—')+(o.recipe==='native_sync'?' · Critic '+(o.critic_updates??0)+' · '+(language?'Seed ':'初始示教 ')+(o.seed_episodes??0)+(language?' episodes / ':' 回合 / ')+(o.seed_steps??0)+(language?' frames · Online transitions ':' 帧 · 在线步数 ')+(o.online_steps??0)+(language?' · Collected ':' · 已采集 ')+(o.completed_episodes??0)+(language?' episodes · Warmup remaining ':' 回合 · 热身剩余 ')+(o.warmup_remaining??0):'')+(o.episodes_per_update>1?' · '+(language?'Batch ':'本批 ')+(o.batch_episodes_collected??0)+'/'+o.episodes_per_update+(language?' episodes · Pending update calls ':' 回合 · 待执行更新组 ')+(o.pending_update_calls??0):'')+(o.compute_host?' · '+o.compute_host:'')+(o.error?' · '+o.error:'')+asyncSummary(o,language);
       label($('#collection-model-state'),status(0),status(1));
     }
     $('#collection-model-state').dataset.tone=failure?'error':ready?'ready':'idle';
@@ -283,6 +297,6 @@
     $('#collection-storage-use').addEventListener('click',()=>{const target=isRlt()?$('#rlt-data-root'):$('#capture-form input[name=data_root]');target.value=input.value;if(isRlt())target.dispatchEvent(new Event('input'));$(isRlt()?'#rlt-save-storage':'#prepare-storage').click();delete input.dataset.dirty;});
     document.querySelector('[data-view="operation"]')?.addEventListener('click',()=>{if(useModel()&&!active())changeRuntime();});$('#capture-home-enabled').addEventListener('change',()=>render());document.addEventListener('cobot:language',()=>render());render();
   }
-  root.CobotUnifiedCollection={get managedDirectory(){return managedPath();},get executionOptions(){return executionOptions?.value;},mount,render,labelResults,active,changeRuntime,shortcutAction,updateCatalog,get mounted(){return mounted;},get changing(){return changing||modelBusy;},updateRecorder:state=>{context.recorder=state;render();}};
+  root.CobotUnifiedCollection={asyncSummary,get managedDirectory(){return managedPath();},get executionOptions(){return executionOptions?.value;},mount,render,labelResults,active,changeRuntime,shortcutAction,updateCatalog,get mounted(){return mounted;},get changing(){return changing||modelBusy;},updateRecorder:state=>{context.recorder=state;render();}};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.CobotUnifiedCollection;
 })(typeof window!=='undefined'?window:globalThis);
