@@ -7,7 +7,7 @@
   const tr=(zh,en)=>english()?en:zh;
   const fmt=v=>!number(v)?'—':Math.abs(v)>=10000?v.toPrecision(3):Math.abs(v)>0&&Math.abs(v)<.001?v.toExponential(2):Number(v.toFixed(4)).toString();
   function svgNode(name,attrs,text){const n=document.createElementNS(ns,name);for(const [k,v]of Object.entries(attrs||{}))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n;}
-  function chart(host,rows,xkey,series,{percent=false,nonnegative=false,integerX=true,xlabel='',empty=''}={}){
+  function chart(host,rows,xkey,series,{percent=false,nonnegative=false,integerX=true,xlabel='',empty='',onSeek=null,visiblePoints=false}={}){
     host.replaceChildren();
     const valid=rows.filter(p=>number(p[xkey])&&series.some(s=>number(p[s.key])));
     if(!valid.length){const p=document.createElement('p');p.className='rl-chart-empty';p.textContent=empty;host.append(p);return;}
@@ -34,17 +34,24 @@
       for(const p of rows){if(!number(p[xkey])||!number(p[s.key])){pen=false;continue;}d+=(pen?' L':' M')+x(p[xkey])+','+y(p[s.key]);pen=true;}
       svg.append(svgNode('path',{d,fill:'none',stroke:s.color,'stroke-width':2,'stroke-dasharray':s.dash||'','vector-effect':'non-scaling-stroke'}));
       for(const p of valid.filter(p=>number(p[s.key]))){
-        const dot=svgNode('circle',{cx:x(p[xkey]),cy:y(p[s.key]),r:valid.length===1?4:3,fill:s.color,class:'rl-chart-point',tabindex:0});
-        dot.append(svgNode('title',{},`${xlabel}: ${fmt(p[xkey])}\n${s.label}: ${fmt(p[s.key])}${percent?'%':''}${p.total?`\n${p.successes}/${p.total}`:''}${p.actor_version!==undefined?`\nActor: ${p.actor_version}`:''}`));svg.append(dot);
+        const dot=svgNode('circle',{cx:x(p[xkey]),cy:y(p[s.key]),r:valid.length===1?4:3,fill:s.colorFor?.(p)||s.color,class:'rl-chart-point'+(visiblePoints?' rl-outcome-point':''),tabindex:0});
+        if(onSeek){dot.setAttribute('role','button');dot.addEventListener('click',e=>{e.stopPropagation();onSeek(p[xkey]);});dot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSeek(p[xkey]);}});}
+        dot.append(svgNode('title',{},`${xlabel}: ${fmt(p[xkey])}\n${s.label}: ${fmt(p[s.key])}${percent?'%':''}${p.total?`\n${p.successes}/${p.total}`:''}${p.actor_version!==undefined?`\nActor: ${p.actor_version}`:''}${p.outcome?`\n${p.outcome}`:''}`));svg.append(dot);
       }
     }
+    const cursor=svgNode('line',{x1:L,x2:L,y1:T,y2:H-B,class:'rl-chart-cursor',visibility:'hidden'});svg.append(cursor);
+    if(onSeek){svg.classList.add('rl-chart-seekable');svg.addEventListener('click',event=>{const bounds=svg.getBoundingClientRect();if(!bounds.width)return;const pos=(event.clientX-bounds.left)*W/bounds.width;onSeek(xmin+Math.max(0,Math.min(pw,pos-L))/pw*(xmax-xmin));});}
     host.append(svg);
+    return {setCursor(value){const show=number(value)&&value>=xmin&&value<=xmax;cursor.setAttribute('visibility',show?'visible':'hidden');if(show){cursor.setAttribute('x1',x(value));cursor.setAttribute('x2',x(value));cursor.dataset.seconds=String(value);}else delete cursor.dataset.seconds;}};
   }
   const definitions=()=>[
     ['q',tr('Q 学习趋势','Q learning trend'),tr('平均 Q（蓝） · 平均 TD target（黄虚线）','Mean Q (blue) · Mean TD target (yellow dashed)')],
     ['loss',tr('Critic 学习误差','Critic loss'),tr('TD 拟合均方误差','TD fitting mean squared error')],
     ['success',tr('自主成功率','Autonomous success rate'),tr('最近 20 个有效完成回合','Last 20 valid completed attempts')],
-    ['rollout',tr('单轮实时 Q','Episode Q'),tr('实际选中动作块的价值估计','Value of the selected action chunk')]
+    ['rollout',tr('回合回放 · 所选动作块 Q','Episode replay · selected chunk Q'),tr('动作选择时的评分，不是成功概率','Score at action selection, not success probability')],
+    ['edit',tr('实际 Edit 选择与幅度','Executed Edit selection and magnitude'),tr('本回合每次重规划的选择记录','Per-replan selection records in this episode')],
+    ['timing',tr('动作计算与 RTC 等待','Action compute and RTC wait'),tr('本回合每次重规划的局部耗时','Per-replan component timings in this episode')],
+    ['duration',tr('回合时长','Episode duration'),tr('每个已完成回合的实际时长','Recorded duration of each completed episode')]
   ];
   function create(after){
     const section=document.createElement('section');section.id='collection-rl-monitoring';section.className='panel rl-monitoring';section.hidden=true;
@@ -56,15 +63,19 @@
       const card=document.createElement('article');card.className='rl-chart-card';
       const head=document.createElement('div');head.className='rl-chart-head';const name=document.createElement('h4'),last=document.createElement('span');head.append(name,last);
       const subtitle=document.createElement('p'),plot=document.createElement('div');plot.className='rl-chart-plot';
-      card.append(head,subtitle,plot);grid.append(card);cards[key]={name,last,subtitle,plot};
+      card.append(head,subtitle,plot);grid.append(card);cards[key]={card,name,last,subtitle,plot};
     }
+    cards.rollout.card.classList.add('rl-rollout-card');grid.prepend(cards.rollout.card);
+    const diagnostics=document.createElement('details');diagnostics.className='rl-training-diagnostics';const diagnosticsTitle=document.createElement('summary');diagnostics.append(diagnosticsTitle);const trainingGrid=document.createElement('div');trainingGrid.className='rl-chart-grid';trainingGrid.append(cards.q.card,cards.loss.card);diagnostics.append(trainingGrid);grid.append(cards.edit.card,cards.timing.card,cards.success.card,cards.duration.card);
     const episodePicker=document.createElement('select');episodePicker.className='rl-episode-picker';episodePicker.setAttribute('aria-label','查看回合 / Select episode');cards.rollout.subtitle.after(episodePicker);
-    const note=document.createElement('p');note.className='rl-monitor-note';section.append(heading,meta,grid,note);after.after(section);
-    const nativeMetrics=root.CobotNativeExpoMetrics?.create(section);
-    let rolloutSelection='',selection='',supported=false,model=null,state={},options=null,payload=null,inflight=null,lastPoll=0,error='',timer=null;
+    const note=document.createElement('p');note.className='rl-monitor-note';section.append(heading,meta,grid,note,diagnostics);after.after(section);
+    section.addEventListener('keydown',event=>{if(event.target.closest?.('select,video,summary,button,[role=button]'))event.stopPropagation();});
+    const nativeMetrics=root.CobotNativeExpoMetrics?.create(diagnostics);
+    const review=root.CobotRolloutReview?.create(cards.rollout.card,cards.rollout.plot);
+    let rolloutSelection='',selection='',supported=false,model=null,state={},options=null,payload=null,reviewPayload=null,inflight=null,lastPoll=0,error='',timer=null;
     episodePicker.addEventListener('change',()=>{rolloutSelection=episodePicker.value;inflight?.abort();inflight=null;lastPoll=0;if(payload)payload={...payload,rollout:{}};render();poll();});
     function render(){
-      title.textContent=tr('RL 在线学习','RL online learning');
+      title.textContent=tr('RL 在线执行监控','RL online rollout monitoring');diagnosticsTitle.textContent=tr('训练诊断 · Q 学习与 Actor / Critic 指标','Training diagnostics · Q learning and Actor / Critic metrics');
       const learner=payload?.learner;
       const rlt=model?.kind==='rlt';
       let connection=payload?.live?tr('已连接','Connected'):tr('历史 / 等待连接','History / awaiting connection');
@@ -94,14 +105,26 @@
       const choices=payload?.rollout_episodes||[];
       episodePicker.replaceChildren();
       const currentOption=document.createElement('option');currentOption.value='';currentOption.textContent=tr('跟随当前 / 最近回合','Follow current / latest episode');episodePicker.append(currentOption);
-      for(const item of choices){const option=document.createElement('option');option.value=item.episode_uuid;option.textContent=(item.started_at?new Date(item.started_at*1000).toLocaleString()+' · ':'')+item.episode_uuid.slice(0,8)+` · Actor ${item.actor_version??'—'}`;episodePicker.append(option);}
+      for(const item of choices){const option=document.createElement('option');option.value=item.episode_uuid;option.textContent=(item.started_at?new Date(item.started_at*1000).toLocaleString()+' · ':'')+item.episode_uuid.slice(0,8)+` · Actor ${item.actor_version??'—'}`+(item.outcome?` · ${item.outcome}`:'');episodePicker.append(option);}
       if(rolloutSelection&&!choices.some(p=>p.episode_uuid===rolloutSelection)){const option=document.createElement('option');option.value=rolloutSelection;option.textContent=rolloutSelection.slice(0,8);episodePicker.append(option);}
       episodePicker.value=rolloutSelection;episodePicker.disabled=!supported;
       const rollout=payload?.rollout||{},rp=rollout.points||[];
-      cards.rollout.last.textContent=fmt(rp.at(-1)?.q);
+      cards.rollout.last.textContent=tr('末次 Q ','Last Q ')+fmt(rp.at(-1)?.q);
       if(rollout.episode_uuid)cards.rollout.subtitle.textContent=(rolloutSelection?tr('历史回合','Historical episode'):rollout.active?tr('当前回合','Current episode'):tr('最近记录回合','Last recorded episode'))+' · '+rollout.episode_uuid.slice(0,8)+` · Actor ${rollout.actor_version??'—'}`;
       if(rlt&&rollout.episode_uuid)cards.rollout.subtitle.textContent+=` · Critic ${rollout.critic_version??'—'}`+tr('（本轮固定）',' (pinned)');
-      chart(cards.rollout.plot,rp,'seconds',[{key:'q',label:'Selected Q',color:'#ef94be'}],{integerX:false,xlabel:tr('本回合开始后的时间（秒）','Seconds since episode start'),empty:rollout.error?tr('Q 评分暂不可用：','Q scoring unavailable: ')+rollout.error:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
+      if(review)review.update(rollout,{rlt});else chart(cards.rollout.plot,rp,'seconds',[{key:'q',label:'Selected Q',color:'#ef94be'}],{integerX:false,xlabel:tr('本回合开始后的时间（秒）','Seconds since episode start'),empty:rollout.error?tr('Q 评分暂不可用：','Q scoring unavailable: ')+rollout.error:tr('等待选中动作的 Q 记录；旧回合不补值','Awaiting selected-action Q; no historical values inferred')});
+      const editRows=rp.map(p=>({...p,edit_choice:p.edit_selected===true?1:p.edit_selected===false?0:null}));
+      cards.edit.card.hidden=rlt;
+      cards.edit.last.textContent=typeof rp.at(-1)?.edit_selected==='boolean'?(rp.at(-1).edit_selected?tr('采用 Edit','Edit selected'):tr('原候选','Unedited selected')):'—';
+      cards.edit.subtitle.textContent=tr('滤波前选择：Edit = 1，原候选 = 0（青）；修改范数（紫）','Before filtering: Edit = 1, unedited = 0 (cyan); Edit norm (purple)');
+      chart(cards.edit.plot,editRows,'seconds',[{key:'edit_choice',label:'Edit selected (0/1)',color:'#47c6ed'},{key:'edit_norm',label:'Edit norm',color:'#b59cf8'}],{integerX:false,nonnegative:true,xlabel:tr('回合时间（秒）','Episode time (seconds)'),empty:tr('该回合未记录实际 Edit 选择 / 幅度；训练 batch 比例不能替代','No executed Edit telemetry for this episode; training batch ratios are not substituted')});
+      cards.timing.last.textContent=number(rp.at(-1)?.inference_ms)?fmt(rp.at(-1).inference_ms)+' ms':'—';
+      cards.timing.subtitle.textContent=tr('选择计算（蓝，不含 π0.5 预计算） · π0.5 预计算（紫） · RTC 等待（橙）；毫秒。等待为预计算就绪至开始选择，不等于机器人卡顿。','Selection compute (blue, excludes π0.5 precache) · π0.5 precache (purple) · RTC wait (orange); ms. Wait is precache ready to selection start, not robot stalling.');
+      chart(cards.timing.plot,rp,'seconds',[{key:'inference_ms',label:'Action selection compute ms',color:'#47c6ed'},{key:'precache_ms',label:'π0.5 precache compute ms',color:'#b59cf8'},{key:'wait_ms',label:'Precache ready to select start ms',color:'#f2bf66'}],{integerX:false,nonnegative:true,xlabel:tr('回合时间（秒）','Episode time (seconds)'),empty:tr('该回合尚无动作选择计算 / 等待记录；缺失等待值不计作零','No selection-compute / wait records; missing wait values are not zero')});
+      const episodeResults=successes.episodes||sp,latestResult=episodeResults.at(-1);
+      cards.duration.subtitle.textContent=tr('绿：自主成功 · 红：失败 · 黄：有接管 · 灰：其他 / 未知','Green: autonomous success · red: failure · amber: assisted · gray: other / unknown');
+      cards.duration.last.textContent=number(latestResult?.duration_seconds)?fmt(latestResult.duration_seconds)+' s':'—';
+      chart(cards.duration.plot,episodeResults,'episode',[{key:'duration_seconds',label:tr('回合时长（秒）','Episode duration (seconds)'),color:'#b59cf8',colorFor:p=>p.hil===true?'#f2bf66':p.outcome==='success'&&p.hil===false?'#47cf9b':p.outcome==='failure'?'#f18791':'#9b9da5'}],{visiblePoints:true,nonnegative:true,xlabel:tr('已完成在线回合编号','Completed online episode number'),empty:tr('历史回合未记录时长时不推算','Missing historical durations are not inferred')});
       note.textContent=tr('Q 不是成功概率。接管成功不计为自主成功；放弃、未标注及 HIL 信息缺失的回合不进入成功率分母。曲线为原始采样，暂停或断连时不补点。','Q is not a success probability. Assisted successes are not autonomous successes; aborted, unlabeled or unknown-HIL episodes are excluded. Raw samples; no points added while paused or disconnected.')+(successes.excluded?tr(` 已排除 ${successes.excluded} 轮。`,` ${successes.excluded} episodes excluded.`):'');
       note.textContent+=tr(' 可选择已保存回合查看 Q 历史；上线前被覆盖的回合无法恢复。',' Select a saved episode to view Q history; overwritten records from before archiving cannot be recovered.');
       if(rlt)note.textContent+=tr(' 仅显示 Online 更新，Warmup 分开；单轮 Q1 使用本轮固定的已保存 Critic，在 CPU 后台评分，反映执行滤波前已采用的动作块；暂停、接管或丢失采样处断线。',' Online updates only; Warmup excluded. Episode Q1 uses a pinned saved Critic, asynchronously scored on CPU before execution filtering; pause, HIL and missing samples break the line.');
@@ -112,9 +135,23 @@
       const timeout=setTimeout(()=>controller.abort(),5000);
       try{
         const params=new URLSearchParams({model_id:model.id});if(rolloutSelection)params.set('episode',rolloutSelection);if(options){params.set('rtc_delay',options.rtc_delay);params.set('edit_scale',options.edit_scale);}
-        const response=await root.fetch('/api/collection/rl-monitoring?'+params,{cache:'no-store',signal:controller.signal});
-        if(!response.ok)throw Error(String(response.status));const value=await response.json();
-        if(selection+'|'+rolloutSelection!==key)return;payload=value;error='';render();
+        const readJSON=async url=>{const response=await root.fetch(url,{cache:'no-store',signal:controller.signal});if(!response.ok)throw Error(String(response.status));return response.json();};
+        const tasks=[readJSON('/api/collection/rl-monitoring?'+params)];
+        if(review&&model?.runtime_adapter==='expo_online')tasks.push(readJSON('/rollout-review.json'));
+        const results=await Promise.allSettled(tasks);
+        if(selection+'|'+rolloutSelection!==key)return;
+        if(results[1]?.status==='fulfilled'&&results[1].value?.schema===1)reviewPayload=results[1].value;
+        if(results[0].status!=='fulfilled')throw results[0].reason;
+        payload=results[0].value;
+        const candidates=(reviewPayload?.runs||[]).filter(r=>r.model_id===model.id);
+        const run=payload.run_key?candidates.find(r=>r.run_key===payload.run_key):options?candidates.find(r=>r.options?.rtc_delay===options.rtc_delay&&r.options?.edit_scale===options.edit_scale):candidates.length===1?candidates[0]:null;
+        if(run){
+          const saved=(run.episodes||[]).find(e=>e.episode_uuid===payload.rollout?.episode_uuid);
+          if(saved)payload={...payload,rollout:{...payload.rollout,review:saved.review}};
+          if(run.success?.episodes)payload={...payload,success:{...payload.success,episodes:run.success.episodes}};
+          payload={...payload,rollout_episodes:(payload.rollout_episodes||[]).map(item=>{const e=(run.episodes||[]).find(e=>e.episode_uuid===item.episode_uuid);return e?{...item,outcome:e.review?.outcome}:item;})};
+        }
+        error='';render();
       }catch(e){if(selection+'|'+rolloutSelection===key){error=String(e);render();}}
       finally{clearTimeout(timeout);if(inflight===controller)inflight=null;}
     }
@@ -128,7 +165,7 @@
       if(enabled)poll();else render();
     }
     timer=setInterval(poll,2000);document.addEventListener('cobot:language',render);
-    return {update,render,destroy(){nativeMetrics?.destroy();clearInterval(timer);inflight?.abort();document.removeEventListener('cobot:language',render);section.remove();}};
+    return {update,render,destroy(){review?.destroy();nativeMetrics?.destroy();clearInterval(timer);inflight?.abort();document.removeEventListener('cobot:language',render);section.remove();}};
   }
   root.CobotRLMonitoring={create,chart};
   if(typeof module!=='undefined'&&module.exports)module.exports=root.CobotRLMonitoring;
