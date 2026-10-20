@@ -946,3 +946,6 @@ Unlimited-backlog field activation verified through Web: ready/paused, Sessionin
 录像 frame_timestamps 使用 monotonic，旧 Q 使用 wall clock，没有可靠历史桥接。新生产端记录同机 monotonic 锚，按实际 frame index/fps 分段映射；旧历史录像/Q 可独立查看，不伪造同步。数据稽核发现 86 个回合条目/55 个可关联视频，当前旧数据全部未对齐。RL 新采点需未来正常 Actor 加载；本任务不重载 HPC/Actor/Learner/Session/Web。
 
 验证：8 Python metadata 测试通过；前端127项全量通过，集成后19项相关DOM通过。覆盖掉帧/暂停映射、无映射降级、跨模型/回合响应隔离、null options的HPC、键盘控制不冒泡到机器人快捷键。实际静态交付与回执后补；真实新回合同步待以后新采点验收，未以测试样例冒充线上记录。
+
+
+交付补记：首次静态文件已 SHA 安装，Web10750 未重启；独立 CPU 元数据观察器启动后可读 86 条回合、55 个已存在录像。旧 API 对空 updated_at 比较触发 HTTP500，已增加空值修复（下次正常 Web 加载生效）；为避免重启，独立观察器同时导出每回合原始 Q JSON，页面 API 不可用时明确显示“只读历史快照”，15秒重试，API恢复后优先API。严格匹配 model/run/options/UUID，无值不补零。本地现有 success_series 只提取原纯函数、使用有效 HIL 缓存，保持原统计口径。532 HPC 历史验证为37个Q回合/724个Q点/20个训练点，旧录像HTTP206。增量14项Python与26项DOM测试通过。缓存版本20261020-rollout-review2。仅更换本任务新建的只读导出器，不操作既有HPC/模型/Session/Web进程；真实新采点仍待未来正常加载与现场回合验证。
