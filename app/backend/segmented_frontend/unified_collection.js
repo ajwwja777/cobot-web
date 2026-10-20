@@ -13,11 +13,14 @@
       t('等待写入 Replay ','Awaiting Replay insertion ')+(o.pending_episodes??0),
       t('已发布 ','Published ')+(o.published_actor_version??'—'),t('已下载 ','Downloaded ')+(o.downloaded_actor_version??'—'),
       t('正在执行 ','Served ')+(o.served_actor_version??'—')];
+    if(o.committed_learner_step!==undefined)parts.push(t('已持久化 Learner ','Committed learner ')+o.committed_learner_step);
+    const checkpointPhases={capturing:t('正在捕获检查点','Capturing checkpoint'),writing:t('后台保存／导出','Background save/export'),idle:t('检查点写入空闲','Checkpoint writer idle'),fault:t('检查点写入故障','Checkpoint writer fault')};
+    if(o.checkpoint_phase)parts.push(checkpointPhases[o.checkpoint_phase]||o.checkpoint_phase);
     const upload=o.upload||{},download=o.download||{};
     if(upload.state)parts.push(t('上传 ','Upload ')+upload.state+(upload.files_total!==undefined?' '+(upload.files_sent??0)+'/'+upload.files_total+t(' 文件',' files'):'')+(upload.bytes!==undefined?' / '+upload.bytes+' bytes':'')+(upload.seconds!==undefined?' / '+upload.seconds+'s':''));
     if(download.state){
-      const states={downloading:t('正在下载 Actor ','Downloading Actor '),staged:t('已下载 Actor ','Downloaded Actor '),installed:t('已安装 Actor ','Installed Actor '),retrying:t('重试下载 Actor ','Retrying Actor download ')};
-      parts.push((states[download.state]||download.state+' ')+(download.actor_version??'—')+(download.state==='staged'?t('；等待本地安装','; awaiting local installation'):'')+(download.seconds!==undefined?' / '+download.seconds+'s':'')+(download.install_seconds!==undefined?t(' / 安装 ',' / Install ')+download.install_seconds+'s':''));
+      const states={downloading:t('正在下载 Actor ','Downloading Actor '),staged:t('已下载 Actor ','Downloaded Actor '),downloaded:t('已下载 Actor ','Downloaded Actor '),staging:t('正在暂存 Actor ','Staging Actor '),stage_failed:t('Actor 暂存失败 ','Actor staging failed '),installed:t('已安装 Actor ','Installed Actor '),retrying:t('重试下载 Actor ','Retrying Actor download ')};
+      parts.push((states[download.state]||download.state+' ')+(download.actor_version??'—')+(download.state==='staged'?t('；等待本地安装','; awaiting local installation'):download.state==='downloaded'?t('；等待本地暂存','; awaiting local staging'):'')+(download.seconds!==undefined?' / '+download.seconds+'s':'')+(download.install_seconds!==undefined?t(' / 安装 ',' / Install ')+download.install_seconds+'s':''));
     }
     const stamp=(value)=>{
       if(value===undefined||value===null||value==='')return null;
@@ -27,9 +30,10 @@
     for(const [value,zh,en] of [[o.last_episode_at,'最近回合','Last episode'],[o.last_replay_insert_at,'Replay 入库','Replay insertion'],[o.last_update_at,'最近更新','Last update'],[o.published_at,'发布于','Published at'],[download.started_at,'下载开始','Download started'],[download.downloaded_at,'下载完成','Download completed'],[download.installed_at,'安装完成','Installed at']]){
       const time=stamp(value);if(time)parts.push(t(zh,en)+' '+time);
     }
-    for(const [key,zh,en] of [['sampling_seconds','采样','Sampling'],['update_seconds','更新','Update'],['checkpoint_seconds','检查点保存','Checkpoint'],['snapshot_seconds','发布快照','Snapshot']]){
+    for(const [key,zh,en] of [['sampling_seconds','采样','Sampling'],['update_seconds','更新','Update'],['checkpoint_seconds','检查点保存','Checkpoint'],['snapshot_seconds','发布快照','Snapshot'],['checkpoint_capture_seconds','检查点捕获','Checkpoint capture'],['checkpoint_write_seconds','检查点写入','Checkpoint write'],['actor_write_seconds','Actor 导出','Actor export']]){
       const seconds=o.timings?.[key];if(seconds!==undefined&&seconds!==null)parts.push(t(zh,en)+' '+seconds+'s');
     }
+    if(o.timings?.checkpoint_host_bytes!==undefined)parts.push(t('检查点主机数据 ','Checkpoint host data ')+o.timings.checkpoint_host_bytes+' bytes');
     if(o.network_error)parts.push(t('网络重试：','Network retry: ')+o.network_error);
     if(o.install_error)parts.push(t('权重安装失败：','Policy install failed: ')+o.install_error);
     return ' | '+parts.join(' · ');

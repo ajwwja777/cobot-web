@@ -20,3 +20,19 @@ assert.ok(asyncSummary({...continuous,download:{state:'staged',actor_version:27}
 assert.ok(asyncSummary({...continuous,network_error:'offline',install_error:'bad checkpoint'},1).includes('Network retry: offline'));
 assert.ok(asyncSummary({...continuous,install_error:'bad checkpoint'},1).includes('Policy install failed: bad checkpoint'));
 assert.doesNotMatch(asyncSummary({async_mode:'native_async_v1'},1),/1970|NaN|undefined/);
+
+
+require('node:test')('continuous learner distinguishes background checkpoint writing from live updates and policy delivery',()=>{
+ const saving={...continuous,checkpoint_phase:'writing',committed_learner_step:24,published_actor_version:23,downloaded_actor_version:22,served_actor_version:20,timings:{...continuous.timings,checkpoint_capture_seconds:0.2,checkpoint_host_bytes:8192,checkpoint_write_seconds:1.5,actor_write_seconds:0.7}};
+ const status=asyncSummary(saving,1);
+ for(const part of ['GPU updating','Learner 28','Committed learner 24','Background save/export','Published 23','Downloaded 22','Served 20','Checkpoint capture 0.2s','Checkpoint host data 8192 bytes','Checkpoint write 1.5s','Actor export 0.7s'])assert.ok(status.includes(part),part);
+ assert.match(asyncSummary(saving,0),/GPU 正在更新.*Learner 28.*已持久化 Learner 24.*后台保存／导出/);
+ for(const [phase,en,zh] of [['capturing','Capturing checkpoint','正在捕获检查点'],['idle','Checkpoint writer idle','检查点写入空闲'],['fault','Checkpoint writer fault','检查点写入故障']]){
+  assert.ok(asyncSummary({...saving,checkpoint_phase:phase},1).includes(en));
+  assert.ok(asyncSummary({...saving,checkpoint_phase:phase},0).includes(zh));
+ }
+ for(const [state,en,zh] of [['downloaded','Downloaded Actor 27; awaiting local staging','已下载 Actor 27；等待本地暂存'],['staging','Staging Actor 27','正在暂存 Actor 27'],['stage_failed','Actor staging failed 27','Actor 暂存失败 27']]){
+  assert.ok(asyncSummary({...saving,download:{state,actor_version:27}},1).includes(en));
+  assert.ok(asyncSummary({...saving,download:{state,actor_version:27}},0).includes(zh));
+ }
+});
