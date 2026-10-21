@@ -964,3 +964,5 @@ COMPLETE: 3 CPU observer tests and 26 DOM tests passed on LFT2 personal workspac
 ## 2026-10-21 EXPO lifecycle progress
 
 Add read-only five-stage learner/checkpoint/publication/download/served overview, real byte transfer progress, source-aware version history and Replay inventory/sampling explanation outside collapsed training diagnostics. Existing native metrics and rollout review retained. Observer changes belong to rl-platform; no Web/Actor/ROS lifecycle or training changes. Tests and site verification recorded in rl-platform docs/online/tasks/2026-10-21-expo-progress/TASK.md.
+
+2026-10-21 EXPO progress activation: scoped static assets SHA256 checked on Cobot; independent CPU metrics observer restarted only. Production browser displays trained/saved102, published98, downloaded/served89, interrupted98 cache89.3%; version timeline prefers actual receipts over later first-observation times. 139 Web tests and31 RL CPU tests, desktop production screenshot inspected. Existing Actor/Web/ROS lifecycle preserved. Evidence and limitations: rl-platform/docs/online/tasks/2026-10-21-expo-progress/TASK.md.

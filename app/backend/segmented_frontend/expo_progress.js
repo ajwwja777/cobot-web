@@ -47,7 +47,7 @@
    for(const [v,e]of Object.entries(p.publications||{})){if(Number.isFinite(Number(v)))row(Number(v)).published=clock(e.published_at);}
    for(const e of run.version_events||[]){if(['published','downloaded','served'].includes(e.stage)&&num(e.version)){const r=row(e.version);if(!r[e.stage])r[e.stage]='观察到 '+clock(e.observed_at);}}
    if(num(d.actor_version)){if(d.downloaded_at)row(d.actor_version).downloaded=clock(d.downloaded_at);if(d.installed_at)row(d.actor_version).served=clock(d.installed_at);}
-   const installed=p.installed_receipt;if(num(installed?.actor_version)&&installed.installed_at)row(installed.actor_version).served=clock(installed.installed_at);
+   const installed=p.installed_receipt;if(num(installed?.actor_version)){if(installed.downloaded_at)row(installed.actor_version).downloaded=clock(installed.downloaded_at);if(installed.installed_at)row(installed.actor_version).served=clock(installed.installed_at);}
    tbody.replaceChildren();for(const [version,e]of [...versions.entries()].sort((a,b)=>b[0]-a[0]).slice(0,30)){const tr=node('tr');for(const v of [version,e.published||'未记录',e.downloaded||'未记录',e.served||'未记录'])tr.append(node('td',String(v)));tbody.append(tr);}
    footer.textContent='收尾检查：'+(num(p.learner_step)&&p.committed_learner_step===p.learner_step?'最终训练状态已保存；':'等待最终状态保存；')+(num(p.learner_step)&&p.downloaded_actor_version===p.learner_step?'最新权重已下载校验。':'最新训练权重尚未确认完整回传。')+' 释放 GPU 前需确认最终版本已导出并回传，或已交给独立传输服务。';
   }
