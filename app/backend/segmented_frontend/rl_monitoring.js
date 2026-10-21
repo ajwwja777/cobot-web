@@ -73,7 +73,8 @@
     const episodePicker=document.createElement('select');episodePicker.className='rl-episode-picker';episodePicker.setAttribute('aria-label','查看回合 / Select episode');cards.rollout.subtitle.after(episodePicker);
     const note=document.createElement('p');note.className='rl-monitor-note';section.append(heading,meta,grid,note,diagnostics);after.after(section);
     section.addEventListener('keydown',event=>{if(event.target.closest?.('select,video,summary,button,[role=button]'))event.stopPropagation();});
-    const nativeMetrics=root.CobotNativeExpoMetrics?.create(diagnostics);
+    const progressParent=document.createElement("div");grid.before(progressParent);
+    const nativeMetrics=root.CobotNativeExpoMetrics?.create(diagnostics,progressParent);
     const review=root.CobotRolloutReview?.create(cards.rollout.card,cards.rollout.plot);
     let rolloutSelection='',selection='',supported=false,model=null,state={},options=null,payload=null,reviewPayload=null,inflight=null,lastPoll=0,apiRetryAfter=0,error='',timer=null;
     episodePicker.addEventListener('change',()=>{rolloutSelection=episodePicker.value;inflight?.abort();inflight=null;lastPoll=0;if(payload)payload={...payload,rollout:{}};render();poll();});

@@ -13,7 +13,8 @@
   ['梯度范数','critic_step',['critic_grad_norm','actor_grad_norm','filter_critic_grad_norm']],
   ['采样 / 更新耗时（秒）','critic_step',['sampling_seconds','update_seconds']]
  ];
- function create(parent){
+ function create(parent,progressParent){
+  const lifecycle=root.CobotExpoProgress?.create(progressParent||parent);
   const section=document.createElement('section');section.className='native-expo-metrics';section.hidden=true;
   const title=document.createElement('h3');title.textContent='EXPO 原生训练指标';
   const status=document.createElement('p'),progress=document.createElement('p');
@@ -24,11 +25,13 @@
   section.append(title,status,progress,grid,details,note);parent.append(section);
   let model=null,options=null,selected='',busy=false,last=0,timer=null,disposed=false,payload=null;
   function render(){
-   section.hidden=model?.runtime_adapter!=='expo_online';if(section.hidden)return;
+   section.hidden=model?.runtime_adapter!=='expo_online';if(section.hidden){lifecycle?.update(null);return;}
    const run=(payload?.runs||[]).find(r=>r.model_id===model.id&&(!options||(r.options?.rtc_delay===options.rtc_delay&&r.options?.edit_scale===options.edit_scale)));
+   lifecycle?.update(run,payload||{});
    const age=run?(Date.now()/1000-run.observed_at):Infinity;
    const upstream=run?.progress||{},sourceTime=upstream.updated_at;
-   const staleSource=typeof sourceTime==='number'&&Date.now()/1000-sourceTime>30;
+   const staleLimit=['updating','sampling'].includes(upstream.learner_phase)?Math.max(300,3*(upstream.timings?.update_seconds||0)+30):30;
+   const staleSource=typeof sourceTime==='number'&&Date.now()/1000-sourceTime>staleLimit;
    const state=!run?'等待原生训练指标':age>=15||payload.read_error?'网页指标同步中断 · 保留历史':upstream.network_error?'上游连接中断 · 保留最后指标':staleSource?'上游状态未刷新 · 保留最后指标':'网页指标同步正常';
    const updated=upstream.last_update_at||run?.points?.at(-1)?.timestamp;
    status.textContent=state+' · 内网直传，无需 W&B'+(updated?' · 最近训练更新：'+new Date(updated*1000).toLocaleString():'');
@@ -42,7 +45,7 @@
    busy=true;last=Date.now();const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),5000);try{const r=await root.fetch('/native-expo-metrics.json',{cache:'no-store',signal:controller.signal});if(!r.ok)throw Error('unavailable');const p=await r.json();if(p.schema!==1)throw Error('schema');payload=p;}catch(e){if(payload)payload={...payload,read_error:true};}finally{clearTimeout(timeout);busy=false;if(!disposed)render();}
   }
   timer=setInterval(poll,2000);
-  return {update(next,opts){model=next;options=opts;const key=JSON.stringify([model?.id,options]);if(key!==selected){selected=key;last=0;}render();poll();},destroy(){disposed=true;clearInterval(timer);section.remove();}};
+  return {update(next,opts){model=next;options=opts;const key=JSON.stringify([model?.id,options]);if(key!==selected){selected=key;last=0;}render();poll();},destroy(){disposed=true;clearInterval(timer);lifecycle?.destroy();section.remove();}};
  }
  root.CobotNativeExpoMetrics={create};
 })(window);

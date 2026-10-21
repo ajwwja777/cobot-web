@@ -960,3 +960,7 @@ COMPLETE: 3 CPU observer tests and 26 DOM tests passed on LFT2 personal workspac
 2026-10-20 视频/Q合并：用户要求只保留视频旁动作块Critic评分。横轴改为已记录chunk序号，点击序号通过该记录的seconds及已验证时间段映射定位视频；播放游标跟随最近记录chunk，不把chunk序号当秒数。保留无映射降级、暂停间隙断线和历史选择，移除下方重复Q卡及旧时间轴/候选比较曲线。静态发布，不操作HPC/模型/服务生命周期。
 
 2026-10-21 用户要求按chunk持续时间展示：视频旁Q改为step-after阶梯，横轴回合时间，Q在相邻动作选择记录间保持、下次选择时跳变；读数保留chunk编号。保留显式录像映射、暂停间隙断线，不推算末chunk结束时间。仅静态展示，记录时间不声称硬件精确执行边界。
+
+## 2026-10-21 EXPO lifecycle progress
+
+Add read-only five-stage learner/checkpoint/publication/download/served overview, real byte transfer progress, source-aware version history and Replay inventory/sampling explanation outside collapsed training diagnostics. Existing native metrics and rollout review retained. Observer changes belong to rl-platform; no Web/Actor/ROS lifecycle or training changes. Tests and site verification recorded in rl-platform docs/online/tasks/2026-10-21-expo-progress/TASK.md.
