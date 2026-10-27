@@ -22,13 +22,13 @@ def vla_models():
                     str(entry / row["args"][0])] if not Path(p).exists()]
         managed = row["managed"]
         cli_args = (["interface_task2_teach_rtc_live.sh", str(row["step"])]
-                    if managed else row["args"])
+                    if managed and row.get("runtime_adapter") != "omnisf" else row["args"])
         cli = "cd " + shlex.quote(str(entry)) + "\n./" + " ".join(shlex.quote(x) for x in cli_args)
         reason = ("缺少文件：" + ", ".join(missing)) if missing else (
             "" if managed else "终端入口已迁入；原脚本启动即运动，尚未接入网页暂停控制")
         reason_en = ("Missing files: " + ", ".join(missing)) if missing else (
             "" if managed else "CLI migrated; direct-motion entry requires web pause control")
-        result.append(dict(**{k:row.get(k) for k in ("capabilities","checkpoint_type","resumable_training","normalization","base_model","io_contract","runtime_python","code_revision","integration_level","verification","data_directories")}, id=row["id"], family=row["family"], task=row["task"], step=row["step"],
+        result.append(dict(**{k:row.get(k) for k in ("capabilities","checkpoint_type","resumable_training","normalization","base_model","io_contract","runtime_python","code_revision","integration_level","verification","data_directories","runtime_adapter","execution_options_supported","prompt")}, id=row["id"], family=row["family"], task=row["task"], step=row["step"],
             parent_step=row.get("parent_step"), checkpoint=row["checkpoint"],
             label=row["family"] + " · " + row["task"] + " · " + str(row["step"]),
             kind="vla", mode="evaluation", home_pose=row["home_pose"], control_hz=row["control_hz"],

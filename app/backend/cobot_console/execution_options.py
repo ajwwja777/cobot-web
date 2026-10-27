@@ -34,6 +34,8 @@ def contract():
 def configured_model(model, options=None):
     result = dict(model)
     expo = model.get('runtime_adapter') in {'expo_left', 'expo_online'}
+    if model.get('execution_options_supported') is False and (options or model.get('execution_options') or {}).get('enabled'):
+        raise ValueError('This model uses native 30 Hz; custom Hz/RTC/filter not supported')
     if options is not None:
         validate = normalize_options if expo else shared_contract()['normalize_options']
         options = validate(options)

@@ -20,14 +20,14 @@
     const hasExpoFields=()=>supportsExpo()||staged532();
     const draftExpo=()=>({rtc_delay:Number(delay.value),edit_scale:Number(scale.value)});
     const expoDefaults=()=>model?.expo_online_options?.defaults||{rtc_delay:5,edit_scale:0.01};
-    const value=()=>{const d=defaults(),v={enabled:true,publish_hz:custom.checked?Number(hz.value):d.publish_hz,rtc:rtc.checked,smoothing:smoothing.checked};if(supportsExpo())v.expo={rtc_delay:Number(delay.value),edit_scale:Number(scale.value)};return !supportsExpo()&&!custom.checked&&v.rtc===Boolean(d.rtc)&&v.smoothing===Boolean(d.smoothing)?{enabled:false}:v;};
+    const value=()=>{if(model?.execution_options_supported===false)return {enabled:false};const d=defaults(),v={enabled:true,publish_hz:custom.checked?Number(hz.value):d.publish_hz,rtc:rtc.checked,smoothing:smoothing.checked};if(supportsExpo())v.expo={rtc_delay:Number(delay.value),edit_scale:Number(scale.value)};return !supportsExpo()&&!custom.checked&&v.rtc===Boolean(d.rtc)&&v.smoothing===Boolean(d.smoothing)?{enabled:false}:v;};
     const isLoaded=()=>state.model?.id===model?.id&&state.phase!=='offline';
     function show(){
       container.hidden=!model;
       container.querySelector('.execution-smoothing-label').textContent=text('滤波','Filter');
-      custom.disabled=rtc.disabled=smoothing.disabled=locked||busy;
+      custom.disabled=rtc.disabled=smoothing.disabled=locked||busy||model?.execution_options_supported===false;
       if(model?.runtime_adapter==='expo_online'){rtc.checked=true;rtc.disabled=true;rtc.title=text('在线训练使用 RTC 延迟条件','Online learning uses RTC delay conditioning');}else rtc.title='';
-      hz.disabled=locked||busy||!custom.checked;
+      hz.disabled=locked||busy||!custom.checked||model?.execution_options_supported===false;
       expoFields.hidden=!hasExpoFields();
       delay.disabled=scale.disabled=staged532()?busy:locked||busy||isLoaded();
       expoHint.textContent=text('加载时生效 · Actor / Learner 同步','Applied on load · Actor / Learner synchronized');
@@ -74,6 +74,7 @@
       model=next;state=nextState;locked=Boolean(disabled)||Boolean(state.operation)||state.phase==='loading'||Boolean(state.active)||Boolean(state.status_stale);
       if(modelId!==model?.id){setRates(['expo_left','expo_online'].includes(model?.runtime_adapter));modelId=model?.id||'';let saved=null;try{saved=JSON.parse(root.localStorage.getItem(key)||'{}')[modelId];}catch(_){}set(saved||state.model?.id===modelId&&state.model.execution_options||{enabled:false});notice='';}
       if(isLoaded()&&supportsExpo()&&!staged532()) {const e=state.model.execution_options?.expo||state.model.execution_settings?.expo||expoDefaults();delay.value=String(e.rtc_delay);scale.value=Number(e.edit_scale).toFixed(2);}
+      if(model?.execution_options_supported===false)set({enabled:false});
       show();
     },describe(facts=model){
       if(!facts||!model)return facts;

@@ -429,12 +429,12 @@ class ManagedRuntime:
         if model["kind"] == "vla":
             gate = read_json(self.directory / "vla-gate.json")
             ready = gate.get("ready") and gate.get("pid") == saved["pid"]
-            if model.get("runtime_adapter") in {"expo_left", "expo_online"}:
+            if model.get("runtime_adapter") in {"expo_left", "expo_online", "omnisf"}:
                 fresh = 0 <= time.time() - gate.get("updated_at", 0) <= 3
                 ready = ready and fresh and gate.get("model_id") == model["id"]
                 if not fresh and saved.get("ready_confirmed"):
                     return {**saved, "phase": "error", "model_ready": False,
-                            "detail": "EXPO runtime heartbeat expired; release/reload", "log_tail": output}
+                            "detail": ("OmniSF" if model.get("runtime_adapter") == "omnisf" else "EXPO") + " runtime heartbeat expired; release/reload", "log_tail": output}
             phase = "paused" if ready and gate.get("paused", True) else "running" if ready else "loading"
             if ready and not saved.get("ready_confirmed"):
                 saved["ready_confirmed"] = True

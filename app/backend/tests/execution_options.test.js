@@ -153,3 +153,17 @@ for(const method of ['realtime-expo-ft-532-batch5','realtime-expo-ft-532-hpc4'])
  else{assert.equal(ui.value.expo.rtc_delay,4);assert.equal(ui.describe().execution_settings.expo.rtc_delay,5);}
  ui.update({id:'other'},{});ui.update(model,{});assert.equal(scale.value,'0.03');assert.equal(requests,0);dom.window.close();
 });
+
+
+test('OmniSF fixed native30 ignores stale custom choices and disables unsupported controls',()=>{
+ const [dom,w]=setup(),host=w.document.querySelector('#options'),ui=w.CobotExecutionOptions.create(host);
+ w.localStorage.setItem('cobot-execution-options',JSON.stringify({omni:{enabled:true,publish_hz:50,rtc:true,smoothing:true}}));
+ const m={id:'omni',kind:'vla',runtime_adapter:'omnisf',execution_options_supported:false,execution_settings:{publish_hz:30,logical_hz:30,rtc:false,smoothing:false}};
+ ui.update(m,{});
+ assert.equal(host.querySelector('.execution-hz').value,'30');
+ for(const sel of ['.execution-custom','.execution-hz','.execution-rtc','.execution-smoothing'])assert.equal(host.querySelector(sel).disabled,true);
+ assert.equal(ui.value.enabled,false);assert.equal(ui.describe().execution_settings.publish_hz,30);assert.equal(ui.describe().execution_settings.rtc,false);
+ ui.update({id:'pi',kind:'pi05',execution_settings:{publish_hz:20}},{});
+ assert.equal(host.querySelector('.execution-custom').disabled,false);
+ dom.window.close();
+});
