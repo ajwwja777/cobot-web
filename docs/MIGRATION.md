@@ -966,3 +966,16 @@ COMPLETE: 3 CPU observer tests and 26 DOM tests passed on LFT2 personal workspac
 Add read-only five-stage learner/checkpoint/publication/download/served overview, real byte transfer progress, source-aware version history and Replay inventory/sampling explanation outside collapsed training diagnostics. Existing native metrics and rollout review retained. Observer changes belong to rl-platform; no Web/Actor/ROS lifecycle or training changes. Tests and site verification recorded in rl-platform docs/online/tasks/2026-10-21-expo-progress/TASK.md.
 
 2026-10-21 EXPO progress activation: scoped static assets SHA256 checked on Cobot; independent CPU metrics observer restarted only. Production browser displays trained/saved102, published98, downloaded/served89, interrupted98 cache89.3%; version timeline prefers actual receipts over later first-observation times. 139 Web tests and31 RL CPU tests, desktop production screenshot inspected. Existing Actor/Web/ROS lifecycle preserved. Evidence and limitations: rl-platform/docs/online/tasks/2026-10-21-expo-progress/TASK.md.
+
+
+## 2026-10-27：OmniSF v64_memory checkpoint30000 网页接入
+
+用户指定 `/home/agilex/qizhou/omnisf_real/v64_memory_ckpt`，实际版本30000，并确认任务指令 Cover the three blocks from left to right, then uncover them again in the order of red, green, and blue. 已登记场景cover_blocks／模型OmniSF／步数30000，模型ID omnisf-v64-memory-cover-blocks-30000，保留原生NVMe路径及推理/IK环境；未换成π0.5旧任务模板。
+
+VLA020a0390、Web0b40ff87已push后按12文件SHA清单同步。VLA薄适配持有原生server/client，加载默认暂停，显式Start才arm／resume；同锁与代际保护暂停发布竞争及旧计划，心跳关联当前PID/ID。原生记忆、动作/相机/归一化、IK及速度限制不改。Web仅透传适配器元数据、校验心跳；原生30Hz准确显示，不支持的Hz/RTC/额外滤波禁用且后端拒绝，其他模型控制保持。
+
+7门控CPU、64相关后台（1跳过，1未改main同样失败的旧Dagger夹具单列）、完整前端140通过。现场只读依赖/SHA/编译检查及原生记忆/状态/FK/20次IK CPU自检通过；正式模型API available=true，生产选择器数据DOM显示cover_blocks/OmniSF/30000、完整权重路径及30Hz。首页/选项脚本HTTP SHA一致。
+
+仅网页ui_down/up重载5111→42904，12采样硬件进程PID/启动身份保持，模型offline、Sessioninactive、录制idle；未运行GPU加载／实际模型推理、启停硬件、录制、训练或运动，未编辑已有Episode/Replay/权重。网页入口已可选，真实暂停加载与运动由用户后续操作验收；原生夹爪0.07m校准假设也未由本次认证。
+
+详细适配与验证边界：同级vla-platform/docs/OMNISF_V64_DEPLOYMENT_20261027.md。主证据 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/omnisf-v64-20261027/`，含source-release、field-release、field-cpu-checks、http-verification、picker-verification和各测试日志。现场备份与回执 `/home/agilex/jiaan/project/cobot-web/runtime/verification/omnisf-v64-20261027/`。guide仅事实摘要，不由本任务提交/push。
