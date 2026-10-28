@@ -990,3 +990,12 @@ VLA020a0390、Web0b40ff87已push后按12文件SHA清单同步。VLA薄适配持�
 Web94cb4b6d补齐后端已有unknown的“未知并保留”按钮，支持当前已退出轮次保存后重试；未知直接act，不触发自动归位，RLT仍用专属skip。142完整前端、27相关后台/1既有跳过通过；两静态文件SHA/正式HTTP核验，刷新网页生效。原eval-20261028T182447-3c151881及全部文件SHA保留待用户决定结果，13采样Web/硬件启动身份保持，无运动/归位/采集/Replay或权重修改。
 
 详细模型事实见同级vla-platform/docs/OMNISF_V64_DEPLOYMENT_20261027.md最新节，主证据本项目outputs/omnisf-first-deploy-20261028/，现场两项目runtime/verification/omnisf-first-deploy-20261028/。guide只同步事实摘要，不提交/push。
+
+
+## 2026-10-28 晚：OmniSF连续执行反复暂停的IK隔离修复
+
+用户PID2260708已执行50条后反复100ms时间戳保护暂停。原生同解释器IK约150ms阻滞ROS观测回调，纯CPU/实际订阅/已记录动作的8段复现：IK后3/8、模拟节拍3/200越界；单独限制数值库线程未消除。VLA b3690a36新增独立CPU IK进程，保留原数学/限幅及100/250ms逐动作保护；同8段隔离后IK后0/8、模拟节拍0/200，最大35.79ms，12输入对比关节差0，16CPU回归通过。没有调用驻留模型RPC、GPU实验或机器人动作；诊断worker退出。
+
+两VLA文件已commit/push后按SHA同步，下次模型加载生效；当前旧PID2260708仍ready/手动暂停，本轮eval-20261028T201744-85bbeb43及所有文件SHA保持，16采样Web/模型/硬件身份保持。没有重启Web/模型/硬件、替用户选结果或恢复运动；真机连续运动由用户复测。本次无Web业务代码修改。
+
+详细事实见同级vla-platform/docs/OMNISF_V64_DEPLOYMENT_20261027.md晚间节；主证据本项目outputs/omnisf-skew-20261028/，现场VLA runtime/verification/omnisf-skew-20261028/。此前零发布器推理测试未覆盖IK后逐动作检查，不能视为连续执行验收；已据此补充本次回放检查。guide仅事实摘要不提交/push。
