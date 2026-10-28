@@ -3,8 +3,8 @@
   const $ = id => document.getElementById(id);
   const el = (tag, text, className) => { const n=document.createElement(tag); if(text!=null)n.textContent=text; if(className)n.className=className; return n; };
   const phaseName = {process_running:"进程已启动（模型未验证）",checking:"核对中",offline:"未加载",loading:"加载中",ready:"加载成功",paused:"已暂停",running:"部署中",error:"异常"};
-  const operationName={load:"加载模型",unload:"释放模型",start:"开始部署",pause:"暂停",resume:"继续",success:"记录成功",failure:"记录失败",abort:"放弃本轮"};
-  const outcomes={success:"成功",failure:"失败",abort:"放弃",start_failed:"启动失败"};
+  const operationName={load:"加载模型",unload:"释放模型",start:"开始部署",pause:"暂停",resume:"继续",success:"记录成功",failure:"记录失败",unknown:"保留未知结果",abort:"放弃本轮"};
+  const outcomes={success:"成功",failure:"失败",unknown:"未知",abort:"放弃",start_failed:"启动失败"};
   let state=null, localBusy=false, selectedModel="", modelSignature="", selectedRecord="", records=[], recordKey="", lastNotice="", lastLoaded="", activeBefore=null,loadedSelectionKey="";
   const selectableArms=["front-left","front-right","mid","rear-left","rear-right"];
   const homeArms=()=>[...document.querySelectorAll("#deployment-home-arms input:checked")].map(input=>input.value);
@@ -42,6 +42,8 @@
     $("deploy-resume").disabled=busy||uncertain||!active||state.phase!=="paused"||model()?.capabilities?.resume===false;
     for(const name of ["success","failure"]){$("deploy-"+name).disabled=busy||uncertain||!active||!loaded;}
     $("deploy-abort").disabled=busy||!active;
+    $("deploy-unknown").hidden=state.model?.kind==="rlt";
+    $("deploy-unknown").disabled=busy||uncertain||!active||state.model?.kind==="rlt"||(state.phase==="error"&&state.process_started===true);
     $("deployment-storage-apply").disabled=active;
     recentDirectories?.setDisabled(active);recentDirectories?.update();
     $("deployment-storage").disabled=false;
@@ -111,6 +113,7 @@
       if(!visible.length)grid.append(el("p","暂无任务输出","outputs-empty"));$("outputs-status").textContent=new Date(result.updated_at*1000).toLocaleTimeString();
     }catch(error){$("outputs-status").textContent=error.message;}finally{outputsBusy=false;}}
   for(const action of ["load","unload","start","pause","resume"])$("deploy-"+action).addEventListener("click",()=>act(action));
+  $("deploy-unknown").addEventListener("click",()=>act("unknown"));
   for(const action of ["success","failure","abort"])$("deploy-"+action).addEventListener("click",()=>terminal(action));
   $("deployment-storage-apply").addEventListener("click",async()=>{storageInitialized=true;try{const result=await request("/api/deployment/storage",{data_root:$("deployment-storage").value.trim()});state.data_root=result.data_root;recentDirectories?.remember(result.data_root);delete $("deployment-storage").dataset.dirty;selectedRecord="";await refreshRecords();notify("保存位置已更新");}catch(error){notify(error.message,true);}});
   $("deployment-storage").addEventListener("input",()=>{$("deployment-storage").dataset.dirty="true";});
