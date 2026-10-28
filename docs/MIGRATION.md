@@ -979,3 +979,14 @@ VLA020a0390、Web0b40ff87已push后按12文件SHA清单同步。VLA薄适配持�
 仅网页ui_down/up重载5111→42904，12采样硬件进程PID/启动身份保持，模型offline、Sessioninactive、录制idle；未运行GPU加载／实际模型推理、启停硬件、录制、训练或运动，未编辑已有Episode/Replay/权重。网页入口已可选，真实暂停加载与运动由用户后续操作验收；原生夹爪0.07m校准假设也未由本次认证。
 
 详细适配与验证边界：同级vla-platform/docs/OMNISF_V64_DEPLOYMENT_20261027.md。主证据 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/omnisf-v64-20261027/`，含source-release、field-release、field-cpu-checks、http-verification、picker-verification和各测试日志。现场备份与回执 `/home/agilex/jiaan/project/cobot-web/runtime/verification/omnisf-v64-20261027/`。guide仅事实摘要，不由本任务提交/push。
+
+
+## 2026-10-28：OmniSF首次部署故障与非删除收尾
+
+用户首次实际加载成功，但第一预测后观测跨流时间戳超过100ms，commands_sent=0；原生客户端退出带走模型server。VLA6865d161保持100/250ms严格保护，规划/arm阶段有界等待有效快照、逐动作即时严格验证，ready前两次真实预热，运行异常改为丢弃计划并保留模型手动暂停，显式arm才可恢复；裸TCP伪握手错误换为原生HTTP健康检查。当前只读5秒偏差最大36.65ms，尚不能唯一归因之前瞬时越界。
+
+12CPU、实际权重与三相机双臂无发布器GPU预测5次/IK、独立故障注入保留ready/paused/server验证通过，动作0，全部测试worker已退出。首轮注入未命中已如实留证，校正后重跑通过。4VLA文件SHA同步，下次加载生效，不重启现有Web/硬件或正式加载模型。
+
+Web94cb4b6d补齐后端已有unknown的“未知并保留”按钮，支持当前已退出轮次保存后重试；未知直接act，不触发自动归位，RLT仍用专属skip。142完整前端、27相关后台/1既有跳过通过；两静态文件SHA/正式HTTP核验，刷新网页生效。原eval-20261028T182447-3c151881及全部文件SHA保留待用户决定结果，13采样Web/硬件启动身份保持，无运动/归位/采集/Replay或权重修改。
+
+详细模型事实见同级vla-platform/docs/OMNISF_V64_DEPLOYMENT_20261027.md最新节，主证据本项目outputs/omnisf-first-deploy-20261028/，现场两项目runtime/verification/omnisf-first-deploy-20261028/。guide只同步事实摘要，不提交/push。
