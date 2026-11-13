@@ -678,9 +678,12 @@ def create_app(
         from .device_control import DeviceControlError
         try:
             deployment = application.state.deployment_manager
-            if request.operation.get("component") in {"rlt", "rlt_model"} and deployment.status()["phase"] != "offline":
-                raise DeviceControlError("请先在部署页释放当前评估模型")
-            return device_controller.start(request.operation, request.confirmation_token)
+            with deployment.lock:
+                if deployment.motion and deployment.motion.busy() and request.operation.get("action") not in {"stop","down"}:
+                    raise DeviceControlError("请先结束轨迹录制或回放")
+                if request.operation.get("component") in {"rlt", "rlt_model"} and deployment.status()["phase"] != "offline":
+                    raise DeviceControlError("请先在部署页释放当前评估模型")
+                return device_controller.start(request.operation, request.confirmation_token)
         except DeviceControlError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
 
@@ -911,6 +914,9 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(error)) from error
 
     def proxy(method: str, path: str, body: Optional[Dict[str, object]] = None):
+        motion=getattr(application.state,"motion_manager",None)
+        if method=="POST" and motion and motion.busy() and path in {"/api/session/arm","/api/session/prepare","/api/session/start","/api/session/resume","/api/episode/next"}:
+            raise HTTPException(409,"请先结束轨迹录制或回放")
         manager = application.state.deployment_manager
         deployment = manager.status()
         managed = deployment["phase"] != "offline" or deployment.get("operation")

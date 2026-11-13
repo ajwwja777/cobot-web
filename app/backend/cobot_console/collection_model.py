@@ -26,6 +26,8 @@ class CollectionModel:
         if self.episode_uuid:
             raise DeploymentError("上一轮 EXPO 在线收尾尚未确认，请先重试结束")
         with manager.lock:
+            if getattr(manager,"motion",None) and manager.motion.busy():
+                raise DeploymentError("请先结束轨迹录制或回放")
             if manager.operation or manager.active:
                 raise DeploymentError("请先结束部署操作或评估轮次")
             state = manager.runtime.status()

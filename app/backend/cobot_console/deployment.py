@@ -595,6 +595,8 @@ class DeploymentManager:
         self.error = None
         self.operation = None
         self.models = []
+        self.motion = None
+        self.videos = None
         self.observed_at = None
         self.catalog_observed_at = 0.0
         self.last_status = {}
@@ -691,6 +693,8 @@ class DeploymentManager:
                     "default_data_root": str(self.allowed_root / "evaluations/test"),
                     "read_only": os.environ.get("COBOT_READ_ONLY") == "1",
                     "recent_data_roots": self.settings.get("recent_data_roots", []),
+                    "video": self.videos.status() if self.videos else None,
+                    "motion_busy": bool(self.motion and self.motion.busy()),
                     "active": dict(self.active) if self.active else None,
                     "selected_model": self.settings.get("model_id"), "models": models,
                     "observed_at": self.observed_at, "status_age_sec": age,
@@ -700,11 +704,13 @@ class DeploymentManager:
             if acquired:
                 self.lock.release()
 
-    def submit(self, operation, model_id=None, trial_id=None, execution_options=None, load_use=None):
+    def submit(self, operation, model_id=None, trial_id=None, execution_options=None, load_use=None, video_options=None):
         with self.lock:
+            if getattr(self,"motion",None) and self.motion.busy() and operation in {"load","start","resume","collection_session_start"}:
+                raise DeploymentError("请先结束轨迹录制或回放")
             if self.operation:
                 raise DeploymentError("上一操作正在执行：" + self.operation)
-            if operation in ("success", "failure", "abort", "pause", "resume") and (not self.active or self.active["id"] != trial_id):
+            if operation in ("success", "failure", "unknown", "abort", "pause", "resume") and (not self.active or self.active["id"] != trial_id):
                 raise DeploymentError("评估轮次已变化，请刷新状态")
             self.operation = operation
             self.error = None
@@ -713,6 +719,7 @@ class DeploymentManager:
                 kwargs={}
                 if execution_options is not None:kwargs['execution_options']=execution_options
                 if load_use is not None:kwargs['load_use']=load_use
+                if video_options is not None:kwargs['video_options']=video_options
                 self.perform(operation, model_id=model_id, **kwargs)
             except Exception as error:
                 with self.lock:
@@ -761,7 +768,9 @@ class DeploymentManager:
             (self.directory / "active.json").unlink(missing_ok=True)
             self.active = None
 
-    def perform(self, operation, model_id=None, execution_options=None, load_use=None):
+    def perform(self, operation, model_id=None, execution_options=None, load_use=None, video_options=None):
+        if getattr(self,"motion",None) and self.motion.busy() and operation in {"load","start","resume","collection_session_start"}:
+            raise DeploymentError("请先结束轨迹录制或回放")
         if operation in {'unload','load'}:
             current=self.runtime.status()
             if current.get('model',{}).get('runtime_adapter')=='expo_online' and (current.get('online') or {}).get('phase')=='updating':
@@ -826,6 +835,7 @@ class DeploymentManager:
                     # A faulted Session may reject terminal requests. Still allow
                     # the owned inference processes to be stopped before cleanup.
                     self.runtime.unload()
+                    if self.videos:self.videos.finish()
                     self.discard_active()
                     return
             return self.runtime.unload()
@@ -850,8 +860,13 @@ class DeploymentManager:
                 self.active = record
                 atomic_json(self.directory / "active.json", record)
             try:
+                if self.videos:
+                    record["video"] = self.videos.start(video_options,record["id"])
+                    atomic_json(folder / "result.json", record)
+                    atomic_json(self.directory / "active.json", record)
                 self.runtime.action("start")
             except Exception as start_error:
+                if self.videos:record["video"] = self.videos.finish()
                 try:
                     self.runtime.action("pause")
                 except Exception as pause_error:
@@ -884,6 +899,7 @@ class DeploymentManager:
                 record["end"] = self.frames(folder, "end", required=False)
             if state["phase"] not in ("offline", "error"):
                 self.runtime.action(operation)
+            if self.videos:record["video"] = self.videos.finish()
             if operation == "abort":
                 self.discard_active()
                 return
@@ -897,6 +913,8 @@ class DeploymentManager:
 
     def collection_action(self, path, body=None):
         with self.lock:
+            if getattr(self,"motion",None) and self.motion.busy():
+                raise DeploymentError("请先结束轨迹录制或回放")
             if self.operation or self.active:
                 raise DeploymentError("请先结束当前部署操作或评测轮次")
             self.operation = "collection"
@@ -944,6 +962,7 @@ class DeploymentAction(BaseModel):
     model_id: Optional[str] = None
     trial_id: Optional[str] = None
     execution_options: Optional[dict] = None
+    video: Optional[dict] = None
 
 
 class DeploymentStorage(BaseModel):
@@ -957,6 +976,8 @@ def install_routes(app, cameras, modes, devices):
     app.state.deployment_manager = manager
     from .collection_model import install_routes as install_collection_routes
     install_collection_routes(app, manager)
+    from .motion import install_routes as install_motion_routes
+    install_motion_routes(app,manager,modes,devices)
     stop = threading.Event()
 
     # The recorder already owns a custom lifespan. on_event handlers are not
@@ -969,6 +990,8 @@ def install_routes(app, cameras, modes, devices):
         def monitor():
             while not stop.is_set():
                 manager.refresh()
+                if not manager.operation and manager.videos.current and manager.cached.get("phase") in {"offline","error"}:
+                    manager.videos.finish()
                 stop.wait(.75)
         def catalogs():
             while not stop.is_set():
@@ -984,6 +1007,8 @@ def install_routes(app, cameras, modes, devices):
                 yield
             finally:
                 stop.set()  # Models are owned independently of the web service.
+                manager.motion.shutdown()
+                manager.videos.finish()
 
     app.router.lifespan_context = lifespan
 
@@ -996,6 +1021,13 @@ def install_routes(app, cameras, modes, devices):
         if request.action not in {"load", "unload", "start", "pause", "resume", "success", "failure", "unknown", "abort"}:
             raise HTTPException(422, "unknown_deployment_action")
         try:
+            if request.video is not None:
+                if request.execution_options is not None:raise HTTPException(422,"conflicting_operation_options")
+                if request.action != "start":raise HTTPException(422,"video_options_only_on_start")
+                from .motion import VideoOptions
+                try:video=VideoOptions(**request.video).model_dump()
+                except ValueError as exc:raise HTTPException(422,str(exc)) from exc
+                return manager.submit(request.action,request.model_id,request.trial_id,video_options=video)
             if request.execution_options is not None:
                 if request.action != 'load':
                     raise HTTPException(422, 'execution_options_only_on_load')

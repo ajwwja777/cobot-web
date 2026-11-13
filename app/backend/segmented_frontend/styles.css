@@ -473,3 +473,5 @@ main[data-camera-dock=bottom] .page.active { order: 1; }
 .camera-unavailable-message { position: absolute; inset: 0 0 27px; display: grid; place-items: center; padding: 12px; color: #e6edf3; background: #15191f; border: 1px solid var(--line); border-radius: 11px; font-size: .8rem; text-align: center; }
 .camera-unavailable-message[hidden] { display: none; }
 .camera-grid figure[data-camera-status]:not([data-camera-status="ready"]) img[data-camera] { visibility: hidden; }
+
+.motion-panel{display:flex;flex-direction:column;gap:10px;min-width:0}.motion-panel h3{margin:0}.motion-panel pre{max-height:180px;overflow:auto;white-space:pre-wrap}.motion-panel input,.motion-panel select{width:100%}.motion-panel .checkbox-row{display:flex;align-items:center;gap:8px}.motion-panel input[type=checkbox]{width:16px;height:16px;min-height:0;flex:none;margin:0}
