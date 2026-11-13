@@ -999,3 +999,18 @@ Web94cb4b6d补齐后端已有unknown的“未知并保留”按钮，支持当�
 两VLA文件已commit/push后按SHA同步，下次模型加载生效；当前旧PID2260708仍ready/手动暂停，本轮eval-20261028T201744-85bbeb43及所有文件SHA保持，16采样Web/模型/硬件身份保持。没有重启Web/模型/硬件、替用户选结果或恢复运动；真机连续运动由用户复测。本次无Web业务代码修改。
 
 详细事实见同级vla-platform/docs/OMNISF_V64_DEPLOYMENT_20261027.md晚间节；主证据本项目outputs/omnisf-skew-20261028/，现场VLA runtime/verification/omnisf-skew-20261028/。此前零发布器推理测试未覆盖IK后逐动作检查，不能视为连续执行验收；已据此补充本次回放检查。guide仅事实摘要不提交/push。
+
+
+## 2026-11-13：命名轨迹与部署原视频接入
+
+来源：用户要求将原 record/replay 命令集成网页；record 放数采，replay 放部署，支持命名，以及可选保存三路不压缩原视频。源码已提交并推送：Web `de4a8af9a3cfa238f56e5a04e5a1533dc4bfd1f3`、control `d1699b647971c5b0f61c8512acdff1b6f33478e1`、dagger `b1c6da1f1de532ef0d44dbb357122671931afb78`。
+
+数采增加双前臂实测轨迹的命名录制/结束保存；部署增加轨迹列表、改名和回放/停止。复用 control/scripts/teleop.sh 与 robot/teleop.py，不另写动作算法；原终端交互继续可用。显示名独立于路径，旧轨迹可用旁路元数据改名，不重写轨迹内容。原 50Hz、限速、到起点的平滑返回、CAN/反馈/源时间戳、控制发布者与示教接管检查保留。模型需要先释放；单写者租约及模型/采集/归位/恢复互斥、任务ID/PID启动身份、日志与不确定结果检查接入网页。命令运行不代表已确认真机运动。
+
+部署控制区和轨迹回放区有默认关闭的“保留三路原视频”。开始前建立独立录像，暂停期间继续，轮次结束/命令退出或网页关闭时收尾；不由录像控制模型。录像由 dagger 的只读 ROS 订阅器接收原分辨率 BGR8，每路独立 rawvideo/bgr24 AVI，无 JPEG、缩放、拼图或 H.264 压缩；逐帧保存真实源时间戳、到达时刻和序号，AVI 容器时间基30fps，与动作执行Hz独立。64帧有界队列、源序号缺口、2秒无新帧、尺寸变化、写盘与20GiB余量错误会明确标记不完整并保留部分文件，不以释放模型处理录像故障。默认视频目录 `/media/agilex/Getea1/jiaan/data/videos/deployment`；轨迹默认目录 `/media/agilex/Getea1/jiaan/data/motion/replays`。自选目录复用现有允许范围与符号链接检查，三路文件名为 camera_left.avi / camera_high.avi / camera_right.avi，附各路 timestamps.jsonl 和 video.json。
+
+离线针对性跨项目回归138通过、1既有跳过、1既有夹具单列；完整前端146通过；三路合成视频经ffprobe核对rawvideo/原尺寸，并解码逐像素一致。覆盖控制连接EOF/保留上一完整记录、显式结束、改名不改原文件、示教接管、旧任务ID、并发写者、硬件操作冲突、录像启动失败不发动作、录像收尾错误不阻断结果，以及HTTP只读/参数/目录边界。完整后台另跑837通过/6跳过/3失败：标签与预览旧夹具在原main复现；独立历史归档出现一次SQLite初始化时序失败，单项复跑通过，本次未改这些逻辑。Chromium隔离布局及正式网页均通过，正式页面读到16条既有轨迹；所有写请求在浏览器验收中拦截，未发送操作。
+
+用户明确授权后，10个运行文件按旧/新SHA备份安装，仅Web重载6883→2780447；4个静态文件正式HTTP SHA一致，新motion状态idle，模型offline、无active/operation/writer。5个受保护进程身份以及原采集目录文件大小/mtime保持。已完成历史采集的内存状态从committed恢复为idle，原文件保留。三相机在重载前后均unavailable，没有为验收启动硬件、GPU模型、录制、回放、运动或修改Replay/权重；真实相机吞吐与真机轨迹仍未验收。此前直连状态核验漏禁代理造成误判，端口守卫阻止了未授权安装；随后使用ProxyHandler({})核实状态、得到本次仅Web重载授权后才执行。
+
+证据主存 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/motion-video-20261113/`，含源码发布、测试日志、浏览器截图、field-browser.json、field-activation.json；一次性浏览器检查脚本在 `/data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/motion-video-20261113/`。现场备份/暂存/安装和激活回执在 `/home/agilex/jiaan/project/cobot-web/runtime/verification/motion-video-20261113/`。笔记本未新增副本。Guide仅追加事实摘要，未提交或推送guide Git。
