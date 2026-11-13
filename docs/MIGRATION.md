@@ -1014,3 +1014,18 @@ Web94cb4b6d补齐后端已有unknown的“未知并保留”按钮，支持当�
 用户明确授权后，10个运行文件按旧/新SHA备份安装，仅Web重载6883→2780447；4个静态文件正式HTTP SHA一致，新motion状态idle，模型offline、无active/operation/writer。5个受保护进程身份以及原采集目录文件大小/mtime保持。已完成历史采集的内存状态从committed恢复为idle，原文件保留。三相机在重载前后均unavailable，没有为验收启动硬件、GPU模型、录制、回放、运动或修改Replay/权重；真实相机吞吐与真机轨迹仍未验收。此前直连状态核验漏禁代理造成误判，端口守卫阻止了未授权安装；随后使用ProxyHandler({})核实状态、得到本次仅Web重载授权后才执行。
 
 证据主存 `/data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/motion-video-20261113/`，含源码发布、测试日志、浏览器截图、field-browser.json、field-activation.json；一次性浏览器检查脚本在 `/data/LFT-W02_data/jiaan/jiaan/scratch/cobot-web/motion-video-20261113/`。现场备份/暂存/安装和激活回执在 `/home/agilex/jiaan/project/cobot-web/runtime/verification/motion-video-20261113/`。笔记本未新增副本。Guide仅追加事实摘要，未提交或推送guide Git。
+
+
+## 2026-11-13 回访：轨迹入口可发现性与相机占用恢复
+
+用户反馈原网址看不到新入口、相机启动失败，要求处理后交付。正式源码/HTTP有上版入口，但整页测量发现部署回放在第三行，y=1458.8px、超出首屏；上次只验证卡片本身可见，未覆盖首屏可发现性。浏览器旧页面缓存的具体占比不能唯一确认，原HTML仅有Last-Modified/ETag而没有Cache-Control。
+
+Web c257f0f5a3b375fa2d378c5187a5f822027b6890 增加顶部“数据采集/轨迹录制”“模型部署/轨迹回放”，轨迹工作区独立于原grid和持久布局；回放选择/改名压缩成同行。隐藏的模型/采集区不会接收全局机器人方向键和空格快捷键。初次目录读取失败可再次轮询恢复，路径仍可编辑；状态不确定时开始按钮禁用。HTML返回no-store和X-Cobot-UI-Revision=20261113-motion-access，变更资源查询版本更新；直接新入口为 http://10.12.166.118:8015/?v=20261113-motion-access 。网页设备相机状态同时读取三路新鲜帧，节点存在但无画面不会显示就绪。
+
+相机根因有进程/USB FD/当前ROS graph证据：旧front相机launch511616/driver511665、旧quest3 wrist launch1663130/drivers1663321/1663322仍持有USB001/{059,013,016}及关联hub，来自旧ROS日志代际93c7debe；用户新启动的托管launch2802796/三节点在新ROS中只发布rosout、不发布图像，持续OpenNI STATUS4118“device already opened”。现场无活动录制/模型。按本次修复授权先用既有API停止新失败相机组，再核对PID/启动身份后对两组旧相机launch发SIGINT；五个旧相机进程正常退出，未广泛kill、未USB/CAN复位、未动机械臂/模型。托管相机重新启动为2810507，三路640×480真实出图。
+
+control 631c3e854553e31704c3672cddef2d6346b31370 增加只读USB占用防重：旧/其他命名相机驱动持有USB时，在第二组启动前报PID/设备，不自动杀其他任务；自己的托管进程组/后代不误拦。系统检查增加三路图像发布者，不能仅因3个节点存在就认定就绪。重复Start实际验证复用2810507，没有第二组进程。
+
+相关后台/控制144通过，完整前端149通过；三种尺寸1440×900、1280×720、760×900及旧布局配置通过。完整正式页面实际GET验收：两入口按钮均y342px位于首屏，16条旧轨迹、三张自然尺寸640×480实时图像、零JS异常；所有自动写请求在验证浏览器中拦截，未发轨迹/模型操作。原视频只读订阅实测各37/38/38帧，三文件ffprobe确认rawvideo/640×480，PNG首帧可解码；诊断短片单独存runtime/verification/motion-camera-followup-20261113/native-video-smoke，不写数据集/Replay。最终约2秒连续采样三路序号增加62/61/61，静态JPEG真实可解码，设备报告3/3 live streams+3/3 nodes+3/3 publishers。
+
+6个运行文件提交push后按旧/新SHA备份安装，仅Web重载2780447→2820970；相机只读订阅保持器维持流，完成后退出。相机launch/三驱动及ROS身份不变，3个正式静态文件HTTP SHA一致；模型offline、motion idle、无active writer。未启动机械臂/模型、未机器人动作或改权重/Replay。本地仅新增交付截图 D:/Code/jiaan_workspace/cobot-web/cobot-web/outputs/motion-camera-followup-20261113/deployment.png，SHA722e3bab0c42ab5deb35eac416ccc3ac51489582f6e42498942aea3b1aea9bff；主证据在本项目outputs/motion-camera-followup-20261113，现场同名runtime/verification目录，临时验证脚本归scratch/cobot-web/motion-camera-followup-20261113。Guide只追加事实，不提交/push。
