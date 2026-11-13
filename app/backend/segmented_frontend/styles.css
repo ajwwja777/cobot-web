@@ -475,3 +475,7 @@ main[data-camera-dock=bottom] .page.active { order: 1; }
 .camera-grid figure[data-camera-status]:not([data-camera-status="ready"]) img[data-camera] { visibility: hidden; }
 
 .motion-panel{display:flex;flex-direction:column;gap:10px;min-width:0}.motion-panel h3{margin:0}.motion-panel pre{max-height:180px;overflow:auto;white-space:pre-wrap}.motion-panel input,.motion-panel select{width:100%}.motion-panel .checkbox-row{display:flex;align-items:center;gap:8px}.motion-panel input[type=checkbox]{width:16px;height:16px;min-height:0;flex:none;margin:0}
+
+.motion-mode-tabs{display:flex;gap:8px;margin:0 0 16px;flex-wrap:wrap}.motion-mode-tabs button{width:auto;min-width:120px;background:var(--surface-2);color:var(--text);border:1px solid var(--line)}.page .motion-mode-tabs button{background:#222528;color:#ddd}.page .motion-mode-tabs button[aria-selected="true"]{background:#d4d5d6;color:#151719;border-color:#d4d5d6}.page .session-workspace.motion-mode-hidden,.page .capture-layout.motion-mode-hidden,.page .motion-mode-workspace.motion-mode-hidden{display:none!important}.motion-mode-workspace>.motion-panel{max-width:760px;height:auto}.motion-mode-workspace{margin-bottom:16px}
+
+.motion-inline-row{display:flex;gap:8px;align-items:end;min-width:0}.motion-inline-row>label,.motion-inline-row>select{flex:1;min-width:0}.motion-inline-row>button{width:auto;flex:none;white-space:nowrap}@media(max-width:600px){.motion-inline-row{flex-wrap:wrap}.motion-mode-tabs button{flex:1}}

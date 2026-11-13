@@ -231,6 +231,14 @@ def create_app(
         writer_coordinator=modes,
         mount_frontend=False,
     )
+    @application.middleware("http")
+    async def ui_cache_control(request, call_next):
+        response = await call_next(request)
+        if request.url.path in {"/", "/index.html"}:
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            response.headers["X-Cobot-UI-Revision"] = "20261113-motion-access"
+        return response
+
     if os.environ.get("COBOT_READ_ONLY") == "1":
         @application.middleware("http")
         async def read_only_preview(request, call_next):
@@ -661,6 +669,15 @@ def create_app(
         systems = dict(value.get("systems", {}))
         health_keys = [key for key in shared_cache.snapshot_keys() if not key.startswith("camera_")]
         snap = shared_cache.snapshot(float(monotonic()), keys=health_keys)
+        camera_state = getattr(camera_preview, "preview_state", camera_preview.state)()
+        live_cameras = camera_state.get("cameras") or {}
+        fresh_count = sum(value.get("status") == "ready" for value in live_cameras.values())
+        node_state = systems.get("cameras", {})
+        systems["cameras"] = {**node_state,
+            "phase": "ready" if fresh_count == 3 else "error" if node_state.get("phase", "offline") != "offline" or fresh_count else "offline",
+            "detail": str(fresh_count) + "/3 live camera streams; " + str(node_state.get("detail", "nodes unknown")),
+            "frame_status": camera_state.get("status"), "fresh_streams": fresh_count,
+            "node_phase": node_state.get("phase")}
         systems["device_health"] = device_health.evaluate(systems, snap,
             home_started=float((value.get("jobs", {}).get("home") or {}).get("started_at") or 0))
         return {**value, "systems": systems}
