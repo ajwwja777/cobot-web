@@ -21,6 +21,11 @@ JPEG_QUALITY = 82
 
 
 def _jpeg(image: np.ndarray) -> bytes:
+    # Preview only: keep native cache/recording frames untouched. A cheap
+    # strided copy avoids full-HD JPEG work in every browser refresh.
+    height,width=image.shape[:2]
+    stride=max(1,math.ceil(width/960),math.ceil(height/720))
+    if stride>1:image=np.ascontiguousarray(image[::stride,::stride])
     ok, encoded = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
     if not ok:
         raise RuntimeError('jpeg encode failed')
