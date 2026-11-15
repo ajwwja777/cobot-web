@@ -1076,3 +1076,12 @@ Webee99b78/control344ccb2提供严格监测选项，默认false；关闭时跟�
 8运行文件+1次同文件RGB补丁按SHA备份安装，Web797583→833770→839683；最终12个当前受保护ROS/机械臂/相机进程身份保持，最初相机切换时8个非相机保护身份保持。新OpenAPI strict_monitoring默认false、3个高清样片HEAD MIME/大小及8最终源码SHA核验通过。只读订阅保持器和诊断订阅退出，模型offline/noactivewriter/motioninactive，未启停模型/机械臂、未回放/归位/CAN复位或写训练数据。用户将自行复核真实回放；既有640视频无法补回源细节。
 
 高清样片独立根 /media/agilex/Getea1/jiaan/data/videos/diagnostics/replay-quality-20261115 ，成功归档eval-20261115T152219-1a1f994a-2057341c，可在视频下载页填写该根或走既有/videos/file接口下载；默认部署录像根不变。主证据outputs/replay-tracking-20261115（field-before.json/camera-native-config.json/usb-native-modes.json/backend-tests.log/frontend-tests.log/encoder-native-rgb-tests.log/quality-preflight.json/final-acceptance.json），现场runtime/verification/replay-tracking-20261115含原源码/诊断脚本/收尾回执。首次独立脚本忘记ROS init未收帧，脚本已修正，失败诊断残件单独保留为证据。Guide只事实摘要、不提交/push。
+
+
+## 2026-11-15 高清录像不完整回访修复
+
+用户实录7547afb3回放约146s，但三路在252/294/263帧时因queue full停止；之前独立10s通过不足以证明网页并发负载下持续录制。Daggerfe2ed55/后续f2f8c1f、Webfedfdaa/后续50527aa已push及SHA同步：录像ROS订阅/帧处理/ffmpeg改为自有子进程，独立worker_id/readiness/状态/stop/EOF收尾协议，网页只读小JSON；退出后回收worker及其编码器。无效/异常状态仍保留残件，不伪装完整。增加received/queue depth/peak，未扩大64帧队列。实际预览并发暴露编码与预览竞争，最终H264 CRF14/1440×1080保持，使用ultrafast/zerolatency/编码2线程/缩放1线程，实时JPEG预览限尺寸（当前816×612），不改原始缓存、录像或模型图像。
+
+63相关CPU/1跳过与最终15项编码/worker/预览隔离测试通过。最终真实网页预览开启（262次GET、写请求被拦截）下约10秒三路完整saved：304/304/305帧，live队列均0、峰值2/2/1，完整解码帧数与接收一致；对照旧配置10秒队列曾增长至25/28，未将这种短片误判为长时修复。用户要求尽快、简单检查，因此未长时间运动回放。仅Web839683→854335→859935，12保护身份含高清相机保持，没有重启相机/机械臂/模型、真实回放/CAN/归位或生产数据删除。诊断worker与浏览器均已退出。旧缺失片段无法补回，原incomplete文件保留。
+
+成功诊断视频 /media/agilex/Getea1/jiaan/data/videos/diagnostics/hd-worker-20261115/eval-20261115T154338-f407c4aa-85ed5526 ，1440×1080/H264/CRF14，每路约25.7–28.5MB；编码提速保持清晰度但文件更大。证据归cobot-web/outputs/hd-recording-followup-20261115，现场runtime/verification/hd-recording-worker-20261115，脚本/worktree归scratch相应项目/hd-recording-worker-20261115。保留现有严格监测默认关闭设置；不承诺真实故障不退出。guide只事实摘要，不提交/push。
