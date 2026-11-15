@@ -1085,3 +1085,12 @@ Webee99b78/control344ccb2提供严格监测选项，默认false；关闭时跟�
 63相关CPU/1跳过与最终15项编码/worker/预览隔离测试通过。最终真实网页预览开启（262次GET、写请求被拦截）下约10秒三路完整saved：304/304/305帧，live队列均0、峰值2/2/1，完整解码帧数与接收一致；对照旧配置10秒队列曾增长至25/28，未将这种短片误判为长时修复。用户要求尽快、简单检查，因此未长时间运动回放。仅Web839683→854335→859935，12保护身份含高清相机保持，没有重启相机/机械臂/模型、真实回放/CAN/归位或生产数据删除。诊断worker与浏览器均已退出。旧缺失片段无法补回，原incomplete文件保留。
 
 成功诊断视频 /media/agilex/Getea1/jiaan/data/videos/diagnostics/hd-worker-20261115/eval-20261115T154338-f407c4aa-85ed5526 ，1440×1080/H264/CRF14，每路约25.7–28.5MB；编码提速保持清晰度但文件更大。证据归cobot-web/outputs/hd-recording-followup-20261115，现场runtime/verification/hd-recording-worker-20261115，脚本/worktree归scratch相应项目/hd-recording-worker-20261115。保留现有严格监测默认关闭设置；不承诺真实故障不退出。guide只事实摘要，不提交/push。
+
+
+## 2026-11-15 回放 CAN 保持状态异常回访
+
+用户截图motion-0bb049d8c7374aa3bf00abbc7996d794在回放后因Health/Monitor.check_arm的原始0x2a1 CAN保持状态检查失败退出。不是跟踪/调度软阈值，也不是录像队列。旧错误没有臂侧/模式/状态/原始字节，不能确定具体坏值或唯一硬件原因；不能用事后健康状态断言旧反馈是误报。用户已自行再次启动dc5eb6，agent始终只读，不打断。并发2s被动监听left402/right401条0x2a1全部[ctrl1,status0,teach0,err0]。中臂mode2与该检查无关，因为此Health只监听左右前臂。
+
+Control3921d6f（111针对性CPU通过）只补诊断：CAN-hold错误含左右标签、ctrl_mode/arm_status/teach_status/err_code/raw8bytes，关节故障含关节号和状态位，Health保留首个出错总线。两运行文件在push后旧/新SHA备份同步，现存回放已加载代码不变、下次CLI调用生效；未更改保护条件/阈值或恢复逻辑，未Web/模型/相机/机械臂启停、CAN复位、实际回放或运动命令。
+
+后续用户run dc5eb6最终exit130、日志“已停止；不自动归位或恢复策略”，不是正常完成码0，但没有再次记录CAN错误，不推断谁发中断。三路录像saved/workercomplete，4574/4574/4575帧，received一致、queue0/peak4/2/4，1440×1080约152.5s，header帧数/时长可读；验证了本轮持续录像，不等于故障已根治。完整事实和证据cobot-web/outputs/replay-can-state-20261115（field-before.log、passive-can-status.json、tests.log、after-source-only.json、production-video-headers.json），现场cobot-web/runtime/verification/replay-can-state-20261115/source-install.json及备份。Guide仅摘要，不提交/push。
