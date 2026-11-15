@@ -1029,3 +1029,20 @@ control 631c3e854553e31704c3672cddef2d6346b31370 增加只读USB占用防重：�
 相关后台/控制144通过，完整前端149通过；三种尺寸1440×900、1280×720、760×900及旧布局配置通过。完整正式页面实际GET验收：两入口按钮均y342px位于首屏，16条旧轨迹、三张自然尺寸640×480实时图像、零JS异常；所有自动写请求在验证浏览器中拦截，未发轨迹/模型操作。原视频只读订阅实测各37/38/38帧，三文件ffprobe确认rawvideo/640×480，PNG首帧可解码；诊断短片单独存runtime/verification/motion-camera-followup-20261113/native-video-smoke，不写数据集/Replay。最终约2秒连续采样三路序号增加62/61/61，静态JPEG真实可解码，设备报告3/3 live streams+3/3 nodes+3/3 publishers。
 
 6个运行文件提交push后按旧/新SHA备份安装，仅Web重载2780447→2820970；相机只读订阅保持器维持流，完成后退出。相机launch/三驱动及ROS身份不变，3个正式静态文件HTTP SHA一致；模型offline、motion idle、无active writer。未启动机械臂/模型、未机器人动作或改权重/Replay。本地仅新增交付截图 D:/Code/jiaan_workspace/cobot-web/cobot-web/outputs/motion-camera-followup-20261113/deployment.png，SHA722e3bab0c42ab5deb35eac416ccc3ac51489582f6e42498942aea3b1aea9bff；主证据在本项目outputs/motion-camera-followup-20261113，现场同名runtime/verification目录，临时验证脚本归scratch/cobot-web/motion-camera-followup-20261113。Guide只追加事实，不提交/push。
+
+
+## 2026-11-15：三路视频网页播放、下载与 MP4 体积修正
+
+来源：用户恢复网络后继续下载需求，并明确短时 raw AVI 太大且 VS Code 无法播放，要求浏览器/VS Code 可打开、可下载，最高1080p。本次以此更新此前2026-11-13“不压缩”偏好；未恢复CAN排障任务，用户已自行完成硬件恢复。
+
+Web `4a6f671eb4cf5adab8825d315b7dcd9e674c797c`、Dagger `47cfc0964717f12a1bf8f612c942f828ab1b1086` 已提交push。部署顶部增加“视频下载”，选择录像和目录后显示左腕/中路/右腕三播放器和独立下载按钮；新录像默认CPU单线程libx264/main/yuv420p/CRF20/veryfast、faststart MP4，最大1920×1080并保持比例，不放大小源。当前相机640×480保持原尺寸；30fps容器时间基与动作Hz独立，源时间戳/序号仍逐帧记录。仅影响可选部署/轨迹录像，不改训练HDF5/Replay或算法。遗留模块名uncompressed_video保留导入兼容，rawvideo仅显式选择可用。
+
+HTTP GET `/api/videos/records` 只列允许根内有效归档；`/api/videos/file` 支持GET/HEAD、Range、断点下载，默认attachment，`download=false`为inline播放。文件名/相机/manifest/符号链接约束在每次访问重查，不从网页接受任意文件路径，不整文件装入内存/浏览器blob。未结束录像不提供完成文件，异常残件明确标记。旧AVI通过独立CPU转换器生成同目录camera_{left,high,right}.mp4与browser-video.json；原AVI、video.json、timestamps保留，源前后SHA与转换后逐帧解码计数验证，不覆盖未知已有MP4。
+
+现场两个归档位于 `/media/agilex/Getea1/jiaan/data/videos/deployment/`：`motion-9f2000905bdc4daf81b47cb2e728559f-049249f9` 三路各2090帧，原5,778,642,330bytes → MP4总57,245,407bytes；`motion-b21e08279a994b2c9db5660b69a31f4d-1ce18eb8` 三路715/716/715帧，原1,977,858,882bytes → MP4总16,939,964bytes。全部6个原AVI前后SHA一致，均640×480/H264/yuv420p，无补帧/删帧。因压缩有损，不宣称像素一致；原AVI保留。
+
+51相关CPU通过/1既有跳过，151完整前端通过；含5GiB稀疏文件HEAD/尾部Range/416、目录逃逸/符号链接、旧拷贝失配、异常残件、真实编码/最大1080p/源帧与SHA保持。正式Chromium1440×900与760×900：两条历史/3个播放器，逐路播放及seek10秒、下载attachment文件名通过，零JS异常；自动写请求被浏览器测试拦截，未派发。实际6个MP4完整HTTP读取SHA与磁盘一致、尾部Range206逐字节一致，4个静态文件HTTP SHA通过。VS Code未在现场实际打开，使用其官方支持的H264无音轨MP4（https://code.visualstudio.com/updates/v1_72#_audio-and-video-file-previews）。未来新一轮长时间录像吞吐仍需用户真实使用验证。
+
+11个运行文件按旧/新SHA暂存/备份/原子替换，仅Web重载2820970→733329；12个受保护硬件/模型进程PID/start_ticks/cmd SHA保持，临时只读相机订阅保持器正常退出。最终模型offline、无motion/active writer、capture idle。没有启停模型/硬件、录制现场相机、回放、CAN复位、归位或机器人动作。
+
+主证据：本项目`outputs/video-download-replay-stop-20261113/`（backend-tests.log、frontend-tests.log、source-manifest.json、legacy-convert.log、field-activation.json、final-acceptance.json、field-browser-mp4.json及截图）；现场`runtime/verification/video-downloads-mp4-20261115/`；临时验证脚本在A6000 `scratch/cobot-web/video-download-replay-stop-20261113/`。本地仅保留已目视检查的截图 `D:/Code/jiaan_workspace/cobot-web/cobot-web/outputs/video-downloads-mp4-20261115/deployment-videos.png`，主代码和证据仍在A6000。Guide仅事实摘要，不提交/推送guide Git。
