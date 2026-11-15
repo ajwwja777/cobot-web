@@ -1046,3 +1046,20 @@ HTTP GET `/api/videos/records` 只列允许根内有效归档；`/api/videos/fil
 11个运行文件按旧/新SHA暂存/备份/原子替换，仅Web重载2820970→733329；12个受保护硬件/模型进程PID/start_ticks/cmd SHA保持，临时只读相机订阅保持器正常退出。最终模型offline、无motion/active writer、capture idle。没有启停模型/硬件、录制现场相机、回放、CAN复位、归位或机器人动作。
 
 主证据：本项目`outputs/video-download-replay-stop-20261113/`（backend-tests.log、frontend-tests.log、source-manifest.json、legacy-convert.log、field-activation.json、final-acceptance.json、field-browser-mp4.json及截图）；现场`runtime/verification/video-downloads-mp4-20261115/`；临时验证脚本在A6000 `scratch/cobot-web/video-download-replay-stop-20261113/`。本地仅保留已目视检查的截图 `D:/Code/jiaan_workspace/cobot-web/cobot-web/outputs/video-downloads-mp4-20261115/deployment-videos.png`，主代码和证据仍在A6000。Guide仅事实摘要，不提交/推送guide Git。
+
+
+## 2026-11-15：顺序回放、放弃录制与删除轨迹
+
+来源：用户要求“轨迹1+轨迹2”依次执行，上一条结束后缓慢移到下一条初始位姿，并追加放弃轨迹录制及删除轨迹。Web92c7ddbfed2af7f7b4f4e7ae0afb12d4c9b7dc2c/control800c3618bff2ea436d441cffeef26d1f332c4eda已提交push。
+
+部署“轨迹回放”增加“加入顺序”与编号队列，可上移/下移/移除，最多32条，保留未加队列时当前单轨迹回放；按用户排列发送trace_ids。控制CLI以首路径加重复--next调用，先完整读取校验所有文件，再在同一State/operation_lock/Health/左右Publisher上下文执行整组。每段到终点确认后，沿原core.start_path三次平滑限速路径从上一段最后指令到下一段起点（含夹爪），到位确认后才回放；未改变50Hz、0.3rad/s关节和0.05m/s夹爪限制或安全状态检查。停止/示教接管/健康异常会退出整组，不继续下一条或自动归位。可选MP4录像贯穿整组及衔接，只收尾一次；不是每段重新启动模型/设备。
+
+数采“轨迹录制”新增“放弃录制”，按run_id核对当前record进程后通过既有stdin发送discard，控制端关闭并移除本轮.pending文件（实际后缀.jsonl.incomplete），返回独立退出码10；父任务只有确认此退出结果才显示discarded，释放writer，不写最终轨迹、不更换latest。控制连接丢失/已经结束不冒充放弃成功；停止处理中禁用重复保存/放弃。
+
+“删除轨迹”对当前下拉所选项明确确认后操作；Web路径允许列表/身份核验与control领域trajectory_files共用teleop.lock，正在录制/回放（包括独立CLI）时拒绝。只删除所选.jsonl及其.name.json，不删除其他轨迹或视频；如latest正指向该条则清除指针，不静默改为另一条动作。当前浏览器队列同步移除该条并刷新目录，其他浏览器刷新列表后更新；服务端每次开始仍逐条重新核验，失效项不执行。
+
+91相关CPU通过/1既有跳过，154完整前端通过；覆盖两段实际控制循环逐步限速/中间位姿/同一Publisher生命周期、衔接中断与示教退出、坏后段先拒绝、CLI顺序、单writer/单录像、run_id放弃/退出码/临时文件/原latest保持、删除确认/路径/符号链接/同CLI锁保护与队列更新。实际两份既有轨迹只读规划，桥接71tick/1.42s且每步限速通过、没有Publisher；与实际运动验收区分。隔离Chromium两尺寸完整页面捕获顺序/停止/删除/录制/放弃请求，全部模拟，无生产写请求。
+
+首次只读发现用户record活动，未打断；待用户明确“录制已结束，可以仅重载网页”后，7运行文件按旧/新SHA校验备份安装，仅Web733329→797583，12受保护硬件/模型进程PID/start_ticks/cmd SHA保持，相机只读订阅保持器退出。正式Chromium1440×900和760×900：两条顺序可调整、回放/删除入口可用、idle时放弃入口可见禁用、3个MP4下载链接正常、零JS异常，未派发操作请求。现场仅独立诊断目录以模拟State/合成文件验证discard和删除锁，不订阅真实相机/关节、不发布动作、不删除任何生产轨迹。3静态HTTP SHA、7源文件SHA和新OpenAPI trace_ids maxItems32通过；最终模型offline/motioninactive/captureidle。未启停模型/硬件、实际录制/回放/删除生产资产或机器人运动，真实连续运动待用户验收。
+
+证据：本项目outputs/trajectory-sequence-20261115/（backend-tests.log、frontend-tests.log、actual-trace-plan.json、isolated-browser.json、field-browser.json、field-activation.json、field-final-acceptance.json与截图）；现场runtime/verification/trajectory-sequence-20261115/含源码回退及CPU独立夹具；脚本归A6000 scratch/cobot-web/trajectory-sequence-20261115。笔记本仅保留目视截图 D:/Code/jiaan_workspace/cobot-web/cobot-web/outputs/trajectory-sequence-20261115/{replay,record}.png。Guide只追加事实摘要，不提交/push。
