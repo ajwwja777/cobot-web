@@ -140,3 +140,12 @@ test('discard targets the running record; delete confirms and removes it from th
   assert.equal(w.document.querySelectorAll('#motion-queue li').length,0);
  }finally{dom.window.close();}
 });
+
+test('strict monitoring defaults off and is explicitly opt-in for replay',async()=>{
+ const {dom,w,calls}=await setup();try{
+  const node=w.document.querySelector('#motion-strict-monitoring');assert.equal(node.checked,false);
+  node.checked=true;node.dispatchEvent(new w.Event('change'));
+  w.document.querySelector('#motion-replay').click();await tick();await tick();
+  assert.equal(calls[0].body.strict_monitoring,true);assert.equal(node.disabled,true);
+ }finally{dom.window.close();}
+});

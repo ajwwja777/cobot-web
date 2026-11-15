@@ -22,6 +22,7 @@
  const refresh=button("motion-refresh",t("刷新轨迹","Refresh trajectories"),"refresh"),renameButton=button("motion-save-name",t("修改名称","Rename"),"rename");
  const deleteButton=button("motion-delete",t("删除轨迹","Delete trajectory"),"delete");
  deleteButton.className="danger";
+ const strict=e("input");strict.id="motion-strict-monitoring";strict.type="checkbox";strict.checked=values.strict_monitoring===true;strict.addEventListener("change",save);
  const videoToggle=e("input");videoToggle.id="motion-keep-video";videoToggle.type="checkbox";
  const videoInput=e("input");videoInput.id="motion-video-root";videoInput.value=videoRoot;
  const replayVideoOptions=e("div");replayVideoOptions.hidden=true;replayVideoOptions.append(label(t("视频保存目录","Video directory"),videoInput));
@@ -32,7 +33,7 @@
  const queueList=e("ol");queueList.id="motion-queue";queueList.className="motion-queue";queueList.setAttribute("aria-label",t("回放顺序","Playback order"));
  add.addEventListener("click",()=>{if(state.active||pending||uncertain||queue.length>=32||!records.find(r=>r.id===selected)?.valid)return;queue.push(selected);render();});
  chooseRow.append(select,add,refresh);renameRow.append(label(t("轨迹名称","Trajectory name"),rename),renameButton);
- replay.append(label(t("轨迹目录","Trajectory directory"),replayRoot),chooseRow,queueList,renameRow,deleteButton,label(t("保留三路视频（MP4）","Keep three videos (MP4)"),videoToggle),replayVideoOptions,rp,e("small",t("回放会缓慢回到录制起点；示教接管后停止。","Replay returns slowly to the start; teaching takeover stops playback.")),replayState,log);
+ replay.append(label(t("轨迹目录","Trajectory directory"),replayRoot),chooseRow,queueList,renameRow,deleteButton,label(t("严格监测","Strict monitoring"),strict),label(t("保留三路视频（MP4）","Keep three videos (MP4)"),videoToggle),replayVideoOptions,rp,e("small",t("回放会缓慢回到录制起点；示教接管后停止。","Replay returns slowly to the start; teaching takeover stops playback.")),replayState,log);
  function mountMode(pageName,gridSelector,panel,modelTitle,motionTitle){
   const page=document.querySelector('[data-page="'+pageName+'"]'),grid=page?.querySelector(gridSelector);
   if(!page||!grid)return null;
@@ -69,7 +70,7 @@
   }
  },true);
 
- function save(){localStorage.setItem("cobot-motion-options",JSON.stringify({data_root:root,video_root:$("deploy-video-root")?.value||videoInput.value}));}
+ function save(){localStorage.setItem("cobot-motion-options",JSON.stringify({data_root:root,video_root:$("deploy-video-root")?.value||videoInput.value,strict_monitoring:strict.checked}));}
  for(const input of [recordRoot,replayRoot])input.addEventListener("change",()=>{queue=[];recordsReady=false;root=input.value.trim();recordRoot.value=replayRoot.value=root;save();loadRecords().catch(showError);});
  select.addEventListener("change",()=>{selected=select.value;rename.value=records.find(r=>r.id===selected)?.name||"";render();});
  const deployToggle=$("deploy-keep-video"),deployOptions=$("deploy-video-options"),deployRoot=$("deploy-video-root");
@@ -99,7 +100,7 @@
   $("motion-record").disabled=busy||uncertain;$("motion-replay").disabled=busy||uncertain||!valid;
   $("motion-record-stop").disabled=pending||!state.active||state.action!=="record"||state.phase==="stopping";$("motion-record-discard").disabled=$("motion-record-stop").disabled;$("motion-replay-stop").disabled=pending||!state.active||state.action!=="replay"||state.phase==="stopping";
   deleteButton.disabled=busy||uncertain||!records.some(r=>r.id===selected);
-  for(const input of [recordRoot,replayRoot,name,select,rename,renameButton,videoToggle,videoInput])input.disabled=busy;
+  for(const input of [recordRoot,replayRoot,name,select,rename,renameButton,videoToggle,videoInput,strict])input.disabled=busy;
   const phases={idle:t("待开始","Idle"),starting:t("准备中","Preparing"),recording:t("录制命令运行中","Record command running"),replaying:t("回放命令运行中","Replay command running"),stopping:t("收尾中","Finishing"),completed:t("已完成","Complete"),discarded:t("已放弃录制","Recording discarded"),interrupted:t("已中断，查看输出","Interrupted; check output"),error:t("异常，查看输出","Error; check output")};
   const text=(phases[state.phase]||state.phase||"")+(state.video?" · "+videoText(state.video):"");recordState.textContent=replayState.textContent=notice||text;log.textContent=state.log_tail||"";
  }
@@ -110,7 +111,7 @@
   if(action==="refresh"){await loadRecords();return;}
   const body={action};
   if(action==="stop"||action==="discard")body.run_id=state.id;
-  else {body.data_root=root;if(action==="replay"&&queue.length)body.trace_ids=[...queue];else body.trace_id=selected;if(action==="rename")body.name=rename.value.trim();if(action==="record")body.name=name.value.trim();if(["record","replay","delete"].includes(action))body.confirmed=true;if(action==="replay"&&videoToggle.checked)body.video={enabled:true,data_root:videoInput.value.trim()};}
+  else {body.data_root=root;if(action==="replay"&&queue.length)body.trace_ids=[...queue];else body.trace_id=selected;if(action==="rename")body.name=rename.value.trim();if(action==="record")body.name=name.value.trim();if(["record","replay","delete"].includes(action))body.confirmed=true;if(action==="replay"&&strict.checked)body.strict_monitoring=true;if(action==="replay"&&videoToggle.checked)body.video={enabled:true,data_root:videoInput.value.trim()};}
   const data=await request("/api/motion/action",body);if(action==="delete"){queue=queue.filter(id=>id!==body.trace_id);await loadRecords();}else if(action==="rename")await loadRecords();else state=data;
  }catch(error){if(error.transport)uncertain=true;pending=false;render();showError(error);return;}finally{pending=false;}render();}
  async function poll(){if(polling)return;polling=true;try{const before=state.active,previous=state.id;state=await request("/api/motion/status");if(state.active||previous!==state.id)notice="";uncertain=false;if(!root){root=values.data_root||state.default_data_root;recordRoot.value=replayRoot.value=root;}if(!recordsReady||(before&&!state.active))await loadRecords();render();const deployment=window.CobotDeploymentUI?.state;$("deploy-video-status").textContent=videoText(deployment?.video);const locked=Boolean(deployment?.active||deployment?.operation);deployToggle.disabled=deployRoot.disabled=locked;$("deploy-video-browse").disabled=locked;}catch(error){uncertain=true;render();showError(error);}finally{polling=false;}}

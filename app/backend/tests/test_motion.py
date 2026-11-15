@@ -234,3 +234,12 @@ def test_delete_http_requires_confirmation_and_refuses_active_motion(tmp_path):
         response=client.post("/api/motion/action",json=value)
         assert response.status_code==200 and response.json()["deleted"]==identity
         assert not (motion.default_root/identity).exists()
+
+
+def test_strict_monitoring_is_opt_in_in_registered_cli(tmp_path):
+    commands=[]
+    def popen(args,**kwargs):
+        commands.append(args);return subprocess.Popen([sys.executable,'-c','pass'],**kwargs)
+    _,_,motion=make(tmp_path,popen=popen);root=motion.default_root;root.mkdir();identity='teleop-mode.jsonl';(root/identity).write_text('{}')
+    value=motion.start('replay',trace_id=identity,strict_monitoring=True);wait_done(motion)
+    assert '--strict-monitoring' in commands[0] and value['strict_monitoring'] is True

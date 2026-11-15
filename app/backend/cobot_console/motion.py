@@ -145,7 +145,7 @@ class MotionManager:
             except BrokenPipeError:pass
             return self.status()
 
-    def start(self, action, *, name="", trace_id="", trace_ids=None, data_root=None, video=None):
+    def start(self, action, *, name="", trace_id="", trace_ids=None, data_root=None, video=None, strict_monitoring=False):
         with self.deployment.lock,self.lock:
             if self.busy():raise ValueError("已有轨迹任务；请先停止")
             state=self.deployment.status()
@@ -166,6 +166,7 @@ class MotionManager:
                 paths=[self.trace(root,identity) for identity in playlist]
                 args.append(str(paths[0]))
                 for path in paths[1:]:args.extend(["--next",str(path)])
+            if action=="replay" and strict_monitoring:args.append("--strict-monitoring")
             args.append("--web-confirmed")
             lease=self.modes.acquire_writer(self.modes.snapshot().selected_mode)
             self.lease=lease
@@ -173,7 +174,7 @@ class MotionManager:
             self.directory.mkdir(parents=True,exist_ok=True)
             log_path=self.directory/(run_id+".log")
             self.state={"id":run_id,"action":action,"phase":"starting","data_root":str(root),
-                        "trace_id":playlist[0] if playlist else trace_id,"trace_ids":playlist,"name":name,"started_at":time.time(),"log_path":str(log_path)}
+                        "trace_id":playlist[0] if playlist else trace_id,"trace_ids":playlist,"strict_monitoring":bool(strict_monitoring),"name":name,"started_at":time.time(),"log_path":str(log_path)}
             self.launching=True
             try:
                 self.videos.start(video,run_id)
@@ -238,6 +239,7 @@ class MotionAction(BaseModel):
     run_id: str=""
     video: Optional[VideoOptions]=None
     confirmed: bool=False
+    strict_monitoring: bool=False
 
 
 def install_routes(app, manager, modes, devices=None):
@@ -276,7 +278,7 @@ def install_routes(app, manager, modes, devices=None):
         try:
             if request.action in {"record","replay"}:
                 if not request.confirmed:raise ValueError("请明确确认开始轨迹操作")
-                return motion.start(request.action,name=request.name,trace_id=request.trace_id,trace_ids=request.trace_ids,data_root=request.data_root,
+                return motion.start(request.action,name=request.name,trace_id=request.trace_id,trace_ids=request.trace_ids,data_root=request.data_root,strict_monitoring=request.strict_monitoring,
                                     video=request.video.model_dump() if request.video else None)
             if request.action=="stop":return motion.stop(request.run_id)
             if request.action=="discard":return motion.discard(request.run_id)

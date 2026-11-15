@@ -14,8 +14,8 @@ def test_frontend_entry_revalidates_and_camera_nodes_do_not_mask_no_frames(tmp_p
     with TestClient(app) as client:
         response=client.get('/')
         assert response.headers['cache-control'].startswith('no-store')
-        assert response.headers['x-cobot-ui-revision']=='20261115-trajectory-sequence'
-        assert 'motion_ui.js?v=20261115-trajectory-sequence' in response.text
+        assert response.headers['x-cobot-ui-revision']=='20261115-replay-quality'
+        assert 'motion_ui.js?v=20261115-replay-quality' in response.text
         state=client.get('/api/console/devices').json()['systems']['cameras']
         assert state['phase']=='error' and state['node_phase']=='ready' and state['fresh_streams']==0
         for key in ['camera_left','camera_high','camera_right']:cache.put(key,np.zeros((12,16,3),dtype=np.uint8),source_stamp=10,arrival_stamp=10)
