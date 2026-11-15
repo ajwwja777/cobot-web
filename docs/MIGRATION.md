@@ -1094,3 +1094,10 @@ Webee99b78/control344ccb2提供严格监测选项，默认false；关闭时跟�
 Control3921d6f（111针对性CPU通过）只补诊断：CAN-hold错误含左右标签、ctrl_mode/arm_status/teach_status/err_code/raw8bytes，关节故障含关节号和状态位，Health保留首个出错总线。两运行文件在push后旧/新SHA备份同步，现存回放已加载代码不变、下次CLI调用生效；未更改保护条件/阈值或恢复逻辑，未Web/模型/相机/机械臂启停、CAN复位、实际回放或运动命令。
 
 后续用户run dc5eb6最终exit130、日志“已停止；不自动归位或恢复策略”，不是正常完成码0，但没有再次记录CAN错误，不推断谁发中断。三路录像saved/workercomplete，4574/4574/4575帧，received一致、queue0/peak4/2/4，1440×1080约152.5s，header帧数/时长可读；验证了本轮持续录像，不等于故障已根治。完整事实和证据cobot-web/outputs/replay-can-state-20261115（field-before.log、passive-can-status.json、tests.log、after-source-only.json、production-video-headers.json），现场cobot-web/runtime/verification/replay-can-state-20261115/source-install.json及备份。Guide仅摘要，不提交/push。
+
+
+## 2026-11-15 轨迹录制被暂停普通数采占用
+
+用户截图“请先结束当前采集或部署任务”，实际普通数采fabbdcbc-3224-41d9-a11a-4f6b9a179ba9处于paused/generation1，0训练帧但1start节点，active_mode=normal且writer_token未释放；模型offline/motioninactive。因此是合法未结束回合占用，不是CAN或轨迹record接口失败。用户明确选择“结束并保留这轮普通数采”，经实时UUID/generation核对只调用一次segmented-teach/stop（不强制添加结果标签），HTTP200 committed/finalizedtrue，增加end节点到2，recorderstopped/writer_token与active_mode清空。数据保留，未discard、删除、重启或自动开始新录制/机器人运动。
+
+Webde8132d新增更清楚的冲突提示：模型offline而任务冲突时说明“暂停仍占用”，引导在数据采集结束/放弃，诊断仍保留原错误；12轨迹前端回归通过。2静态文件按旧/新SHA备份替换并更新motion_ui.js缓存版本，Web859935保持，无生命周期操作。最终可由用户直接点击开始轨迹录制。证据outputs/trajectory-record-blocker-20261115（field-before.json/preserve-stop.json/ui-tests.log/final-state.json），现场runtime/verification/trajectory-record-blocker-20261115/source-install.json。Guide只事实摘要、不提交/push。
