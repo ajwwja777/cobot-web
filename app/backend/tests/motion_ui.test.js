@@ -1,16 +1,18 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),{JSDOM}=require('jsdom');
 const tick=()=>new Promise(r=>setImmediate(r));
-async function setup(failFirstRecords=false){
+async function setup(failFirstRecords=false,extraEntries=[]){
  const dom=new JSDOM(fs.readFileSync('segmented_frontend/index.html','utf8'),{url:'http://localhost',runScripts:'outside-only'}),w=dom.window,calls=[];
  w.setInterval=()=>0;w.CobotPreferences={language:'zh'};
  let state={phase:'idle',active:false,default_data_root:'/data/motion'};
- const entries=[{id:'teleop-good.jsonl',name:'示教一',frames:20,valid:true},{id:'teleop-bad.jsonl',name:'中断',frames:2,valid:false}];
+ const entries=[{id:'teleop-good.jsonl',name:'示教一',frames:20,valid:true},{id:'teleop-bad.jsonl',name:'中断',frames:2,valid:false},...extraEntries];
  w.fetch=async(url,options={})=>{
   if(url.startsWith("/api/motion/records")&&failFirstRecords){failFirstRecords=false;throw new w.TypeError("transient read failure");}
   if(options.body){const body=JSON.parse(options.body);calls.push({url,body});
    if(body.action==='rename')entries[0].name=body.name;
+   else if(body.action==='delete')entries.splice(entries.findIndex(r=>r.id===body.trace_id),1);
+   else if(body.action==='discard')state={...state,active:false,phase:'discarded'};
    else if(body.action==='stop')state={...state,active:false,phase:'completed'};
-   else state={...state,action:body.action,id:'run1',active:true,phase:body.action==='record'?'recording':'replaying'};
+   else state={...state,trace_ids:body.trace_ids||[body.trace_id],action:body.action,id:'run1',active:true,phase:body.action==='record'?'recording':'replaying'};
   }
   return {ok:true,json:async()=>url.startsWith('/api/motion/records')?{records:entries,data_root:'/data/motion'}:state};
  };
@@ -94,5 +96,47 @@ test('initial directory read failure remains editable and polling recovers the t
   assert.equal(w.document.querySelector('#motion-trace').options.length,2);
   assert.equal(w.document.querySelector('#motion-record').disabled,false);
   assert.deepEqual(calls,[]);
+ }finally{dom.window.close();}
+});
+
+test('ordered queue supports add, reorder, remove and submits one sequence with one video',async()=>{
+ const {dom,w,calls}=await setup(false,[{id:'teleop-two.jsonl',name:'示教二',frames:30,valid:true}]);try{
+  const choose=id=>{const node=w.document.querySelector('#motion-trace');node.value=id;node.dispatchEvent(new w.Event('change'));};
+  const add=w.document.querySelector('#motion-queue-add');add.click();choose('teleop-two.jsonl');add.click();
+  let rows=w.document.querySelectorAll('#motion-queue li');assert.equal(rows.length,2);
+  assert.match(rows[0].textContent,/示教一/);assert.match(rows[1].textContent,/示教二/);
+  rows[1].querySelector('[data-queue-action="up"]').click();
+  assert.match(w.document.querySelector('#motion-queue li').textContent,/示教二/);
+  choose('teleop-bad.jsonl');assert.equal(add.disabled,true);add.click();assert.equal(w.document.querySelectorAll('#motion-queue li').length,2);
+  const video=w.document.querySelector('#motion-keep-video');video.checked=true;w.document.querySelector('#motion-video-root').value='/videos';
+  w.document.querySelector('#motion-replay').click();await tick();await tick();
+  assert.deepEqual(calls[0].body,{action:'replay',data_root:'/data/motion',trace_ids:['teleop-two.jsonl','teleop-good.jsonl'],confirmed:true,video:{enabled:true,data_root:'/videos'}});
+  assert.ok([...w.document.querySelectorAll('#motion-queue button')].every(n=>n.disabled));
+  w.document.querySelector('#motion-replay-stop').click();await tick();await tick();
+  assert.deepEqual(calls[1].body,{action:'stop',run_id:'run1'});
+  w.document.querySelector('#motion-queue [data-queue-action="remove"]').click();
+  assert.equal(w.document.querySelectorAll('#motion-queue li').length,1);
+ }finally{dom.window.close();}
+});
+test('changing directory clears the old sequence without starting replay',async()=>{
+ const {dom,w,calls}=await setup();try{
+  w.document.querySelector('#motion-queue-add').click();assert.equal(w.document.querySelectorAll('#motion-queue li').length,1);
+  const root=w.document.querySelector('#motion-replay-root');root.value='/new';root.dispatchEvent(new w.Event('change'));await tick();
+  assert.equal(w.document.querySelectorAll('#motion-queue li').length,0);assert.deepEqual(calls,[]);
+ }finally{dom.window.close();}
+});
+
+test('discard targets the running record; delete confirms and removes it from the queue',async()=>{
+ const {dom,w,calls}=await setup();try{
+  w.document.querySelector('#motion-record').click();await tick();await tick();
+  assert.equal(w.document.querySelector('#motion-delete').disabled,true);
+  w.document.querySelector('#motion-record-discard').click();await tick();await tick();
+  assert.deepEqual(calls[1].body,{action:'discard',run_id:'run1'});
+  assert.match(w.document.querySelector('#motion-record-status').textContent,/已放弃/);
+  w.document.querySelector('#motion-queue-add').click();assert.equal(w.document.querySelectorAll('#motion-queue li').length,1);
+  w.confirm=()=>false;w.document.querySelector('#motion-delete').click();await tick();assert.equal(calls.length,2);
+  w.confirm=()=>true;w.document.querySelector('#motion-delete').click();await tick();await tick();
+  assert.equal(calls[2].body.action,'delete');assert.equal(calls[2].body.trace_id,'teleop-good.jsonl');assert.equal(calls[2].body.confirmed,true);
+  assert.equal(w.document.querySelectorAll('#motion-queue li').length,0);
  }finally{dom.window.close();}
 });

@@ -483,3 +483,5 @@ main[data-camera-dock=bottom] .page.active { order: 1; }
 .video-download-files{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.video-download-link{display:block;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#d4d5d6;color:#151719;text-align:center;text-decoration:none}.video-download-link:hover{background:#eee;color:#111}
 
 .video-download-card{min-width:0;display:flex;flex-direction:column;gap:8px}.video-download-card video{width:100%;max-height:360px;background:#000;border-radius:6px}
+
+.motion-queue{padding-left:24px;margin:0}.motion-queue:empty{display:none}.motion-queue-row{display:flex;align-items:center;gap:6px;margin:8px 0;min-width:0}.motion-queue-name{flex:1;min-width:0;overflow-wrap:anywhere}.motion-queue-row button{width:auto;padding:6px 10px;min-height:32px;flex:none}@media(max-width:600px){.motion-queue-row{flex-wrap:wrap}.motion-queue-name{flex-basis:100%}}

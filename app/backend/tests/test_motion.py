@@ -166,3 +166,71 @@ def test_running_hardware_operation_blocks_motion_before_spawn(tmp_path):
     motion.hardware_busy=lambda:True
     with pytest.raises(ValueError,match="硬件操作"):motion.start("record",name="test")
     assert motion.process is None
+
+
+def test_sequence_launches_one_cli_in_order_and_holds_one_writer_and_video(tmp_path):
+    commands=[]
+    def popen(args,**kwargs):
+        commands.append(args)
+        return subprocess.Popen([sys.executable,"-u","-c","import time;time.sleep(30)"],**kwargs)
+    dep,modes,motion=make(tmp_path,popen=popen);root=motion.default_root;root.mkdir()
+    ids=["teleop-one.jsonl","teleop-two.jsonl"]
+    for identity in ids:(root/identity).write_text("{}")
+    motion.videos=Video()
+    try:
+        value=motion.start("replay",trace_ids=[ids[1],ids[0]],video={"enabled":True})
+        assert len(commands)==1 and commands[0][2:]==[str(root/ids[1]),"--next",str(root/ids[0]),"--web-confirmed"]
+        assert value["trace_ids"]==[ids[1],ids[0]] and value["trace_id"]==ids[1]
+        assert modes.snapshot().writer_token and motion.videos.calls==["start"]
+        with pytest.raises(ValueError):motion.start("replay",trace_ids=ids)
+    finally:
+        if motion.alive():motion.stop(motion.state["id"]);wait_done(motion)
+    assert motion.videos.calls==["start","finish"] and not modes.snapshot().writer_token
+
+
+def test_sequence_invalid_later_file_and_count_rejected_before_writer(tmp_path):
+    _,modes,motion=make(tmp_path);root=motion.default_root;root.mkdir()
+    (root/"teleop-one.jsonl").write_text("{}")
+    for ids in [["teleop-one.jsonl","../escape"],["teleop-one.jsonl","teleop-missing.jsonl"],["teleop-one.jsonl"]*33]:
+        with pytest.raises(ValueError):motion.start("replay",trace_ids=ids)
+        assert motion.process is None and not modes.snapshot().writer_token
+    with pytest.raises(ValueError):motion.start("replay",trace_id="teleop-other.jsonl",trace_ids=["teleop-one.jsonl"])
+
+
+def test_sequence_http_preserves_order_and_enforces_confirmation(tmp_path,monkeypatch):
+    dep,modes,_=make(tmp_path);app=FastAPI();install_routes(app,dep,modes);calls=[]
+    monkeypatch.setattr(app.state.motion_manager,"start",lambda *args,**kwargs:calls.append(kwargs) or {"active":True})
+    with TestClient(app) as client:
+        value={"action":"replay","trace_ids":["teleop-two.jsonl","teleop-one.jsonl"]}
+        assert client.post("/api/motion/action",json=value).status_code==409 and not calls
+        value["confirmed"]=True
+        assert client.post("/api/motion/action",json=value).status_code==200 and calls[0]["trace_ids"]==value["trace_ids"]
+        value["trace_ids"]*=17
+        assert client.post("/api/motion/action",json=value).status_code==422 and len(calls)==1
+
+
+def test_discard_is_bound_to_record_identity_and_actual_discard_exit(tmp_path):
+    def popen(args,**kwargs):
+        return subprocess.Popen([sys.executable,"-u","-c","import sys;assert sys.stdin.readline().strip()=='discard';sys.exit(10)"],**kwargs)
+    _,modes,motion=make(tmp_path,popen=popen)
+    value=motion.start("record",name="discard")
+    with pytest.raises(ValueError):motion.discard("another-run")
+    motion.discard(value["id"]);wait_done(motion)
+    assert motion.state["phase"]=="discarded" and motion.state["exit_code"]==10
+    assert not modes.snapshot().writer_token
+
+
+def test_delete_http_requires_confirmation_and_refuses_active_motion(tmp_path):
+    dep,modes,_=make(tmp_path);app=FastAPI();install_routes(app,dep,modes);motion=app.state.motion_manager
+    motion.default_root=tmp_path/"traces";motion.default_root.mkdir()
+    identity="teleop-delete.jsonl";(motion.default_root/identity).write_text("{}")
+    with TestClient(app) as client:
+        value={"action":"delete","trace_id":identity,"data_root":str(motion.default_root)}
+        assert client.post("/api/motion/action",json=value).status_code==409
+        value["confirmed"]=True
+        motion.launching=True
+        assert client.post("/api/motion/action",json=value).status_code==409
+        motion.launching=False
+        response=client.post("/api/motion/action",json=value)
+        assert response.status_code==200 and response.json()["deleted"]==identity
+        assert not (motion.default_root/identity).exists()

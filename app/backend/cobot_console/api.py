@@ -236,7 +236,7 @@ def create_app(
         response = await call_next(request)
         if request.url.path in {"/", "/index.html"}:
             response.headers["Cache-Control"] = "no-store, max-age=0"
-            response.headers["X-Cobot-UI-Revision"] = "20261115-video-mp4"
+            response.headers["X-Cobot-UI-Revision"] = "20261115-trajectory-sequence"
         return response
 
     if os.environ.get("COBOT_READ_ONLY") == "1":

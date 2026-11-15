@@ -10,7 +10,7 @@ import subprocess
 import threading
 import time
 from uuid import uuid4
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -125,7 +125,27 @@ class MotionManager:
             atomic_json(path.with_suffix(".name.json"),{"name":display_name(name)})
             return self.records(root)
 
-    def start(self, action, *, name="", trace_id="", data_root=None, video=None):
+    def delete(self, root, trace_id):
+        with self.deployment.lock,self.lock:
+            if self.busy():raise ValueError("请先结束轨迹录制或回放，再删除轨迹")
+            path=self.trace(root or self.default_root,trace_id)
+            require_storage(path.parent,write=True)
+            from cobot_control.trajectory_files import delete_trace
+            result=delete_trace(path.parent,path.name,lock_file=CONTROL/"runtime/teleop.lock")
+            return {**self.records(str(path.parent)),**result}
+
+    def discard(self, identity):
+        with self.lock:
+            if self.state.get("id")!=identity:raise ValueError("轨迹任务已变化，请刷新")
+            if self.state.get("action")!="record":raise ValueError("只能放弃轨迹录制")
+            if not self.alive() or self.state.get("phase")=="stopping":return self.status()
+            if not self.process or not self.process.stdin:raise ValueError("录制控制连接不可用，结果待确认")
+            self.state.update(phase="stopping",finish_action="discard");atomic_json(self.registry,self.state)
+            try:self.process.stdin.write(b"discard\n");self.process.stdin.flush()
+            except BrokenPipeError:pass
+            return self.status()
+
+    def start(self, action, *, name="", trace_id="", trace_ids=None, data_root=None, video=None):
         with self.deployment.lock,self.lock:
             if self.busy():raise ValueError("已有轨迹任务；请先停止")
             state=self.deployment.status()
@@ -136,8 +156,16 @@ class MotionManager:
             if actual.get("phase")!="offline":raise ValueError("请先释放模型，再录制或回放轨迹")
             root=self.resolve(data_root or str(self.default_root),create=action=="record")
             args=[str(CONTROL/"scripts/teleop.sh"),action]
+            playlist=[]
             if action=="record":args.extend(["--name",display_name(name)])
-            else:args.append(str(self.trace(root,trace_id)))
+            else:
+                if trace_ids is not None and not isinstance(trace_ids,list):raise ValueError("invalid_trace_sequence")
+                playlist=trace_ids or [trace_id]
+                if not 1<=len(playlist)<=32:raise ValueError("请选择1–32条回放轨迹")
+                if trace_id and trace_id!=playlist[0]:raise ValueError("轨迹顺序与首条不一致")
+                paths=[self.trace(root,identity) for identity in playlist]
+                args.append(str(paths[0]))
+                for path in paths[1:]:args.extend(["--next",str(path)])
             args.append("--web-confirmed")
             lease=self.modes.acquire_writer(self.modes.snapshot().selected_mode)
             self.lease=lease
@@ -145,7 +173,7 @@ class MotionManager:
             self.directory.mkdir(parents=True,exist_ok=True)
             log_path=self.directory/(run_id+".log")
             self.state={"id":run_id,"action":action,"phase":"starting","data_root":str(root),
-                        "trace_id":trace_id,"name":name,"started_at":time.time(),"log_path":str(log_path)}
+                        "trace_id":playlist[0] if playlist else trace_id,"trace_ids":playlist,"name":name,"started_at":time.time(),"log_path":str(log_path)}
             self.launching=True
             try:
                 self.videos.start(video,run_id)
@@ -173,7 +201,8 @@ class MotionManager:
         code=process.wait()
         with self.deployment.lock,self.lock:
             if self.state.get("id")!=identity:return
-            self.state.update(phase="completed" if code==0 else "interrupted" if code==130 else "error",exit_code=code,ended_at=time.time())
+            discarded=self.state.get("action")=="record" and self.state.get("finish_action")=="discard" and code==10
+            self.state.update(phase="discarded" if discarded else "completed" if code==0 else "interrupted" if code==130 else "error",exit_code=code,ended_at=time.time())
             self.state["video"]=self.videos.finish()
             atomic_json(self.registry,self.state)
             self.modes.release_writer(lease);self.lease=None
@@ -182,7 +211,7 @@ class MotionManager:
     def stop(self, identity):
         with self.lock:
             if self.state.get("id")!=identity:raise ValueError("轨迹任务已变化，请刷新")
-            if not self.alive():return self.status()
+            if not self.alive() or self.state.get("phase")=="stopping":return self.status()
             self.state["phase"]="stopping";atomic_json(self.registry,self.state)
             try:
                 if self.state.get("action")=="record" and self.process and self.process.stdin:
@@ -204,6 +233,7 @@ class MotionAction(BaseModel):
     action: str
     name: str=""
     trace_id: str=""
+    trace_ids: List[str]=Field(default_factory=list,max_length=32)
     data_root: Optional[str]=None
     run_id: str=""
     video: Optional[VideoOptions]=None
@@ -246,9 +276,13 @@ def install_routes(app, manager, modes, devices=None):
         try:
             if request.action in {"record","replay"}:
                 if not request.confirmed:raise ValueError("请明确确认开始轨迹操作")
-                return motion.start(request.action,name=request.name,trace_id=request.trace_id,data_root=request.data_root,
+                return motion.start(request.action,name=request.name,trace_id=request.trace_id,trace_ids=request.trace_ids,data_root=request.data_root,
                                     video=request.video.model_dump() if request.video else None)
             if request.action=="stop":return motion.stop(request.run_id)
+            if request.action=="discard":return motion.discard(request.run_id)
+            if request.action=="delete":
+                if not request.confirmed:raise ValueError("请明确确认删除所选轨迹")
+                return motion.delete(request.data_root,request.trace_id)
             if request.action=="rename":return motion.rename(request.data_root,request.trace_id,request.name)
             raise ValueError("unknown_motion_action")
         except (ValueError,OSError,DeploymentError,RuntimeError) as exc:raise HTTPException(409,str(exc)) from exc
