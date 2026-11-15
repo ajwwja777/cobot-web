@@ -149,3 +149,13 @@ test('strict monitoring defaults off and is explicitly opt-in for replay',async(
   assert.equal(calls[0].body.strict_monitoring,true);assert.equal(node.disabled,true);
  }finally{dom.window.close();}
 });
+
+test('open capture conflict explains pause ownership and preserves diagnostic error',async()=>{
+ const {dom,w}=await setup();try{
+  const original=w.fetch;let diagnostic='';w.CobotDeploymentUI={state:{phase:'offline'}};w.CobotWorkspaceUI={report:message=>diagnostic=message};
+  w.fetch=async(url,options={})=>options.body?{ok:false,json:async()=>({detail:'请先结束当前采集或部署任务'})}:original(url,options);
+  w.document.querySelector('#motion-record').click();await tick();await tick();
+  assert.match(w.document.querySelector('#motion-record-status').textContent,/暂停仍占用任务/);
+  assert.equal(diagnostic,'请先结束当前采集或部署任务');
+ }finally{dom.window.close();}
+});
