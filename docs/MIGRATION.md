@@ -1110,3 +1110,12 @@ Webde8132d新增更清楚的冲突提示：模型offline而任务冲突时说明
 Control553bfe5移除回放ROS PiperStatusMsg订阅和重复状态值退出，原始CAN Health/Monitor保持唯一硬件判定；保留原始CAN故障/失能/反馈过期、ROS关节新鲜度、故障topic、手动停止/示教接管、控制通道互斥及指令限速。没有禁用真实故障检查，也没有改变夹爪/恢复等其他命令的判断。114项CPU回归通过，含异常/过期或缺失ROS状态不再重复否决、控制循环中原始CAN故障仍立即停止并注销发布器。
 
 源码先提交push，现场空闲后取得teleop.lock，仅robot/teleop.py按旧新SHA备份原子同步，下次回放自动生效，无需Web重载；10个匹配硬件/Web进程身份保持，无回放、运动、CAN复位、模型或硬件生命周期操作。真实连续回放由用户复核，不能把离线测试称为真机完整通过。证据 /data/LFT-W02_data/jiaan/jiaan/projects/cobot-web/outputs/replay-single-can-20261116/（tests.log、source-install.json）；现场cobot-web/runtime/verification/replay-single-can-20261116/（motion-before.json、teleop.py.before、source-install.json）。
+
+
+## 2026-11-16 无故障模式2瞬态导致回放退出的后续修复
+
+用户再次提供motion-b3201d4f3f1847008d1d9435b001bad5：原始右CAN raw=0200010000000000，即ctrl_mode2/arm_status0/teach_status0/err0；此前553bfe5只去掉重复ROS判定，没有修复原始Monitor对模式的单样本一票退出。不能把模式字段变化直接称为CAN总线故障。随后只读2秒监听左右各401条0x2a1均0100010000000000；未运动复现，因此未知当时模式2实际持续时长。
+
+Control16f5361仅回放Monitor启用300ms确认窗口：只对mode2、teach0且arm_status/err全0的组合，短暂出现记录transition/recovered并继续，恢复mode1清零计时；超过窗口仍停止并明确“控制模式持续未回到CAN控制（非CAN故障码）”，不自动切模式/恢复。持续模式2可能不能接受位置指令，故不无限忽略。实际teach1或残留teach2、其他模式、非零错误/机械状态、关节失能/故障和反馈过期仍立即拒绝；夹爪单测/恢复等其他调用默认窗口0保持旧语义。Health失败总称改为硬件/控制状态检查，避免把全部状态问题称CAN故障。
+
+123CPU回归通过，覆盖截图精确raw、短暂恢复/持续超时、真实故障/示教和反馈过期、非回放默认严格；提交push后两源码在teleop.lock内按SHA备份原子同步，下次回放生效。10保护进程身份保持，无Web/相机/机械臂/模型生命周期、CAN发送/复位或回放运动。尚未真机连续回放，300ms是否覆盖本次未知时长需用户复核，不能宣称所有模式故障均已消失。证据cobot-web/outputs/replay-mode-transition-20261116/{tests.log,source-install.json}；现场cobot-web/runtime/verification/replay-mode-transition-20261116/{motion-before.json,teleop.py.before,gripper_cycle.py.before,source-install.json}。
