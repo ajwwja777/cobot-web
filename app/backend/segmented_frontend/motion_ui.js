@@ -27,7 +27,7 @@
  record.append(label(t("名称","Name"),name),label(t("轨迹目录","Trajectory directory"),recordRoot),rc,recordState);
  const chooseRow=e("div"),renameRow=e("div");chooseRow.className=renameRow.className="motion-inline-row";
  chooseRow.append(select,refresh);renameRow.append(label(t("轨迹名称","Trajectory name"),rename),renameButton);
- replay.append(label(t("轨迹目录","Trajectory directory"),replayRoot),chooseRow,renameRow,label(t("保留三路原视频","Keep three original videos"),videoToggle),replayVideoOptions,rp,e("small",t("回放会缓慢回到录制起点；示教接管后停止。","Replay returns slowly to the start; teaching takeover stops playback.")),replayState,log);
+ replay.append(label(t("轨迹目录","Trajectory directory"),replayRoot),chooseRow,renameRow,label(t("保留三路视频（MP4）","Keep three videos (MP4)"),videoToggle),replayVideoOptions,rp,e("small",t("回放会缓慢回到录制起点；示教接管后停止。","Replay returns slowly to the start; teaching takeover stops playback.")),replayState,log);
  function mountMode(pageName,gridSelector,panel,modelTitle,motionTitle){
   const page=document.querySelector('[data-page="'+pageName+'"]'),grid=page?.querySelector(gridSelector);
   if(!page||!grid)return null;
@@ -36,23 +36,28 @@
   normal.type=trajectory.type="button";normal.id="motion-"+pageName+"-normal";trajectory.id="motion-"+pageName+"-trajectory";
   const view=e("section");view.id="motion-"+pageName+"-workspace";view.className="motion-mode-workspace";view.append(panel);
   if(!grid.id)grid.id="motion-"+pageName+"-existing";
-  for(const [button,target] of [[normal,grid],[trajectory,view]]){button.setAttribute("role","tab");button.setAttribute("aria-controls",target.id);}
   tabs.append(normal,trajectory);grid.before(tabs,view);
   let current="normal";
-  function select(mode){current=mode;const active=mode==="trajectory";
-   grid.classList.toggle("motion-mode-hidden",active);view.classList.toggle("motion-mode-hidden",!active);
-   normal.setAttribute("aria-selected",String(!active));trajectory.setAttribute("aria-selected",String(active));
-   normal.classList.toggle("selected",!active);trajectory.classList.toggle("selected",active);
+  const entries=new Map([["normal",{button:normal,target:grid}],["trajectory",{button:trajectory,target:view}]]);
+  function select(mode){if(!entries.has(mode))return;current=mode;
+   for(const [key,item] of entries){const active=key===mode;item.target.classList.toggle("motion-mode-hidden",!active);item.button.setAttribute("aria-selected",String(active));item.button.classList.toggle("selected",active);}
+   entries.get(mode).onShow?.();
   }
-  normal.addEventListener("click",()=>select("normal"));trajectory.addEventListener("click",()=>select("trajectory"));
-  select("normal");return {get mode(){return current;},select};
+  for(const [key,item] of entries){item.button.setAttribute("role","tab");item.button.setAttribute("aria-controls",item.target.id);item.button.addEventListener("click",()=>select(key));}
+  function add(mode,title,panel,onShow){
+   if(entries.has(mode))return;
+   const button=e("button",title),target=e("section");button.type="button";button.id="motion-"+pageName+"-"+mode;button.setAttribute("role","tab");
+   target.id=button.id+"-workspace";target.className="motion-mode-workspace motion-mode-hidden";target.append(panel);grid.before(target);
+   button.setAttribute("aria-controls",target.id);button.setAttribute("aria-selected","false");tabs.append(button);entries.set(mode,{button,target,onShow});button.addEventListener("click",()=>select(mode));
+  }
+  select("normal");return {get mode(){return current;},select,add};
  }
  const recordMode=mountMode("operation",".capture-layout",record,t("数据采集","Episode collection"),t("轨迹录制","Record trajectory"));
  const replayMode=mountMode("deployment",".session-workspace",replay,t("模型部署","Model deployment"),t("轨迹回放","Replay trajectory"));
  // Hidden model/episode controls must not receive global robot shortcuts.
  document.addEventListener("keydown",event=>{
   const active=document.querySelector('[data-page].active')?.dataset.page;
-  if(!((active==="operation"&&recordMode?.mode==="trajectory")||(active==="deployment"&&replayMode?.mode==="trajectory")))return;
+  if(!((active==="operation"&&recordMode?.mode==="trajectory")||(active==="deployment"&&replayMode&&replayMode.mode!=="normal")))return;
   if(event.target.closest("input,select,textarea,[contenteditable=true]"))return;
   if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Spacebar"].includes(event.key)){
    event.stopImmediatePropagation();if(!event.target.closest("button"))event.preventDefault();

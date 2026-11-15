@@ -229,6 +229,8 @@ def install_routes(app, manager, modes, devices=None):
                    for key in ("can","home","recover","pose","front_reset","front_mode"))
     motion=MotionManager(manager,modes,resolve,hardware_busy=hardware_busy);app.state.motion_manager=motion
     manager.motion=motion;manager.videos=VideoArchive(resolve)
+    from .video_downloads import install_routes as install_video_downloads
+    install_video_downloads(app,resolve,motion,manager)
 
     @app.get("/api/motion/status")
     def status():return motion.status()
