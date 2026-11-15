@@ -1063,3 +1063,16 @@ HTTP GET `/api/videos/records` 只列允许根内有效归档；`/api/videos/fil
 首次只读发现用户record活动，未打断；待用户明确“录制已结束，可以仅重载网页”后，7运行文件按旧/新SHA校验备份安装，仅Web733329→797583，12受保护硬件/模型进程PID/start_ticks/cmd SHA保持，相机只读订阅保持器退出。正式Chromium1440×900和760×900：两条顺序可调整、回放/删除入口可用、idle时放弃入口可见禁用、3个MP4下载链接正常、零JS异常，未派发操作请求。现场仅独立诊断目录以模拟State/合成文件验证discard和删除锁，不订阅真实相机/关节、不发布动作、不删除任何生产轨迹。3静态HTTP SHA、7源文件SHA和新OpenAPI trace_ids maxItems32通过；最终模型offline/motioninactive/captureidle。未启停模型/硬件、实际录制/回放/删除生产资产或机器人运动，真实连续运动待用户验收。
 
 证据：本项目outputs/trajectory-sequence-20261115/（backend-tests.log、frontend-tests.log、actual-trace-plan.json、isolated-browser.json、field-browser.json、field-activation.json、field-final-acceptance.json与截图）；现场runtime/verification/trajectory-sequence-20261115/含源码回退及CPU独立夹具；脚本归A6000 scratch/cobot-web/trajectory-sequence-20261115。笔记本仅保留目视截图 D:/Code/jiaan_workspace/cobot-web/cobot-web/outputs/trajectory-sequence-20261115/{replay,record}.png。Guide只追加事实摘要，不提交/push。
+
+
+## 2026-11-15：回放软阈值改为可选，高清录制交付
+
+用户图中motion-9f261d63895045de811c1124404e4e8b在单条teleop-20261115T144254-785cbc20（4626帧）开始回放后因left跟踪差>0.2rad退出，录像保存正常；不是多段切换/编码失败。旧日志未记录具体关节/实测值，未重跑运动，因此不推断唯一机械原因。用户确认现场正常并要求不再受此类保护退出、视频更清晰，随后明确授权仅重载Web与三相机及10秒诊断录像。
+
+Webee99b78/control344ccb2提供严格监测选项，默认false；关闭时跟踪误差记录关节/实测/目标数值，仅告警；调度延迟重设节拍而不追赶突发，取消5秒到位确认退出。手动停止/示教接管、明确硬件故障/失能/反馈中断、通道互斥/无效命令和原限速仍保留，不宣称任何故障都不断。勾选严格监测恢复原阈值检查。用户最后要求尽快交付基本高清验证，不继续扩展测试。
+
+实际USB只读描述符确认三台Dabai DC1最高1632×1224@30 MJPEG，旧配置640×480。相机仅切换一次2810507/2810602/2810603/2810604→833869/833965/833966/833967，原比例录制1440×1080/H264 main/yuv420p/CRF14，约原5倍像素，不放大旧视频。Daggerd2196aa限单线程编码/缩放，工控机三并发合成基准72–74FPS；真实ROS链路初测两路队列满，49e662b改原生RGB/BGR直送ffmpeg、正确处理步长并去除不必要CV转色，最终10秒三路各303帧、saved、无序号/队列错误，ffprobe全解码计数一致，每路12.09–14.15MB。领域9项最终回归含RGB行填充/颜色逐字节一致；此前相关105CPU/1跳过、155前端通过。
+
+8运行文件+1次同文件RGB补丁按SHA备份安装，Web797583→833770→839683；最终12个当前受保护ROS/机械臂/相机进程身份保持，最初相机切换时8个非相机保护身份保持。新OpenAPI strict_monitoring默认false、3个高清样片HEAD MIME/大小及8最终源码SHA核验通过。只读订阅保持器和诊断订阅退出，模型offline/noactivewriter/motioninactive，未启停模型/机械臂、未回放/归位/CAN复位或写训练数据。用户将自行复核真实回放；既有640视频无法补回源细节。
+
+高清样片独立根 /media/agilex/Getea1/jiaan/data/videos/diagnostics/replay-quality-20261115 ，成功归档eval-20261115T152219-1a1f994a-2057341c，可在视频下载页填写该根或走既有/videos/file接口下载；默认部署录像根不变。主证据outputs/replay-tracking-20261115（field-before.json/camera-native-config.json/usb-native-modes.json/backend-tests.log/frontend-tests.log/encoder-native-rgb-tests.log/quality-preflight.json/final-acceptance.json），现场runtime/verification/replay-tracking-20261115含原源码/诊断脚本/收尾回执。首次独立脚本忘记ROS init未收帧，脚本已修正，失败诊断残件单独保留为证据。Guide只事实摘要、不提交/push。
