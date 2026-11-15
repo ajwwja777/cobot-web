@@ -1119,3 +1119,14 @@ Control553bfe5移除回放ROS PiperStatusMsg订阅和重复状态值退出，原
 Control16f5361仅回放Monitor启用300ms确认窗口：只对mode2、teach0且arm_status/err全0的组合，短暂出现记录transition/recovered并继续，恢复mode1清零计时；超过窗口仍停止并明确“控制模式持续未回到CAN控制（非CAN故障码）”，不自动切模式/恢复。持续模式2可能不能接受位置指令，故不无限忽略。实际teach1或残留teach2、其他模式、非零错误/机械状态、关节失能/故障和反馈过期仍立即拒绝；夹爪单测/恢复等其他调用默认窗口0保持旧语义。Health失败总称改为硬件/控制状态检查，避免把全部状态问题称CAN故障。
 
 123CPU回归通过，覆盖截图精确raw、短暂恢复/持续超时、真实故障/示教和反馈过期、非回放默认严格；提交push后两源码在teleop.lock内按SHA备份原子同步，下次回放生效。10保护进程身份保持，无Web/相机/机械臂/模型生命周期、CAN发送/复位或回放运动。尚未真机连续回放，300ms是否覆盖本次未知时长需用户复核，不能宣称所有模式故障均已消失。证据cobot-web/outputs/replay-mode-transition-20261116/{tests.log,source-install.json}；现场cobot-web/runtime/verification/replay-mode-transition-20261116/{motion-before.json,teleop.py.before,gripper_cycle.py.before,source-install.json}。
+
+
+## 2026-11-16 固定位置长停顿：夹爪坏反馈导致共同时间轴膨胀
+
+用户报告三次同位置卡住。需区分两个实际问题：3adf78c7运行中只读观测策略和master左目标各50Hz变化、实测左不动，3秒can_left TX0/RX9132且qdisc11帧、rightTX900/qdisc0，证明确有发送堵塞；用户手动停止并自行恢复，之后两队列清空，agent未执行恢复。证据outputs/replay-tx-stall-20261116/field-evidence.json记录恢复后状态，运行中计数来自当次工具输出，不能声称该JSON包含此前完整订阅记录。底层TX堵塞根因仍未根治。
+
+随后8dc2e961同位置停顿：停止后两队列空、0x2a1无故障和限位码、电机0x40使能；并非再次证明发送堵塞。实际旧轨迹teleop-20261115T163036-807d3e44.jsonl有第1142帧(record22.840s)right夹爪-1.8515m，前后均0.0001m。旧retime把坏反馈当行程，两段各37.032s，回放34.987–109.051s形成74.064s虚假慢段；驱动joint_callback本来将负夹爪目标限制为0，造成看似在同一位置停住，不能再将这次笼统归因CAN。关节目标范围无明显大幅越界；SDKJointCtrl本身范围裁剪，未发现此次限位保护证据。无法单凭事后无标志完全排除机械问题。
+
+Control3ba24f0增加command_position，在retime/start_path及回放初始last统一匹配原驱动夹爪0..0.08m命令范围，再计算同一时间轴；六关节值不变，原始position/load_trace/录制和文件保持，速度上限保持。126CPU通过；实际4543帧离线总时长221.88499→147.96229s，坏段74.064→0.14130s，逐帧六关节完全相等、原SHA5dbea210fa7fa0506316f3cdad92be1343e7d94e31da5fbd39dacaf8bad4151f不变。修复前未伪称限位故障。
+
+首次发现用户新录制f6e8b53活动，仅暂存；用户确认结束后，teleop.lock/实际无writer与motioninactive核对，两源码旧新SHA备份原子安装，下次回放生效；无Web/模型/硬件重启，无自动回放/归位/恢复或运动。真实运动验收仍由用户进行。证据cobot-web/outputs/replay-gripper-timing-20261116/{tests.log,actual-trace-check.json,staging.json,source-install.json}；现场cobot-web/runtime/verification/replay-gripper-timing-20261116保存staged/manifest与两个.before和安装回执。Guide只事实摘要，不提交push。
