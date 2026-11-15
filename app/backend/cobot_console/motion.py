@@ -47,7 +47,7 @@ class VideoArchive:
             if self.current or self.finalizing:raise ValueError("已有原视频录制")
             root=self.resolve(options.data_root or str(DATA/"videos/deployment"),create=True)
             folder=root/(identity+"-"+uuid4().hex[:8])
-            from capture_core.uncompressed_video import ThreeCameraVideo
+            from capture_core.video_process import ProcessVideo as ThreeCameraVideo
             video=ThreeCameraVideo(folder,metadata={"run_id":identity})
             self.current=video
         try:video.start()
