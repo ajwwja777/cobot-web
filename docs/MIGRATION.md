@@ -1130,3 +1130,12 @@ Control16f5361仅回放Monitor启用300ms确认窗口：只对mode2、teach0且a
 Control3ba24f0增加command_position，在retime/start_path及回放初始last统一匹配原驱动夹爪0..0.08m命令范围，再计算同一时间轴；六关节值不变，原始position/load_trace/录制和文件保持，速度上限保持。126CPU通过；实际4543帧离线总时长221.88499→147.96229s，坏段74.064→0.14130s，逐帧六关节完全相等、原SHA5dbea210fa7fa0506316f3cdad92be1343e7d94e31da5fbd39dacaf8bad4151f不变。修复前未伪称限位故障。
 
 首次发现用户新录制f6e8b53活动，仅暂存；用户确认结束后，teleop.lock/实际无writer与motioninactive核对，两源码旧新SHA备份原子安装，下次回放生效；无Web/模型/硬件重启，无自动回放/归位/恢复或运动。真实运动验收仍由用户进行。证据cobot-web/outputs/replay-gripper-timing-20261116/{tests.log,actual-trace-check.json,staging.json,source-install.json}；现场cobot-web/runtime/verification/replay-gripper-timing-20261116保存staged/manifest与两个.before和安装回执。Guide只事实摘要，不提交push。
+
+
+## 2026-11-16 cover_ducks_chaos 单帧右臂误录修正
+
+用户要求左臂动作段右臂静止。只读定位实际文件Getea1/jiaan/data/motion/replays/teleop-20261115T172432-d0d84cdd.jsonl（4257帧）：record44.460147s/index2223（第2224样本）right J3 -0.006140288→-0.852034736、J4 -0.06515334→0.066182536，一帧后完全恢复，其余约40–54s右臂保持。并非需要删除整段或更改左臂。
+
+在无活动motion及teleop.lock内先完整备份并SHA核验，只替换该样本right.position为前后相同姿态；逐行验证仅1样本变更、所有left字段/时间/帧数/header/footer/其他样本及右其他字段保持。core.load_trace和离线retime通过，目标段right保持、总回放144.85426→139.25496s。未启动运动或重启，用户继续选择原cover_ducks_chaos即可。原SHA72c966b49d4aa1a718899db52c356ff464f64e9a9e29d69eb4ca1f0e63aff892，新SHAef5cf6f28c27efc3db8a75fef61048c2ac05474cd810891915d0a746ca5dcf2f。不能仅凭坏反馈确定是人为误操作还是采样异常。
+
+原文件备份在Cobot /home/agilex/jiaan/project/cobot-web/runtime/verification/chaos-right-spike-20261116/teleop-20261115T172432-d0d84cdd.jsonl.before，edit-report.json同目录。A6000本项目outputs/chaos-right-spike-20261116/{edit-script.py,edit-report.json}记录完整证据。原始资产不进Git，guide仅摘要。
